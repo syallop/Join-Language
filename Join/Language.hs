@@ -1,6 +1,14 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
-module Join.Language where
+module Join.Language
+    ( Instruction(..)
+    , ProcessM
+    , def
+    , inert
+    , newChannel
+    , spawn
+    , with
+    ) where
 
 import Join.Language.Types
 
