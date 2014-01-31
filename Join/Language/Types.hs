@@ -1,5 +1,11 @@
 {-# LANGUAGE GADTs #-}
-module Join.Language.Types where
+module Join.Language.Types
+    (Channel(Channel)
+    ,Channels()
+    ,(&)
+    ,(&|)
+    ,single
+    )where
 
 -- | A typed Channel, uniquely identified by an Int
 data Channel a = Channel Int
@@ -25,3 +31,8 @@ infixr 7 &
 -- | Infix, cons a Channel to a final Channel.
 (&|) :: Channel a -> Channel b -> Channels (a,b)
 c &| d = c `ConsChannel` SingleChannel d
+
+-- | Prefix, 'promote' a single Channel to Channels
+single :: Channel a -> Channels a
+single = SingleChannel
+
