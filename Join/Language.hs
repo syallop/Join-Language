@@ -1,9 +1,10 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE RankNTypes #-}
 module Join.Language where
 
 import Join.Language.Types
 
-import Control.Monad.Operational (Program)
+import Control.Monad.Operational (Program,singleton)
 
 -- | Single primitive instructions in a join process.
 -- Constructors vaguely commented with intended semantics - how the
@@ -35,3 +36,23 @@ data Instruction a where
 -- | A single join Process. Implemented monadically over Instruction with the
 -- Operational Monad.
 type ProcessM a = Program Instruction a
+
+-- | Enter a single Def Instruction into ProcessM.
+def :: forall a. Channels a -> (a -> ProcessM ()) -> ProcessM ()
+def c p = singleton $ Def c p
+
+-- | Enter a single Inert Instruction into ProcessM.
+inert :: ProcessM ()
+inert = singleton Inert
+
+-- | Enter a single NewChannel Instruction into ProcessM.
+newChannel :: forall a. ProcessM (Channel a)
+newChannel = singleton NewChannel
+
+-- | Enter a single Spawn Instruction into ProcessM.
+spawn :: forall a. Channel a -> a -> ProcessM ()
+spawn c a = singleton $ Spawn c a
+
+-- | Enter a single With Instruction into ProcessM.
+with :: ProcessM () -> ProcessM () -> ProcessM ()
+with p q = singleton $ With p q
