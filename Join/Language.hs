@@ -15,7 +15,8 @@ module Join.Language
 
 import Join.Language.Types
 
-import Control.Monad.Operational (Program,ProgramViewT(..),singleton,view)
+import Control.Monad.IO.Class
+import Control.Monad.Operational (ProgramT,ProgramViewT(..),singleton,viewT)
 
 -- | Single primitive instructions in a join process.
 -- Constructors vaguely commented with intended semantics - how the
@@ -46,7 +47,7 @@ data Instruction a where
 
 -- | A single join Process. Implemented monadically over Instruction with the
 -- Operational Monad.
-type ProcessM a = Program Instruction a
+type ProcessM a = ProgramT Instruction IO a
 
 -- | Enter a single Def Instruction into ProcessM.
 def :: forall a. Channels a -> (a -> ProcessM ()) -> ProcessM ()
@@ -69,19 +70,21 @@ with :: ProcessM () -> ProcessM () -> ProcessM ()
 with p q = singleton $ With p q
 
 -- | Interpret a ProcessM computation with a given Interpretation.
-interpret :: Monad m => Interpretation m -> ProcessM a -> m ()
-interpret i m = case view m of
-    Return _ -> return ()
+interpret :: MonadIO io => Interpretation io -> ProcessM a -> io ()
+interpret i m = do inst <- liftIO $ viewT m
+                   case inst of
+                        Return _ -> return ()
 
-    Def        c p :>>= k -> iDef i c p >> interpret i (k ())
+                        Def        c p :>>= k -> iDef i c p >> interpret i (k ())
 
-    Inert          :>>= _ -> iInert i >> return ()
+                        Inert          :>>= _ -> iInert i >> return ()
 
-    NewChannel     :>>= k -> iNewChannel i >>= interpret i . k
+                        NewChannel     :>>= k -> iNewChannel i >>= interpret i . k
 
-    Spawn      c a :>>= k -> iSpawn i c a >> interpret i (k ())
+                        Spawn      c a :>>= k -> iSpawn i c a >> interpret i (k ())
 
-    With       p q :>>= k -> iWith i p q >> interpret i (k ())
+                        With       p q :>>= k -> iWith i p q >> interpret i (k ())
+
 
 -- | An Interpretation is a collection of functions used to interpret
 -- a ProcessM computation.

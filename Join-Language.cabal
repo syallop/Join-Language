@@ -17,4 +17,4 @@ cabal-version:       >=1.8
 library
   -- exposed-modules:     
   -- other-modules:       
-  build-depends:       base ==4.6.*, operational
+  build-depends:       base ==4.6.*, transformers, operational
