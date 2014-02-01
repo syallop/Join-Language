@@ -8,11 +8,14 @@ module Join.Language
     , newChannel
     , spawn
     , with
+
+    , Interpretation(..)
+    , interpret
     ) where
 
 import Join.Language.Types
 
-import Control.Monad.Operational (Program,singleton)
+import Control.Monad.Operational (Program,ProgramViewT(..),singleton,view)
 
 -- | Single primitive instructions in a join process.
 -- Constructors vaguely commented with intended semantics - how the
@@ -64,3 +67,28 @@ spawn c a = singleton $ Spawn c a
 -- | Enter a single With Instruction into ProcessM.
 with :: ProcessM () -> ProcessM () -> ProcessM ()
 with p q = singleton $ With p q
+
+-- | Interpret a ProcessM computation with a given Interpretation.
+interpret :: Monad m => Interpretation m -> ProcessM a -> m ()
+interpret i m = case view m of
+    Return _ -> return ()
+
+    Def        c p :>>= k -> iDef i c p >> interpret i (k ())
+
+    Inert          :>>= _ -> iInert i >> return ()
+
+    NewChannel     :>>= k -> iNewChannel i >>= interpret i . k
+
+    Spawn      c a :>>= k -> iSpawn i c a >> interpret i (k ())
+
+    With       p q :>>= k -> iWith i p q >> interpret i (k ())
+
+-- | An Interpretation is a collection of functions used to interpret
+-- a ProcessM computation.
+data Interpretation m = Interpretation
+    { iDef        :: forall a. Channels a -> (a -> ProcessM ()) -> m ()
+    , iInert      :: m ()
+    , iNewChannel :: forall a. m (Channel a)
+    , iSpawn      :: forall a. Channel a -> a -> m ()
+    , iWith       :: ProcessM () -> ProcessM () -> m ()
+    }
