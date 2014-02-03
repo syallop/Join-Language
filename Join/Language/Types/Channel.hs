@@ -1,6 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
-module Join.Language.Channel
+module Join.Language.Types.Channel
     (Channel(..)
     ,Spawnable(..)
     ) where

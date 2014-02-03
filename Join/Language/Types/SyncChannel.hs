@@ -1,10 +1,10 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
-module Join.Language.SyncChannel
+module Join.Language.Types.SyncChannel
     (SyncChannel(..)
     ) where
 
-import Join.Language.Channel
+import Join.Language.Types.Channel
 
 -- | A typed Synchronous channel. Internally encapsulates two channels
 -- where the first represents the Channel sent to, and the second the
