@@ -26,3 +26,4 @@ countDown n = do
 
     -- Instructions below ignored <= previous 'inert' instruction.
     spawn intChannel 1000
+

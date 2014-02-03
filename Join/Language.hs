@@ -10,6 +10,9 @@ module Join.Language
     , spawn
     , with
 
+    , newSyncChannel
+    , reply
+
     , Interpretation(..)
     , interpret
 
@@ -43,7 +46,8 @@ data Instruction a where
     NewChannel :: Instruction (Channel a) -- ^ Result in typed Channel, synchronous.
 
     -- | Spawn a value on a Channel.
-    Spawn      :: Channel a               -- ^ Channel spawned on.
+    Spawn      :: Spawnable c a
+               => c a                     -- ^ Channel spawned on.
                -> a                       -- ^ Value spawned.
                -> Instruction ()          -- ^ No result, asynchronous.
 
@@ -63,24 +67,24 @@ data Instruction a where
 -- '&|'.
 -- E.g. Matching on (a, b, c, ... ,n ,m) == (a & b & c &...n &| m)
 data ChannelPattern p where
-    LastChannel :: Channel a -> ChannelPattern (a -> ProcessM ())
-    AndChannels :: Channel a -> ChannelPattern p -> ChannelPattern (a -> p)
+    LastChannel :: Spawnable c a => c a -> ChannelPattern (a -> ProcessM ())
+    AndChannels :: Spawnable c a => c a -> ChannelPattern p -> ChannelPattern (a -> p)
 
 instance Show (ChannelPattern p) where
     show (LastChannel c   ) = show c
     show (AndChannels c cs) = show c ++ " & " ++ show cs
 
 -- | Infix, cons a Channel to a ChannelPattern.
-(&) :: Channel a -> ChannelPattern p -> ChannelPattern (a -> p)
+(&) :: Spawnable c a => c a -> ChannelPattern p -> ChannelPattern (a -> p)
 c & cs = c `AndChannels` cs
 infixr 7 &
 
 -- | Infix, cons a Channel to a final Channel of a ChannelPattern.
-(&|) :: Channel a -> Channel b -> ChannelPattern (a -> b -> ProcessM ())
+(&|) :: (Spawnable c0 a, Spawnable c1 b) => c0 a -> c1 b -> ChannelPattern (a -> b -> ProcessM ())
 c &| d = c & LastChannel d
 
 -- | 'Promote' a single Channel to a ChannelPattern.
-on :: Channel a -> ChannelPattern (a -> ProcessM ())
+on :: Spawnable c a => c a -> ChannelPattern (a -> ProcessM ())
 on = LastChannel
 
 
@@ -102,12 +106,24 @@ newChannel :: forall a. ProcessM (Channel a)
 newChannel = singleton NewChannel
 
 -- | Enter a single Spawn Instruction into ProcessM.
-spawn :: forall a. Channel a -> a -> ProcessM ()
+spawn :: forall c a. Spawnable c a => c a -> a -> ProcessM ()
 spawn c a = singleton $ Spawn c a
 
 -- | Enter a single With Instruction into ProcessM.
 with :: ProcessM () -> ProcessM () -> ProcessM ()
 with p q = singleton $ With p q
+
+
+-- | Request a new Synchronous Channel in ProcessM.
+newSyncChannel :: ProcessM (SyncChannel a)
+newSyncChannel = do
+    s <- newChannel
+    r <- newChannel
+    return $ SyncChannel s r
+
+-- | Spawn a message on the reply channel of a synchronous channel.
+reply :: SyncChannel a -> a -> ProcessM ()
+reply (SyncChannel _ r) = spawn r
 
 -- | Interpret a ProcessM computation with a given Interpretation.
 interpret :: MonadIO io => Interpretation io -> ProcessM a -> io ()
@@ -131,7 +147,7 @@ data Interpretation m = Interpretation
     { iDef        :: forall p. ChannelPattern p -> p -> m ()
     , iInert      :: m ()
     , iNewChannel :: forall a. m (Channel a)
-    , iSpawn      :: forall a. Channel a -> a -> m ()
+    , iSpawn      :: forall c a. Spawnable c a => c a -> a -> m ()
     , iWith       :: ProcessM () -> ProcessM () -> m ()
     }
 
