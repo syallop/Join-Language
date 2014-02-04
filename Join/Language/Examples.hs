@@ -13,10 +13,10 @@ countDown n = do
     --  When there's an int on intChannel: 
     --    print it. If 0, do nothing.
     --    Otherwise spawn a de-incremented int on intChannel.
-    def (on intChannel) (\i -> do liftIO $ print i
-                                  if i == 0
-                                    then inert
-                                    else spawn intChannel (i-1))
+    def (on $ All intChannel) (\i -> do liftIO $ print i
+                                        if i == 0
+                                          then inert
+                                          else spawn intChannel (i-1))
 
     -- Spawn the starting number on intChannel.
     spawn intChannel n

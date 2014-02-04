@@ -16,6 +16,7 @@ module Join.Language
     , Interpretation(..)
     , interpret
 
+    , DefPattern(..)
     , ChannelPattern(..)
     , on
     , (&)
@@ -35,7 +36,7 @@ import Control.Monad.Operational (ProgramT,ProgramViewT(..),singleton,viewT)
 data Instruction a where
 
     -- | Join definition.
-    Def        :: ChannelPattern p        -- ^ Channels matched for.
+    Def        :: DefPattern p            -- ^ Channels matched for.
                -> p                       -- ^ Handler function called.
                -> Instruction ()          -- ^ No result, asynchronous.
 
@@ -57,35 +58,43 @@ data Instruction a where
                -> Instruction ()          -- ^ No result, asynchronous execution of both Processes.
 
 
-
--- | A patten of one or many Channel's. Type variable denotes the type of
--- a function which accepts the type of each conjunctive Channel in order
--- and produces a ProcessM (). This type corresponds to the type of the
--- function in the RHS of a join definition.
+-- | A pattern of one or many patterns on Channels. Type variable denotes
+-- the type of a function accepting the type of each conjunctive Channel in
+-- order and produces a ProcessM (). This type corresponds to the type of
+-- the function in the RHS of a join definition.
 --
--- For convenience, a ChannelPattern may be built using 'on' and infix functions '&'
--- '&|'.
--- E.g. Matching on (a, b, c, ... ,n ,m) == (a & b & c &...n &| m)
-data ChannelPattern p where
-    LastChannel :: Spawnable c a => c a -> ChannelPattern (a -> ProcessM ())
-    AndChannels :: Spawnable c a => c a -> ChannelPattern p -> ChannelPattern (a -> p)
+-- For convenience, a DefPattern may be built using 'on' and infix
+-- functions '&' and '&|'.
+-- E.G. Matching on (a, b, c, ..., n, m) == (a & b & c & ...n &| m)
+data DefPattern p where
+    LastPattern :: Spawnable c a => ChannelPattern c a -> DefPattern (a -> ProcessM ())
+    AndPattern  :: Spawnable c a => ChannelPattern c a -> DefPattern b -> DefPattern (a -> b)
 
-instance Show (ChannelPattern p) where
-    show (LastChannel c   ) = show c
-    show (AndChannels c cs) = show c ++ " & " ++ show cs
+data ChannelPattern c a where
+    All  :: c a -> ChannelPattern c a
+    Only :: Eq a => c a -> a -> ChannelPattern c a
+
+instance Show (DefPattern p) where
+    show (LastPattern (All c))    = show c
+    show (LastPattern (Only c _)) = show c ++ "=value"
+
+    show (AndPattern (All c) d) = show c ++ " & " ++ show d
+    show (AndPattern (Only c _) d) = show c ++ "=value" ++ " & " ++ show d
 
 -- | Infix, cons a Channel to a ChannelPattern.
-(&) :: Spawnable c a => c a -> ChannelPattern p -> ChannelPattern (a -> p)
-c & cs = c `AndChannels` cs
+(&) :: Spawnable c a => ChannelPattern c a -> DefPattern p -> DefPattern (a -> p)
+p & ps = p `AndPattern` ps
 infixr 7 &
 
 -- | Infix, cons a Channel to a final Channel of a ChannelPattern.
-(&|) :: (Spawnable c0 a, Spawnable c1 b) => c0 a -> c1 b -> ChannelPattern (a -> b -> ProcessM ())
-c &| d = c & LastChannel d
+{-(&|) :: (Spawnable c0 a, Spawnable c1 b) => c0 a -> c1 b -> ChannelPattern (a -> b -> ProcessM ())-}
+(&|) :: (Spawnable c0 a, Spawnable c1 b) => ChannelPattern c0 a -> ChannelPattern c1 b -> DefPattern (a -> b -> ProcessM ())
+c &| d = c & LastPattern d
 
 -- | 'Promote' a single Channel to a ChannelPattern.
-on :: Spawnable c a => c a -> ChannelPattern (a -> ProcessM ())
-on = LastChannel
+on :: Spawnable c a => ChannelPattern c a -> DefPattern (a -> ProcessM ())
+on = LastPattern
+
 
 
 
@@ -94,7 +103,7 @@ on = LastChannel
 type ProcessM a = ProgramT Instruction IO a
 
 -- | Enter a single Def Instruction into ProcessM.
-def :: forall p. ChannelPattern p -> p -> ProcessM ()
+def :: forall p. DefPattern p -> p -> ProcessM ()
 def c p = singleton $ Def c p
 
 -- | Enter a single Inert Instruction into ProcessM.
@@ -144,7 +153,7 @@ interpret i m = do inst <- liftIO $ viewT m
 -- | An Interpretation is a collection of functions used to interpret
 -- a ProcessM computation.
 data Interpretation m = Interpretation
-    { iDef        :: forall p. ChannelPattern p -> p -> m ()
+    { iDef        :: forall p. DefPattern p -> p -> m ()
     , iInert      :: m ()
     , iNewChannel :: forall a. m (Channel a)
     , iSpawn      :: forall c a. Spawnable c a => c a -> a -> m ()
