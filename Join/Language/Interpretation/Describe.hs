@@ -15,6 +15,7 @@ describe = Interpretation
     , iSpawn      = \p -> do putStrLn "Asynchronously spawn ("
                              interpret describe p
                              putStrLn ")"
+    , iWait       = \s -> putStrLn ("Wait for a reply on " ++ show s) >> return undefined
     , iWith       = \ p q -> do putStrLn "Simultaneously run: ( "
                                 interpret describe p
                                 putStr ", "

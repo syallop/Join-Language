@@ -9,6 +9,7 @@ module Join.Language
     , newChannel
     , send
     , spawn
+    , wait
     , with
 
     , newSyncChannel
@@ -55,8 +56,14 @@ data Instruction a where
                -> Instruction ()         -- ^ No result, asynchronous.
 
     -- | Asynchronously spawn a Process.
-    Spawn :: ProcessM ()                 -- ^ Process to spawn.
-          -> Instruction ()
+    Spawn      :: ProcessM ()            -- ^ Process to spawn.
+               -> Instruction ()
+
+    -- Synchronously wait for a value.
+    -- Instruction provided for convenience, same result can be achieved
+    -- using nested continuation passing.
+    Wait       :: SyncChannel a         -- ^ SyncChannel to wait on
+               -> Instruction a
 
     -- | Concurrently execute two Process's.
     With       :: ProcessM ()             -- ^ First process.
@@ -128,6 +135,10 @@ send c a = singleton $ Send c a
 spawn :: ProcessM () -> ProcessM ()
 spawn p = singleton $ Spawn p
 
+-- | Enter a single Wait Instruction into ProcessM.
+wait :: SyncChannel a -> ProcessM a
+wait s = singleton $ Wait s
+
 -- | Enter a single With Instruction into ProcessM.
 with :: ProcessM () -> ProcessM () -> ProcessM ()
 with p q = singleton $ With p q
@@ -156,6 +167,7 @@ reply (SyncChannel _ r) = send r
 onReply :: SyncChannel a -> (a -> ProcessM ()) -> ProcessM ()
 onReply (SyncChannel _ r) = def (on $ All r)
 
+
 -- | Interpret a ProcessM computation with a given Interpretation.
 interpret :: MonadIO io => Interpretation io -> ProcessM a -> io ()
 interpret i m = do inst <- liftIO $ viewT m
@@ -172,6 +184,8 @@ interpret i m = do inst <- liftIO $ viewT m
 
                         Spawn      p   :>>= k -> iSpawn i p >> interpret i (k ())
 
+                        Wait       s   :>>= k -> iWait i s >>= interpret i . k
+
                         With       p q :>>= k -> iWith i p q >> interpret i (k ())
 
 -- | An Interpretation is a collection of functions used to interpret
@@ -182,6 +196,7 @@ data Interpretation m = Interpretation
     , iNewChannel :: forall a. m (Channel a)
     , iSend       :: forall c a. ChannelLike c a => c a -> a -> m ()
     , iSpawn      :: ProcessM () -> m ()
+    , iWait       :: forall a. SyncChannel a -> m a
     , iWith       :: ProcessM () -> ProcessM () -> m ()
     }
 
