@@ -13,6 +13,7 @@ module Join.Language
 
     , newSyncChannel
     , reply
+    , onReply
 
     , Interpretation(..)
     , interpret
@@ -142,6 +143,18 @@ newSyncChannel = do
 -- | Spawn a message on the reply channel of a synchronous channel.
 reply :: SyncChannel a -> a -> ProcessM ()
 reply (SyncChannel _ r) = send r
+
+-- | Helper for continuation style programming with SyncChannels.
+-- E.G., given:
+--
+-- do s <- newSyncChannel
+--    def (on $ All s) (\x -> do liftIO $ print x
+--                               reply s (x+1))
+--    onReply s (liftIO . print)
+--
+-- sending an Int value on s will print it as well as it's successor.
+onReply :: SyncChannel a -> (a -> ProcessM ()) -> ProcessM ()
+onReply (SyncChannel _ r) = def (on $ All r)
 
 -- | Interpret a ProcessM computation with a given Interpretation.
 interpret :: MonadIO io => Interpretation io -> ProcessM a -> io ()
