@@ -16,14 +16,14 @@ countDown n = do
     def (on $ All intChannel) (\i -> do liftIO $ print i
                                         if i == 0
                                           then inert
-                                          else spawn intChannel (i-1))
+                                          else send intChannel (i-1))
 
     -- Spawn the starting number on intChannel.
-    spawn intChannel n
+    send intChannel n
 
     -- Become inert.
     inert
 
     -- Instructions below ignored <= previous 'inert' instruction.
-    spawn intChannel 1000
+    send intChannel 1000
 

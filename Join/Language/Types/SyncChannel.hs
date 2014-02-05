@@ -15,6 +15,6 @@ data SyncChannel a = SyncChannel (Channel a) (Channel a)
 instance Show (SyncChannel a) where
     show (SyncChannel (Channel i) (Channel j)) = "SyncChannel-(" ++ show i ++ "," ++ show j ++ ")"
 
-instance Spawnable SyncChannel a where
+instance ChannelLike SyncChannel a where
     getChannel (SyncChannel c _) = c
 

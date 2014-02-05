@@ -7,6 +7,7 @@ module Join.Language
     , def
     , inert
     , newChannel
+    , send
     , spawn
     , with
 
@@ -46,11 +47,15 @@ data Instruction a where
     -- | Request a new typed Channel.
     NewChannel :: Instruction (Channel a) -- ^ Result in typed Channel, synchronous.
 
-    -- | Spawn a value on a Channel.
-    Spawn      :: Spawnable c a
-               => c a                     -- ^ Channel spawned on.
-               -> a                       -- ^ Value spawned.
-               -> Instruction ()          -- ^ No result, asynchronous.
+    -- | Sens a value to a Channel.
+    Send       :: ChannelLike c a
+               => c a                    -- ^ Target channel.
+               -> a                      -- ^ Value sent
+               -> Instruction ()         -- ^ No result, asynchronous.
+
+    -- | Asynchronously spawn a Process.
+    Spawn :: ProcessM ()                 -- ^ Process to spawn.
+          -> Instruction ()
 
     -- | Concurrently execute two Process's.
     With       :: ProcessM ()             -- ^ First process.
@@ -67,8 +72,8 @@ data Instruction a where
 -- functions '&' and '&|'.
 -- E.G. Matching on (a, b, c, ..., n, m) == (a & b & c & ...n &| m)
 data DefPattern p where
-    LastPattern :: Spawnable c a => ChannelPattern c a -> DefPattern (a -> ProcessM ())
-    AndPattern  :: Spawnable c a => ChannelPattern c a -> DefPattern b -> DefPattern (a -> b)
+    LastPattern :: ChannelLike c a => ChannelPattern c a -> DefPattern (a -> ProcessM ())
+    AndPattern  :: ChannelLike c a => ChannelPattern c a -> DefPattern b -> DefPattern (a -> b)
 
 data ChannelPattern c a where
     All  :: c a -> ChannelPattern c a
@@ -82,17 +87,17 @@ instance Show (DefPattern p) where
     show (AndPattern (Only c _) d) = show c ++ "=value" ++ " & " ++ show d
 
 -- | Infix, cons a Channel to a ChannelPattern.
-(&) :: Spawnable c a => ChannelPattern c a -> DefPattern p -> DefPattern (a -> p)
+(&) :: ChannelLike c a => ChannelPattern c a -> DefPattern p -> DefPattern (a -> p)
 p & ps = p `AndPattern` ps
 infixr 7 &
 
 -- | Infix, cons a Channel to a final Channel of a ChannelPattern.
 {-(&|) :: (Spawnable c0 a, Spawnable c1 b) => c0 a -> c1 b -> ChannelPattern (a -> b -> ProcessM ())-}
-(&|) :: (Spawnable c0 a, Spawnable c1 b) => ChannelPattern c0 a -> ChannelPattern c1 b -> DefPattern (a -> b -> ProcessM ())
+(&|) :: (ChannelLike c0 a, ChannelLike c1 b) => ChannelPattern c0 a -> ChannelPattern c1 b -> DefPattern (a -> b -> ProcessM ())
 c &| d = c & LastPattern d
 
 -- | 'Promote' a single Channel to a ChannelPattern.
-on :: Spawnable c a => ChannelPattern c a -> DefPattern (a -> ProcessM ())
+on :: ChannelLike c a => ChannelPattern c a -> DefPattern (a -> ProcessM ())
 on = LastPattern
 
 
@@ -114,9 +119,13 @@ inert = singleton Inert
 newChannel :: forall a. ProcessM (Channel a)
 newChannel = singleton NewChannel
 
+-- | Enter a single Send Instruction into ProcessM.
+send :: forall c a. ChannelLike c a => c a -> a -> ProcessM ()
+send c a = singleton $ Send c a
+
 -- | Enter a single Spawn Instruction into ProcessM.
-spawn :: forall c a. Spawnable c a => c a -> a -> ProcessM ()
-spawn c a = singleton $ Spawn c a
+spawn :: ProcessM () -> ProcessM ()
+spawn p = singleton $ Spawn p
 
 -- | Enter a single With Instruction into ProcessM.
 with :: ProcessM () -> ProcessM () -> ProcessM ()
@@ -132,7 +141,7 @@ newSyncChannel = do
 
 -- | Spawn a message on the reply channel of a synchronous channel.
 reply :: SyncChannel a -> a -> ProcessM ()
-reply (SyncChannel _ r) = spawn r
+reply (SyncChannel _ r) = send r
 
 -- | Interpret a ProcessM computation with a given Interpretation.
 interpret :: MonadIO io => Interpretation io -> ProcessM a -> io ()
@@ -146,7 +155,9 @@ interpret i m = do inst <- liftIO $ viewT m
 
                         NewChannel     :>>= k -> iNewChannel i >>= interpret i . k
 
-                        Spawn      c a :>>= k -> iSpawn i c a >> interpret i (k ())
+                        Send       c a :>>= k -> iSend i c a >> interpret i (k ())
+
+                        Spawn      p   :>>= k -> iSpawn i p >> interpret i (k ())
 
                         With       p q :>>= k -> iWith i p q >> interpret i (k ())
 
@@ -156,7 +167,8 @@ data Interpretation m = Interpretation
     { iDef        :: forall p. DefPattern p -> p -> m ()
     , iInert      :: m ()
     , iNewChannel :: forall a. m (Channel a)
-    , iSpawn      :: forall c a. Spawnable c a => c a -> a -> m ()
+    , iSend       :: forall c a. ChannelLike c a => c a -> a -> m ()
+    , iSpawn      :: ProcessM () -> m ()
     , iWith       :: ProcessM () -> ProcessM () -> m ()
     }
 
