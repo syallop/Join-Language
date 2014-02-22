@@ -1,6 +1,9 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeOperators #-}
+
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 module Join.Language
     ( Instruction(..)
     , ProcessM
@@ -24,6 +27,9 @@ module Join.Language
     , on
     , (&)
     , (&|)
+
+    , Apply
+    , apply
     ) where
 
 import Join.Language.Types
@@ -31,6 +37,8 @@ import Join.Language.Types
 import Control.Monad.IO.Class
 import Control.Monad.Operational (ProgramT,ProgramViewT(..),singleton,viewT)
 
+import Data.ByteString (ByteString)
+import Data.Serialize
 
 -- | Single primitive instructions in a join process.
 -- Constructors vaguely commented with intended semantics - how the
@@ -39,7 +47,8 @@ import Control.Monad.Operational (ProgramT,ProgramViewT(..),singleton,viewT)
 data Instruction a where
 
     -- | Join definition.
-    Def        :: DefPattern p            -- ^ Channels matched for.
+    Def        :: Apply p
+               => DefPattern p            -- ^ Channels matched for.
                -> p                       -- ^ Handler function called.
                -> Instruction ()          -- ^ No result, asynchronous.
 
@@ -50,7 +59,8 @@ data Instruction a where
     NewChannel :: Instruction (Channel a) -- ^ Result in typed Channel, synchronous.
 
     -- | Sends a value to a Channel.
-    Send       :: Channel a               -- ^ Target channel.
+    Send       :: Serialize a
+               => Channel a               -- ^ Target channel.
                -> a                       -- ^ Value sent
                -> Instruction ()          -- ^ No result, asynchronous.
 
@@ -59,12 +69,14 @@ data Instruction a where
                -> Instruction ()
 
     -- | Send a value on a SyncChannel and synchronously wait for a result.
-    Sync       :: SyncChannel a           -- ^ SyncChannel to wait on.
+    Sync       :: Serialize a
+               => SyncChannel a           -- ^ SyncChannel to wait on.
                -> a                       -- ^ Initial Value to send.
                -> Instruction a
 
     -- | Send a reply value on a synchronous channel.
-    Reply      :: SyncChannel a           -- ^ SyncChannel to reply to.
+    Reply      :: Serialize a
+               => SyncChannel a           -- ^ SyncChannel to reply to.
                -> a                       -- ^ Value to reply with.
                -> Instruction ()
 
@@ -73,6 +85,16 @@ data Instruction a where
                -> ProcessM ()             -- ^ Second process.
                -> Instruction ()          -- ^ No result, asynchronous execution of both Processes.
 
+
+class Apply f where apply :: f -> [ByteString] -> ProcessM ()
+instance Apply (ProcessM ()) where
+    apply p [] = p
+    apply _ _  = error "Remaining arguments"
+instance (Serialize a, Apply r) => Apply (a -> r) where
+    apply p (m:ms) = case decode m of
+        Left _  -> error "Mistyped argument"
+        Right v -> apply (p v) ms
+    apply _ [] = error "Too few arguments"
 
 -- | A pattern of one or many patterns on Channels. Type variable denotes
 -- the type of a function accepting the type of each conjunctive Channel in
@@ -119,7 +141,7 @@ on = LastPattern
 type ProcessM a = ProgramT Instruction IO a
 
 -- | Enter a single Def Instruction into ProcessM.
-def :: forall p. DefPattern p -> p -> ProcessM ()
+def :: forall p. Apply p => DefPattern p -> p -> ProcessM ()
 def c p = singleton $ Def c p
 
 -- | Enter a single Inert Instruction into ProcessM.
@@ -131,7 +153,7 @@ newChannel :: forall a. ProcessM (Channel a)
 newChannel = singleton NewChannel
 
 -- | Enter a single Send Instruction into ProcessM.
-send :: forall a. Channel a -> a -> ProcessM ()
+send :: forall a. Serialize a => Channel a -> a -> ProcessM ()
 send c a = singleton $ Send c a
 
 -- | Enter a single Spawn Instruction into ProcessM.
@@ -139,11 +161,11 @@ spawn :: ProcessM () -> ProcessM ()
 spawn p = singleton $ Spawn p
 
 -- | Enter a single Sync Instruction into ProcessM.
-sync :: SyncChannel a -> a -> ProcessM a
+sync :: Serialize a => SyncChannel a -> a -> ProcessM a
 sync s a = singleton $ Sync s a
 
 -- | Enter a single Reply Instruction into ProcessM.
-reply :: SyncChannel a -> a -> ProcessM ()
+reply :: Serialize a => SyncChannel a -> a -> ProcessM ()
 reply s a = singleton $ Reply s a
 
 -- | Enter a single With Instruction into ProcessM.
@@ -166,7 +188,7 @@ newSyncChannel = do
 --    onReply s (liftIO . print)
 --
 -- sending an Int value on s will print it as well as it's successor.
-onReply :: Channel a -> (a -> ProcessM ()) -> ProcessM ()
+onReply :: Serialize a => Channel a -> (a -> ProcessM ()) -> ProcessM ()
 onReply c = def (on $ All c)
 
 -- | Interpret a ProcessM computation with a given Interpretation.

@@ -1,6 +1,7 @@
 module Join.Language.Examples where
 
 import Join.Language
+import Join.Language.Types
 
 import Control.Monad.IO.Class
 
@@ -36,3 +37,4 @@ fibonacci i = do
                                         j <- sync fib (n-1)
                                         reply fib (i+j))
     sync fib i
+
