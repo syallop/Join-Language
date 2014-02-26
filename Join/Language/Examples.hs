@@ -34,7 +34,7 @@ fibonacci i = do
     def (on $ All fib) (\n -> if n <= 1
                                 then reply fib 1
                                 else do i <- sync fib (n-1)
-                                        j <- sync fib (n-1)
+                                        j <- sync fib (n-2)
                                         reply fib (i+j))
     sync fib i
 
