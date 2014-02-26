@@ -1,5 +1,5 @@
 {-# LANGUAGE GADTs #-}
-module Join.Language.Interpretation.Describe where
+module Join.Interpretation.Describe where
 
 import Join.Language
 import Join.Language.Types
