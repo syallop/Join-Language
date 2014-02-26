@@ -52,9 +52,6 @@ data Instruction a where
                -> p                       -- ^ Handler function called.
                -> Instruction ()          -- ^ No result, asynchronous.
 
-    -- | End process.
-    Inert      :: Instruction ()          -- ^ No result, end interpretation of ProcessM.
-
     -- | Request a new typed Channel.
     NewChannel :: Instruction (Channel a) -- ^ Result in typed Channel, synchronous.
 
@@ -146,7 +143,7 @@ def c p = singleton $ Def c p
 
 -- | Enter a single Inert Instruction into ProcessM.
 inert :: ProcessM ()
-inert = singleton Inert
+inert = return ()
 
 -- | Enter a single NewChannel Instruction into ProcessM.
 newChannel :: forall a. ProcessM (Channel a)
@@ -199,8 +196,6 @@ interpret i m = do inst <- liftIO $ viewT m
 
                         Def        c p :>>= k -> iDef i c p >> interpret i (k ())
 
-                        Inert          :>>= _ -> iInert i >> return ()
-
                         NewChannel     :>>= k -> iNewChannel i >>= interpret i . k
 
                         Send       c a :>>= k -> iSend i c a >> interpret i (k ())
@@ -217,7 +212,6 @@ interpret i m = do inst <- liftIO $ viewT m
 -- a ProcessM computation.
 data Interpretation m = Interpretation
     { iDef        :: forall p. DefPattern p -> p -> m ()
-    , iInert      :: m ()
     , iNewChannel :: forall a. m (Channel a)
     , iSend       :: forall a. Channel a -> a -> m ()
     , iSpawn      :: ProcessM () -> m ()

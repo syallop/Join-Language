@@ -9,7 +9,6 @@ import Control.Monad (void)
 describe :: Interpretation IO
 describe = Interpretation
     { iDef        = \c _ -> void $ putStrLn $ "Define a pattern for " ++ show c
-    , iInert      = putStrLn "End."
     , iNewChannel = putStrLn "Request new Channel" >> return (Channel 0)
     , iSend       = \c _ -> void $ putStrLn $ "Send a value on " ++ show c
     , iSpawn      = \p -> do putStrLn "Asynchronously spawn ("
