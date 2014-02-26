@@ -19,9 +19,6 @@ module Join.Language
     , newSyncChannel
     , onReply
 
-    , Interpretation(..)
-    , interpret
-
     , DefPattern(..)
     , ChannelPattern(..)
     , on
@@ -34,8 +31,7 @@ module Join.Language
 
 import Join.Language.Types
 
-import Control.Monad.IO.Class
-import Control.Monad.Operational (ProgramT,ProgramViewT(..),singleton,viewT)
+import Control.Monad.Operational (ProgramT,singleton)
 
 import Data.ByteString (ByteString)
 import Data.Serialize
@@ -187,36 +183,4 @@ newSyncChannel = do
 -- sending an Int value on s will print it as well as it's successor.
 onReply :: Serialize a => Channel a -> (a -> ProcessM ()) -> ProcessM ()
 onReply c = def (on $ All c)
-
--- | Interpret a ProcessM computation with a given Interpretation.
-interpret :: MonadIO io => Interpretation io -> ProcessM a -> io ()
-interpret i m = do inst <- liftIO $ viewT m
-                   case inst of
-                        Return _ -> return ()
-
-                        Def        c p :>>= k -> iDef i c p >> interpret i (k ())
-
-                        NewChannel     :>>= k -> iNewChannel i >>= interpret i . k
-
-                        Send       c a :>>= k -> iSend i c a >> interpret i (k ())
-
-                        Spawn      p   :>>= k -> iSpawn i p >> interpret i (k ())
-
-                        Sync       s a :>>= k -> iSync i s a >>= interpret i . k
-
-                        Reply      s a :>>= k -> iReply i s a >> interpret i (k ())
-
-                        With       p q :>>= k -> iWith i p q >> interpret i (k ())
-
--- | An Interpretation is a collection of functions used to interpret
--- a ProcessM computation.
-data Interpretation m = Interpretation
-    { iDef        :: forall p. DefPattern p -> p -> m ()
-    , iNewChannel :: forall a. m (Channel a)
-    , iSend       :: forall a. Channel a -> a -> m ()
-    , iSpawn      :: ProcessM () -> m ()
-    , iSync       :: forall a. SyncChannel a -> a -> m a
-    , iReply      :: forall a. SyncChannel a -> a -> m ()
-    , iWith       :: ProcessM () -> ProcessM () -> m ()
-    }
 

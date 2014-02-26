@@ -25,9 +25,6 @@ countDown n = do
     -- Become inert.
     inert
 
-    -- Instructions below ignored <= previous 'inert' instruction.
-    send intChannel 1000
-
 fibonacci :: Int -> ProcessM Int
 fibonacci i = do
     fib <- newSyncChannel

@@ -1,26 +1,53 @@
+{-# LANGUAGE GADTs #-}
 module Join.Language.Interpretation.Describe where
 
 import Join.Language
 import Join.Language.Types
 
-import Control.Monad (void)
+import Control.Monad.Operational
+import Data.Serialize (encode)
 
 -- | Interpret a ProcessM by describing each instruction on stdout.
-describe :: Interpretation IO
-describe = Interpretation
-    { iDef        = \c _ -> void $ putStrLn $ "Define a pattern for " ++ show c
-    , iNewChannel = putStrLn "Request new Channel" >> return (Channel 0)
-    , iSend       = \c _ -> void $ putStrLn $ "Send a value on " ++ show c
-    , iSpawn      = \p -> do putStrLn "Asynchronously spawn ("
-                             interpret describe p
-                             putStrLn ")"
-    , iSync       = \s _ -> do putStrLn $ "Synchronously send a value on: " ++ show s
-                               return undefined
-    , iReply      = \s _ -> putStrLn $ "Asynchronously reply a value to: " ++ show s
-    , iWith       = \ p q -> do putStrLn "Simultaneously run: ( "
-                                interpret describe p
-                                putStr ", "
-                                interpret describe q
-                                putStrLn ")"
-    }
+-- Does not describe triggered ProcessM's on RHS of Def patterns.
+describe :: ProcessM a -> IO ()
+describe = describe' 0
+  where
+    describe' :: Int -> ProcessM a -> IO ()
+    describe' i p = do
+        instr <- viewT p
+        case instr of
+            Return a  -> putStrLn "Terminate Process."
+
+            Def dp p
+                :>>= k -> do putStrLn $ "Def{" ++ show dp ++ "} -> {PROCESS}"
+                             describe' i (k ())
+            NewChannel
+                :>>= k -> do putStrLn "NewChannel"
+                             describe' (i+1) (k (Channel i))
+
+            Send c m
+                :>>= k -> do putStrLn $ "Send " ++ show c ++ show (encode m)
+                             describe' i (k ())
+
+            Spawn p
+                :>>= k -> do putStrLn "Spawn:{"
+                             describe' i p
+                             putStrLn "}"
+                             describe' i (k ())
+
+            Sync s m
+                :>>= k -> do putStrLn $ "Sync " ++ show s ++ show (encode m)
+                             describe' i (k undefined)
+
+            Reply s m
+                :>>= k -> do putStrLn $ "Reply " ++ show s ++ show (encode m)
+                             describe' i (k ())
+
+            With p q
+                :>>= k -> do putStrLn "{"
+                             describe' i p
+                             putStrLn "} && {"
+                             describe' i q
+                             putStrLn "}"
+                             describe' i (k ())
 
