@@ -8,9 +8,8 @@ import Join.Language.Types.Channel
 
 import Data.Serialize
 
--- | A typed Synchronous channel. Internally encapsulates two channels
--- where the first represents the Channel sent to, and the second the
--- channel replied on.
+-- | A typed Synchronous channel on which messages may be sent, and a reply
+-- is synchronously waited for.
 data SyncChannel a = SyncChannel (Channel a)
     deriving (Eq,Ord)
 

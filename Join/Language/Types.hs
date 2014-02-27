@@ -4,4 +4,5 @@ module Join.Language.Types
 
 import Join.Language.Types.Channel     as I
 import Join.Language.Types.SyncChannel as I
+import Join.Language.Types.SyncVal     as I
 

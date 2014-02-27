@@ -32,6 +32,7 @@ fibonacci i = do
                                 then reply fib 1
                                 else do i <- sync fib (n-1)
                                         j <- sync fib (n-2)
-                                        reply fib (i+j))
-    sync fib i
 
+                                        reply fib (wait i + wait j))
+    r <- sync fib i
+    return $ wait r

@@ -65,7 +65,7 @@ data Instruction a where
     Sync       :: Serialize a
                => SyncChannel a           -- ^ SyncChannel to wait on.
                -> a                       -- ^ Initial Value to send.
-               -> Instruction a
+               -> Instruction (SyncVal a)
 
     -- | Send a reply value on a synchronous channel.
     Reply      :: Serialize a
@@ -88,6 +88,7 @@ instance (Serialize a, Apply r) => Apply (a -> r) where
         Left _  -> error "Mistyped argument"
         Right v -> apply (p v) ms
     apply _ [] = error "Too few arguments"
+
 
 -- | A pattern of one or many patterns on Channels. Type variable denotes
 -- the type of a function accepting the type of each conjunctive Channel in
@@ -154,7 +155,7 @@ spawn :: ProcessM () -> ProcessM ()
 spawn p = singleton $ Spawn p
 
 -- | Enter a single Sync Instruction into ProcessM.
-sync :: Serialize a => SyncChannel a -> a -> ProcessM a
+sync :: Serialize a => SyncChannel a -> a -> ProcessM (SyncVal a)
 sync s a = singleton $ Sync s a
 
 -- | Enter a single Reply Instruction into ProcessM.

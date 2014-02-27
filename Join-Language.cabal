@@ -22,3 +22,5 @@ library
                      , operational
                      , bytestring
                      , cereal
+                     , ivar-simple
+                     , containers
