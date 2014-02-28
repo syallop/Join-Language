@@ -76,8 +76,8 @@ newtype MsgQueue = MsgQueue {unMsgQueue :: Map ChanId Msgs}
 newChanId :: IO ChanId
 newChanId = ChanId <$> hashUnique <$> newUnique
 
-mkChanId :: Channel a -> ChanId
-mkChanId (Channel i) = ChanId i
+mkChanId :: Channel t a -> ChanId
+mkChanId = ChanId . getId
 
 -- | Get an Int representation of a ChanId.
 getChanId :: ChanId -> Int
@@ -116,9 +116,9 @@ data MatchRule = forall f. Apply f => MatchRule ChanMatches f
 type MatchRules = [MatchRule]
 
 -- | From a Language ChannelPattern, build an internal ChanMatch.
-mkChanMatch :: ChannelLike c a => ChannelPattern c a -> ChanMatch
-mkChanMatch (All  c  ) = let (Channel i) = getChannel c in ChanMatch (ChanId i, Nothing)
-mkChanMatch (Only c a) = let (Channel i) = getChannel c in ChanMatch (ChanId i, Just $ mkMsgData a)
+mkChanMatch :: Serialize a => ChannelPattern a -> ChanMatch
+mkChanMatch (All  c  ) = let i = getId c in ChanMatch (ChanId i, Nothing)
+mkChanMatch (Only c a) = let i = getId c in ChanMatch (ChanId i, Just $ mkMsgData a)
 
 -- | From a Language DefPattern, build an internal ChanMatches.
 mkChanMatches :: DefPattern p -> ChanMatches
@@ -131,17 +131,14 @@ mkMatchRule dp = MatchRule (mkChanMatches dp)
 
 
 
-
-
 {-= Primitive functions =-}
 -- | Register a new ChanId (With no waiting Msg's) in a MsgQueue.
 registerChanId :: ChanId -> MsgQueue -> MsgQueue
 registerChanId i = MsgQueue . insert i [] . unMsgQueue
 
 -- | Register, on a ChanId, a new Msg in a MsgQueue.
-registerMsg :: Channel a -> Msg -> MsgQueue -> MsgQueue
-registerMsg (Channel i) m = MsgQueue . insertWith (++) (ChanId i) [m] . unMsgQueue
-
+registerMsg :: ChanId -> Msg -> MsgQueue -> MsgQueue
+registerMsg i m = MsgQueue . insertWith (++) i [m] . unMsgQueue
 
 -- | Given ChanMatches and a corresponding trigger function, register it in
 -- a MatchRules collection.
@@ -181,7 +178,6 @@ tryChanMatches (cm:cms) q = do
 -- returning the updated MessageQueues and the matching Messages.
 tryMatchRule :: MatchRule -> MsgQueue -> Maybe (MsgQueue, Msgs)
 tryMatchRule (MatchRule cms _) = tryChanMatches cms
-
 
 
 extractReplyIds :: ChanMatches -> Msgs -> [(ChanId,ChanId)]

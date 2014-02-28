@@ -4,6 +4,8 @@
 
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+
+{-# LANGUAGE DataKinds #-}
 module Join.Language
     ( Instruction(..)
     , ProcessM
@@ -16,7 +18,6 @@ module Join.Language
     , reply
     , with
 
-    , newSyncChannel
     , onReply
 
     , DefPattern(..)
@@ -36,47 +37,45 @@ import Control.Monad.Operational (ProgramT,singleton)
 import Data.ByteString (ByteString)
 import Data.Serialize
 
--- | Single primitive instructions in a join process.
--- Constructors vaguely commented with intended semantics - how the
--- instruction should be interpreted/ whether it should be synchronous,
--- etc.
+-- | Single primitive instructions in a Join process.
 data Instruction a where
 
     -- | Join definition.
     Def        :: Apply p
-               => DefPattern p            -- ^ Channels matched for.
-               -> p                       -- ^ Handler function called.
-               -> Instruction ()          -- ^ No result, asynchronous.
-
-    -- | Request a new typed Channel.
-    NewChannel :: Instruction (Channel a) -- ^ Result in typed Channel, synchronous.
-
-    -- | Sends a value to a Channel.
-    Send       :: Serialize a
-               => Channel a               -- ^ Target channel.
-               -> a                       -- ^ Value sent
-               -> Instruction ()          -- ^ No result, asynchronous.
-
-    -- | Asynchronously spawn a Process.
-    Spawn      :: ProcessM ()             -- ^ Process to spawn.
+               => DefPattern p              -- ^ Pattern of Channels matched on.
+               -> p                         -- ^ Trigger function called on match.
                -> Instruction ()
 
-    -- | Send a value on a SyncChannel and synchronously wait for a result.
-    Sync       :: Serialize a
-               => SyncChannel a           -- ^ SyncChannel to wait on.
-               -> a                       -- ^ Initial Value to send.
-               -> Instruction (SyncVal a)
+    -- | Request a new typed Channel.
+    NewChannel :: (InferSync s, Serialize a)
+               => Instruction (Channel s a) -- Infer the required type of a new synchronous/ asynchronous Channel.
 
-    -- | Send a reply value on a synchronous channel.
+    -- | Sends a value on a Channel.
+    Send       :: Serialize a
+               => Channel A a               -- ^ Target Asynchronous Channel.
+               -> a                         -- ^ Value sent
+               -> Instruction ()
+
+    -- | Asynchronously spawn a Process.
+    Spawn      :: ProcessM ()               -- ^ Process to spawn.
+               -> Instruction ()
+
+    -- | Send a value on a Synchronous Channel and wait for a result.
+    Sync       :: Serialize a
+               => Channel S a               -- ^ Channel sent and waited upon.
+               -> a                         -- ^ Value sent.
+               -> Instruction (SyncVal a)   -- ^ SyncVal encapsulated reply value.
+
+    -- | Send a reply value on a Synchronous channel.
     Reply      :: Serialize a
-               => SyncChannel a           -- ^ SyncChannel to reply to.
-               -> a                       -- ^ Value to reply with.
+               => Channel S a               -- ^ A Synchronous Channel to reply to.
+               -> a                         -- ^ Value to reply with.
                -> Instruction ()
 
     -- | Concurrently execute two Process's.
-    With       :: ProcessM ()             -- ^ First process.
-               -> ProcessM ()             -- ^ Second process.
-               -> Instruction ()          -- ^ No result, asynchronous execution of both Processes.
+    With       :: ProcessM ()               -- ^ First process.
+               -> ProcessM ()               -- ^ Second process.
+               -> Instruction ()
 
 
 class Apply f where apply :: f -> [ByteString] -> ProcessM ()
@@ -99,12 +98,17 @@ instance (Serialize a, Apply r) => Apply (a -> r) where
 -- functions '&' and '&|'.
 -- E.G. Matching on (a, b, c, ..., n, m) == (a & b & c & ...n &| m)
 data DefPattern p where
-    LastPattern :: ChannelLike c a => ChannelPattern c a -> DefPattern (a -> ProcessM ())
-    AndPattern  :: ChannelLike c a => ChannelPattern c a -> DefPattern b -> DefPattern (a -> b)
+    LastPattern :: Serialize a => ChannelPattern a -> DefPattern (a -> ProcessM ())
+    AndPattern  :: Serialize a => ChannelPattern a -> DefPattern b -> DefPattern (a -> b)
 
-data ChannelPattern c a where
-    All  :: c a -> ChannelPattern c a
-    Only :: Eq a => c a -> a -> ChannelPattern c a
+{-data ChannelPattern c a where-}
+    {-All  :: c a -> ChannelPattern c a-}
+    {-Only :: Eq a => c a -> a -> ChannelPattern c a-}
+
+data ChannelPattern a where
+    All :: Channel t a -> ChannelPattern a
+    Only :: Eq a => Channel t a -> a -> ChannelPattern a
+
 
 instance Show (DefPattern p) where
     show (LastPattern (All c))    = show c
@@ -114,17 +118,16 @@ instance Show (DefPattern p) where
     show (AndPattern (Only c _) d) = show c ++ "=value" ++ " & " ++ show d
 
 -- | Infix, cons a Channel to a ChannelPattern.
-(&) :: ChannelLike c a => ChannelPattern c a -> DefPattern p -> DefPattern (a -> p)
+(&) :: Serialize a => ChannelPattern a -> DefPattern p -> DefPattern (a -> p)
 p & ps = p `AndPattern` ps
 infixr 7 &
 
 -- | Infix, cons a Channel to a final Channel of a ChannelPattern.
-{-(&|) :: (Spawnable c0 a, Spawnable c1 b) => c0 a -> c1 b -> ChannelPattern (a -> b -> ProcessM ())-}
-(&|) :: (ChannelLike c0 a, ChannelLike c1 b) => ChannelPattern c0 a -> ChannelPattern c1 b -> DefPattern (a -> b -> ProcessM ())
+(&|) :: (Serialize a, Serialize b) => ChannelPattern a -> ChannelPattern b -> DefPattern (a -> b -> ProcessM ())
 c &| d = c & LastPattern d
 
 -- | 'Promote' a single Channel to a ChannelPattern.
-on :: ChannelLike c a => ChannelPattern c a -> DefPattern (a -> ProcessM ())
+on :: Serialize a => ChannelPattern a -> DefPattern (a -> ProcessM ())
 on = LastPattern
 
 
@@ -143,11 +146,11 @@ inert :: ProcessM ()
 inert = return ()
 
 -- | Enter a single NewChannel Instruction into ProcessM.
-newChannel :: forall a. ProcessM (Channel a)
+newChannel :: forall s a. (InferSync s,Serialize a) => ProcessM (Channel s a)
 newChannel = singleton NewChannel
 
 -- | Enter a single Send Instruction into ProcessM.
-send :: forall a. Serialize a => Channel a -> a -> ProcessM ()
+send :: forall a. Serialize a => Channel A a -> a -> ProcessM ()
 send c a = singleton $ Send c a
 
 -- | Enter a single Spawn Instruction into ProcessM.
@@ -155,23 +158,16 @@ spawn :: ProcessM () -> ProcessM ()
 spawn p = singleton $ Spawn p
 
 -- | Enter a single Sync Instruction into ProcessM.
-sync :: Serialize a => SyncChannel a -> a -> ProcessM (SyncVal a)
+sync :: Serialize a => Channel S a -> a -> ProcessM (SyncVal a)
 sync s a = singleton $ Sync s a
 
 -- | Enter a single Reply Instruction into ProcessM.
-reply :: Serialize a => SyncChannel a -> a -> ProcessM ()
+reply :: Serialize a => Channel S a -> a -> ProcessM ()
 reply s a = singleton $ Reply s a
 
 -- | Enter a single With Instruction into ProcessM.
 with :: ProcessM () -> ProcessM () -> ProcessM ()
 with p q = singleton $ With p q
-
-
--- | Request a new Synchronous Channel in ProcessM.
-newSyncChannel :: ProcessM (SyncChannel a)
-newSyncChannel = do
-    s <- newChannel
-    return $ SyncChannel s
 
 -- | Helper for continuation style programming with Channels.
 -- E.G., given:
@@ -182,6 +178,6 @@ newSyncChannel = do
 --    onReply s (liftIO . print)
 --
 -- sending an Int value on s will print it as well as it's successor.
-onReply :: Serialize a => Channel a -> (a -> ProcessM ()) -> ProcessM ()
+onReply :: Serialize a => Channel A a -> (a -> ProcessM ()) -> ProcessM ()
 onReply c = def (on $ All c)
 

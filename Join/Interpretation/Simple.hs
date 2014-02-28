@@ -1,4 +1,6 @@
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Join.Interpretation.Simple where
 
 import Prelude hiding (lookup)
@@ -84,7 +86,7 @@ runWith st@(PState iStR rcs) p = do
         NewChannel
             :>>= k -> do iSt <- takeIStateRef iStR
                          cId <- newChanId
-                         let c     = Channel (getChanId cId)
+                         let c     = inferSync (getChanId cId)
                              msgQ  = msgQueue iSt
                              msgQ' = registerChanId cId msgQ
                              iSt'  = iSt{msgQueue = msgQ'}
@@ -95,7 +97,7 @@ runWith st@(PState iStR rcs) p = do
         Send c m
             :>>= k -> do iSt <- takeIStateRef iStR
                          let msgQ  = msgQueue iSt
-                             msgQ' = registerMsg c (mkMsg (mkMsgData m) Nothing) msgQ
+                             msgQ' = registerMsg (mkChanId c) (mkMsg (mkMsgData m) Nothing) msgQ
                              iSt'  = iSt{msgQueue = msgQ'}
                          putIStateRef iStR iSt'
                          runWith st (k ())
@@ -107,12 +109,12 @@ runWith st@(PState iStR rcs) p = do
 
         -- ^ Synchronously spawn a value on a Channel, and wait for
         -- a result.
-        Sync s@(SyncChannel c) m
+        Sync s m
             :>>= k -> do iSt <- takeIStateRef iStR
                          rId <- newChanId
-                         let r     = Channel (getChanId rId)
+                         let r     = inferSync (getChanId rId)
                              msgQ  = msgQueue iSt
-                             msgQ' = registerMsg c (mkMsg (mkMsgData m) (Just rId)) msgQ
+                             msgQ' = registerMsg (mkChanId s) (mkMsg (mkMsgData m) (Just rId)) msgQ
                              iSt'  = iSt{msgQueue = msgQ'}
                          putIStateRef iStR iSt'
                          v <- new
@@ -120,15 +122,15 @@ runWith st@(PState iStR rcs) p = do
                          runWith st (k v)
 
         -- ^ Spawn a value on the reply Channel of a SyncChannel.
-        Reply (SyncChannel c) m
+        Reply s m
             :>>= k -> do iSt <- takeIStateRef iStR
                          let rs   = replyChannels st
-                             i    = mkChanId c
+                             i    = mkChanId s
                              mj   = lookup i rs
                              msgQ = msgQueue iSt
                          case mj of
                              Nothing -> error "No reply Channel."
-                             Just j  -> let msgQ' = registerMsg (Channel (getChanId j)) (mkMsg (mkMsgData m) Nothing) msgQ
+                             Just j  -> let msgQ' = registerMsg j (mkMsg (mkMsgData m) Nothing) msgQ
                                             iSt'  = iSt{msgQueue = msgQ'}
                                            in putIStateRef iStR iSt'
                                            >> runWith st (k ())
@@ -170,27 +172,8 @@ ruleHandler iStR = forever $ do
             p     = apply f bs
            in runWith iStR' p
 
-{-waitOn :: Serialize a => IStateRef -> Channel a -> IO a-}
-{-waitOn iStR c = do-}
-    {-iSt <- takeIStateRef iStR-}
-
-    {-let msgQ     = msgQueue iSt-}
-        {-matchAll = tryChanMatch (mkChanMatch $ All c) msgQ-}
-
-    {-case matchAll of-}
-        {-Nothing-}
-          {--> do putIStateRef iStR iSt-}
-                {-yield-}
-                {-threadDelay 100000-}
-                {-waitOn iStR c-}
-
-        {-Just (msgQ',m)-}
-          {--> do putIStateRef iStR (iSt{msgQueue = msgQ'})-}
-                {-let (d,_) = unMsg m-}
-                {-return $ unsafeDecodeMsgData d-}
-
 -- | Wait for any message on a given channel, and write it to a SyncVal.
-waitOn :: Serialize a => IStateRef -> Channel a -> SyncVal a -> IO ()
+waitOn :: Serialize a => IStateRef -> Channel S a -> SyncVal a -> IO ()
 waitOn iStR c r = do
     iSt <- takeIStateRef iStR
 

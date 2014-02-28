@@ -23,7 +23,7 @@ describe = describe' 0
                              describe' i (k ())
             NewChannel
                 :>>= k -> do putStrLn "NewChannel"
-                             describe' (i+1) (k (Channel i))
+                             describe' (i+1) (k (inferSync i))
 
             Send c m
                 :>>= k -> do putStrLn $ "Send " ++ show c ++ show (encode m)

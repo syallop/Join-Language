@@ -27,7 +27,7 @@ countDown n = do
 
 fibonacci :: Int -> ProcessM Int
 fibonacci i = do
-    fib <- newSyncChannel
+    fib <- newChannel
     def (on $ All fib) (\n -> if n <= 1
                                 then reply fib 1
                                 else do i <- sync fib (n-1)
@@ -36,3 +36,4 @@ fibonacci i = do
                                         reply fib (wait i + wait j))
     r <- sync fib i
     return $ wait r
+
