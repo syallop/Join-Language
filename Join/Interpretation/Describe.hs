@@ -4,6 +4,8 @@ module Join.Interpretation.Describe where
 import Join.Language
 import Join.Language.Types
 
+import Join.Language.Examples
+
 import Control.Monad.Operational
 import Data.Serialize (encode)
 
@@ -19,7 +21,7 @@ describe = describe' 0
             Return a  -> putStrLn "Terminate Process."
 
             Def dp p
-                :>>= k -> do putStrLn $ "Def{" ++ show dp ++ "} -> {PROCESS}"
+                :>>= k -> do putStrLn $ "Def " ++ show dp ++ " |- {PROCESS}"
                              describe' i (k ())
             NewChannel
                 :>>= k -> do putStrLn "NewChannel"

@@ -1,11 +1,11 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeOperators #-}
-
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
 module Join.Language
     ( Instruction(..)
     , ProcessM
@@ -20,11 +20,14 @@ module Join.Language
 
     , onReply
 
-    , DefPattern(..)
-    , ChannelPattern(..)
-    , on
+    , Pattern()
+    , SubPattern()
+    , rawSubPattern
+    , rawPattern
+
     , (&)
-    , (&|)
+    , (&=)
+    , (|-)
 
     , Apply
     , apply
@@ -37,47 +40,61 @@ import Control.Monad.Operational (ProgramT,singleton)
 import Data.ByteString (ByteString)
 import Data.Serialize
 
--- | Single primitive instructions in a Join process.
+-- Single primitive instructions in a Join process.
 data Instruction a where
 
     -- | Join definition.
-    Def        :: Apply p
-               => DefPattern p              -- ^ Pattern of Channels matched on.
-               -> p                         -- ^ Trigger function called on match.
+    Def        :: (Apply t, Pattern p t)    -- Trigger can be applied,pattern is associated with trigger type.
+               => p                         -- Pattern matched on.
+               -> t                         -- Trigger function called on match.
                -> Instruction ()
 
     -- | Request a new typed Channel.
-    NewChannel :: (InferSync s, Serialize a)
-               => Instruction (Channel s a) -- Infer the required type of a new synchronous/ asynchronous Channel.
+    NewChannel :: (InferSync s, Serialize a) -- Synchronicity can be inferred, message type can be serialized.
+               => Instruction (Channel s a)  -- Infer the required type of a new synchronous/ asynchronous Channel.
 
     -- | Sends a value on a Channel.
-    Send       :: Serialize a
-               => Channel A a               -- ^ Target Asynchronous Channel.
-               -> a                         -- ^ Value sent
+    Send       :: Serialize a               -- Message type can be serialized.
+               => Channel A a               -- Target Asynchronous Channel.
+               -> a                         -- Value sent
                -> Instruction ()
 
     -- | Asynchronously spawn a Process.
-    Spawn      :: ProcessM ()               -- ^ Process to spawn.
+    Spawn      :: ProcessM ()               -- Process to spawn.
                -> Instruction ()
 
     -- | Send a value on a Synchronous Channel and wait for a result.
-    Sync       :: Serialize a
-               => Channel S a               -- ^ Channel sent and waited upon.
-               -> a                         -- ^ Value sent.
-               -> Instruction (SyncVal a)   -- ^ SyncVal encapsulated reply value.
+    Sync       :: Serialize a               -- Message type can be serialized.
+               => Channel S a               -- Channel sent and waited upon.
+               -> a                         -- Value sent.
+               -> Instruction (SyncVal a)   -- SyncVal encapsulated reply value.
 
     -- | Send a reply value on a Synchronous channel.
-    Reply      :: Serialize a
-               => Channel S a               -- ^ A Synchronous Channel to reply to.
-               -> a                         -- ^ Value to reply with.
+    Reply      :: Serialize a               -- Message type can be serialized.
+               => Channel S a               -- A Synchronous Channel to reply to.
+               -> a                         -- Value to reply with.
                -> Instruction ()
 
     -- | Concurrently execute two Process's.
-    With       :: ProcessM ()               -- ^ First process.
-               -> ProcessM ()               -- ^ Second process.
+    With       :: ProcessM ()               -- First process.
+               -> ProcessM ()               -- Second process.
                -> Instruction ()
 
-
+-- | Class of types which can be applied to a sequence of ByteString
+-- parameters.
+-- 'apply' is partial.
+-- 
+-- Only guaranteed to be safe when:
+-- - The number of list items is exactly equal to the number of arguments
+--   expected by f.
+-- - Each argument to f is serializable.
+-- - Each item is a serialized encoding of the corresponding expected type.
+--
+-- May be 'safely' used in interpreters to run the Def trigger function on
+-- messages that match the corresponding pattern.
+-- I.E. 'Pattern p t' says that when a sequence of messages match the
+-- pattern p, then the a function of type t may be applied to them in
+-- a 'safe' manner.
 class Apply f where apply :: f -> [ByteString] -> ProcessM ()
 instance Apply (ProcessM ()) where
     apply p [] = p
@@ -89,46 +106,52 @@ instance (Serialize a, Apply r) => Apply (a -> r) where
     apply _ [] = error "Too few arguments"
 
 
--- | A pattern of one or many patterns on Channels. Type variable denotes
--- the type of a function accepting the type of each conjunctive Channel in
--- order and produces a ProcessM (). This type corresponds to the type of
--- the function in the RHS of a join definition.
---
--- For convenience, a DefPattern may be built using 'on' and infix
--- functions '&' and '&|'.
--- E.G. Matching on (a, b, c, ..., n, m) == (a & b & c & ...n &| m)
-data DefPattern p where
-    LastPattern :: Serialize a => ChannelPattern a -> DefPattern (a -> ProcessM ())
-    AndPattern  :: Serialize a => ChannelPattern a -> DefPattern b -> DefPattern (a -> b)
 
-{-data ChannelPattern c a where-}
-    {-All  :: c a -> ChannelPattern c a-}
-    {-Only :: Eq a => c a -> a -> ChannelPattern c a-}
+-- | Require that messages sent on a Channel must match a specific value to
+-- trigger a match.
+data ChannelEq a = forall s. Serialize a => ChannelEq (Channel s a) a
+instance Show (ChannelEq a) where show (ChannelEq c a) = show c ++ "&=" ++ show (encode a)
 
-data ChannelPattern a where
-    All :: Channel t a -> ChannelPattern a
-    Only :: Eq a => Channel t a -> a -> ChannelPattern a
+-- | Class of Pattern types 'p' which uniquely determine a type 't',
+-- a corresponding trigger function should have in order to take each value
+-- type matched by the pattern and terminate with ProcessM ().
+class Show p => Pattern p t | p -> t where
+    rawPattern :: p -> [(Int,Maybe ByteString)]
 
+-- | Class of SubPattern types 'p' which uniquely determine the type 't'
+-- a corresponding trigger function should take as an arg when the pattern is
+-- matched.
+class Show p => SubPattern p t | p -> t where
+    rawSubPattern :: p -> (Int,Maybe ByteString)
 
-instance Show (DefPattern p) where
-    show (LastPattern (All c))    = show c
-    show (LastPattern (Only c _)) = show c ++ "=value"
+-- | Type of conjunctive patterns. Conjoins a SubPattern to a Pattern
+-- specifying both must match in order for the whole pattern to match.
+data And p where And :: (SubPattern t p, Pattern t' p') => t -> t' -> And (p -> p')
+instance Show (And p) where show (And p ps) = show p ++ "&" ++ show ps
 
-    show (AndPattern (All c) d) = show c ++ " & " ++ show d
-    show (AndPattern (Only c _) d) = show c ++ "=value" ++ " & " ++ show d
+instance Pattern (And p) p where rawPattern (And p ps) = rawSubPattern p : rawPattern ps
 
--- | Infix, cons a Channel to a ChannelPattern.
-(&) :: Serialize a => ChannelPattern a -> DefPattern p -> DefPattern (a -> p)
-p & ps = p `AndPattern` ps
+-- Channels and ChannelEq's may be used as part of a subpattern or as
+-- a pattern in themselves.
+instance SubPattern (Channel s a) a                  where rawSubPattern c               = (getId c, Nothing)
+instance SubPattern (ChannelEq a) a                  where rawSubPattern (ChannelEq c a) = (getId c, Just $ encode a)
+instance Pattern    (Channel s a) (a -> ProcessM ()) where rawPattern    c               = [rawSubPattern c]
+instance Pattern    (ChannelEq a) (a -> ProcessM ()) where rawPattern    c               = [rawSubPattern c]
+
+-- | Infix combine a SubPattern with a Pattern.
+(&) :: (SubPattern p t, Pattern p' t') => p -> p' -> And (t -> t')
 infixr 7 &
+p & ps = And p ps
 
--- | Infix, cons a Channel to a final Channel of a ChannelPattern.
-(&|) :: (Serialize a, Serialize b) => ChannelPattern a -> ChannelPattern b -> DefPattern (a -> b -> ProcessM ())
-c &| d = c & LastPattern d
+-- | Infix define a ChannelEq match.
+(&=) :: Serialize a => Channel s a -> a -> ChannelEq a
+infixr 8 &=
+c &= v = ChannelEq c v
 
--- | 'Promote' a single Channel to a ChannelPattern.
-on :: Serialize a => ChannelPattern a -> DefPattern (a -> ProcessM ())
-on = LastPattern
+-- | Infix, enter a Def instruction into ProcessM.
+(|-) :: (Apply t, Pattern p t) => p -> t -> ProcessM ()
+infixr 7 |-
+p |- t = def p t
 
 
 
@@ -138,7 +161,7 @@ on = LastPattern
 type ProcessM a = ProgramT Instruction IO a
 
 -- | Enter a single Def Instruction into ProcessM.
-def :: forall p. Apply p => DefPattern p -> p -> ProcessM ()
+def :: (Apply t, Pattern p t) => p -> t -> ProcessM ()
 def c p = singleton $ Def c p
 
 -- | Enter a single Inert Instruction into ProcessM.
@@ -179,5 +202,5 @@ with p q = singleton $ With p q
 --
 -- sending an Int value on s will print it as well as it's successor.
 onReply :: Serialize a => Channel A a -> (a -> ProcessM ()) -> ProcessM ()
-onReply c = def (on $ All c)
+onReply = def
 

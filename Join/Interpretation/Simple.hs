@@ -178,7 +178,7 @@ waitOn iStR c r = do
     iSt <- takeIStateRef iStR
 
     let msgQ     = msgQueue iSt
-        matchAll = tryChanMatch (mkChanMatch $ All c) msgQ
+        matchAll = tryChanMatch (mkChanMatch c) msgQ
 
     case matchAll of
         Nothing

@@ -1,8 +1,10 @@
+{-# LANGUAGE MultiWayIf #-}
 module Join.Language.Examples where
 
 import Join.Language
 import Join.Language.Types
 
+import Control.Applicative
 import Control.Monad.IO.Class
 
 countDown :: Int -> ProcessM ()
@@ -14,10 +16,10 @@ countDown n = do
     --  When there's an int on intChannel: 
     --    print it. If 0, do nothing.
     --    Otherwise spawn a de-incremented int on intChannel.
-    def (on $ All intChannel) (\i -> do liftIO $ print i
-                                        if i == 0
-                                          then inert
-                                          else send intChannel (i-1))
+    intChannel |- (\i -> do liftIO $ print i
+                            if i == 0
+                              then inert
+                              else send intChannel (i-1))
 
     -- Spawn the starting number on intChannel.
     send intChannel n
@@ -28,12 +30,9 @@ countDown n = do
 fibonacci :: Int -> ProcessM Int
 fibonacci i = do
     fib <- newChannel
-    def (on $ All fib) (\n -> if n <= 1
-                                then reply fib 1
-                                else do i <- sync fib (n-1)
-                                        j <- sync fib (n-2)
-
-                                        reply fib (wait i + wait j))
-    r <- sync fib i
-    return $ wait r
+    fib |- (\n -> if n <= 1 then reply fib 1
+                            else do i <- sync fib (n-1)
+                                    j <- sync fib (n-2)
+                                    reply fib (wait i + wait j))
+    wait <$> sync fib i
 

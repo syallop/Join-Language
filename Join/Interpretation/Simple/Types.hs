@@ -115,21 +115,18 @@ data MatchRule = forall f. Apply f => MatchRule ChanMatches f
 -- Many Def Pattern's.
 type MatchRules = [MatchRule]
 
--- | From a Language ChannelPattern, build an internal ChanMatch.
-mkChanMatch :: Serialize a => ChannelPattern a -> ChanMatch
-mkChanMatch (All  c  ) = let i = getId c in ChanMatch (ChanId i, Nothing)
-mkChanMatch (Only c a) = let i = getId c in ChanMatch (ChanId i, Just $ mkMsgData a)
+-- | Lift a Language SubPattern into an internal ChanMatch.
+mkChanMatch :: SubPattern t p => t -> ChanMatch
+mkChanMatch t = let (i,md) = rawSubPattern t
+                    in ChanMatch (ChanId i,MsgData <$> md)
 
--- | From a Language DefPattern, build an internal ChanMatches.
-mkChanMatches :: DefPattern p -> ChanMatches
-mkChanMatches (LastPattern cp   ) = [mkChanMatch cp]
-mkChanMatches (AndPattern  cp dp) = mkChanMatch cp : mkChanMatches dp
+-- | Lift a Language Pattern into an internal ChanMatches.
+mkChanMatches :: Pattern t p => t -> ChanMatches
+mkChanMatches p = (\(i,md) -> ChanMatch (ChanId i, MsgData <$> md)) <$> rawPattern p
 
--- | From the LHS and RHS of a Language Def, build an internal MatchRule.
-mkMatchRule :: Apply f => DefPattern f -> f -> MatchRule
-mkMatchRule dp = MatchRule (mkChanMatches dp)
-
-
+-- | Lift the LHS and RHS of a Language Def into an internal MatchRule.
+mkMatchRule :: (Apply f, Pattern t f) => t -> f -> MatchRule
+mkMatchRule t = MatchRule (mkChanMatches t)
 
 {-= Primitive functions =-}
 -- | Register a new ChanId (With no waiting Msg's) in a MsgQueue.
