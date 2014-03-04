@@ -1,5 +1,6 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
+{-# OPTIONS_HADDOCK hide #-}
 module Join.Interpretation.Simple.Types
     (-- Encode Message/ Channel types.
      ChanId()

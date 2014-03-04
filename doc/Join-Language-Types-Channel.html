@@ -1,0 +1,37 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>Join.Language.Types.Channel</title><link href="ocean.css" rel="stylesheet" type="text/css" title="Ocean" /><script src="haddock-util.js" type="text/javascript"></script><script type="text/javascript">//<![CDATA[
+window.onload = function () {pageLoad();setSynopsis("mini_Join-Language-Types-Channel.html");};
+//]]>
+</script></head><body><div id="package-header"><ul class="links" id="page-menu"><li><a href="index.html">Contents</a></li><li><a href="doc-index.html">Index</a></li></ul><p class="caption empty">&nbsp;</p></div><div id="content"><div id="module-header"><table class="info"><tr><th>Stability</th><td>experimental</td></tr><tr><th>Maintainer</th><td>syallop@gmail.com</td></tr><tr><th>Safe Haskell</th><td>None</td></tr></table><p class="caption">Join.Language.Types.Channel</p></div><div id="description"><p class="caption">Description</p><div class="doc"><p>This module defines a <code><a href="Join-Language-Types-Channel.html#t:Channel">Channel</a></code> type, a representation of typed Join-Calculus Channels.
+</p><p>Channels themselves do not provide a means of queuing messages, what they provide is a means
+for a Join-Calculus program to:
+</p><ol><li> Track where it should route messages sent on the channel.
+</li><li> Enforce the type of messages allowed.
+</li><li> Determine whether reply-values are allowed/ expected.
+</li></ol><p>The first point is facilitated by the id each Channel is constructed with.
+The second and third, by the type variables.
+</p><p><code><a href="Join-Language-Types-Channel.html#v:inferSync">inferSync</a></code> allows an implementation to infer whether a newly created Channel
+should be Asynchronous or Synchronous based upon it's usage.
+For example, a reply function could be defined to operate exclusively on Synchronous Channels,
+then, if reply is called on a channel, it can be inferred that it is intended to be Synchronous
+and the user can omit type signatures. By constraining the synchronicity type variable in an
+implementation sufficiently, type annotations may be able to be avoided entirely.
+</p></div></div><div id="synopsis"><p id="control.syn" class="caption expander" onclick="toggleSection('syn')">Synopsis</p><ul id="section.syn" class="hide" onclick="toggleSection('syn')"><li class="src short"><span class="keyword">data</span>  <a href="#t:Channel">Channel</a> s a</li><li class="src short"><span class="keyword">data</span>  <a href="#t:Synchronicity">Synchronicity</a> <ul class="subs"><li>= <a href="#v:A">A</a>  </li><li>| <a href="#v:S">S</a>  </li></ul></li><li class="src short"><a href="#v:getId">getId</a> ::  <a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> s a -&gt; Int</li><li class="src short"><span class="keyword">class</span>  <a href="#t:InferSync">InferSync</a> s  <span class="keyword">where</span><ul class="subs"><li><a href="#v:inferSync">inferSync</a> :: Serialize a =&gt; Int -&gt; <a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> s a</li></ul></li></ul></div><div id="interface"><h1>Documentation</h1><div class="top"><p class="src"><span class="keyword">data</span>  <a name="t:Channel" class="def">Channel</a> s a </p><div class="doc"><p>A Channel uniquely identifies a port of communication.
+</p><p>The type parameter <code>a</code> denotes the type of values accepted.
+</p><p>The type parameter <code>s</code> is of kind <code><a href="Join-Language-Types-Channel.html#t:Synchronicity">Synchronicity</a></code> and denotes whether
+ values should be sent <code><a href="Join-Language-Types-Channel.html#v:A">A</a></code>synchronously (a regular channel as defined by
+ the core calculus) or <code><a href="Join-Language-Types-Channel.html#v:S">S</a></code>ynchronously, where a return value is expected.
+</p><p>Channels are constructed with an <code>Int</code> parameter which serves as it's
+ unique ID. Interpreters should ensure these are unique.
+</p></div><div class="subs instances"><p id="control.i:Channel" class="caption collapser" onclick="toggleSection('i:Channel')">Instances</p><div id="section.i:Channel" class="show"><table><tr><td class="src">Show (<a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> s a)</td><td class="doc empty">&nbsp;</td></tr><tr><td class="src"><a href="Join-Language.html#t:SubPattern">SubPattern</a> (<a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> s a) a</td><td class="doc empty">&nbsp;</td></tr><tr><td class="src"><a href="Join-Language.html#t:Pattern">Pattern</a> (<a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> s a) (a -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> ())</td><td class="doc empty">&nbsp;</td></tr></table></div></div></div><div class="top"><p class="src"><span class="keyword">data</span>  <a name="t:Synchronicity" class="def">Synchronicity</a>  </p><div class="doc"><p>Synchronicity tag Type &amp; Kind.
+</p></div><div class="subs constructors"><p class="caption">Constructors</p><table><tr><td class="src"><a name="v:A" class="def">A</a></td><td class="doc"><p>Asynchronous.
+</p></td></tr><tr><td class="src"><a name="v:S" class="def">S</a></td><td class="doc"><p>Synchronous.
+</p></td></tr></table></div></div><div class="top"><p class="src"><a name="v:getId" class="def">getId</a> ::  <a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> s a -&gt; Int</p><div class="doc"><p>Extract the Id of a Channel.
+</p></div></div><div class="top"><p class="src"><span class="keyword">class</span>  <a name="t:InferSync" class="def">InferSync</a> s  <span class="keyword">where</span></p><div class="doc"><p>Closed Class of Synchronicity-kinded types which may be used to infer
+ how to construct a corresponding Channel.
+</p><p>I.E. When:
+</p><pre>
+  i :: Int
+  c = inferSync i :: Channel s a
+</pre><p>and in a context where <code>s</code> is constrained to <code><a href="Join-Language-Types-Channel.html#v:A">A</a></code> or <code><a href="Join-Language-Types-Channel.html#v:S">S</a></code>, then inferSync will
+ create the corresponding type of Channel.
+</p></div><div class="subs methods"><p class="caption">Methods</p><p class="src"><a name="v:inferSync" class="def">inferSync</a> :: Serialize a =&gt; Int -&gt; <a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> s a</p></div><div class="subs instances"><p id="control.i:InferSync" class="caption collapser" onclick="toggleSection('i:InferSync')">Instances</p><div id="section.i:InferSync" class="show"><table><tr><td class="src"><a href="Join-Language-Types-Channel.html#t:InferSync">InferSync</a> <a href="Join-Language-Types-Channel.html#v:S">S</a></td><td class="doc empty">&nbsp;</td></tr><tr><td class="src"><a href="Join-Language-Types-Channel.html#t:InferSync">InferSync</a> <a href="Join-Language-Types-Channel.html#v:A">A</a></td><td class="doc empty">&nbsp;</td></tr></table></div></div></div></div></div><div id="footer"><p>Produced by <a href="http://www.haskell.org/haddock/">Haddock</a> version 2.13.2</p></div></body></html>

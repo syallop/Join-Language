@@ -1,7 +1,20 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Join.Interpretation.Simple where
+
+{-|
+Module      : Join.Interpretation.Simple
+Copyright   : (c) Samuel A. Yallop, 2014
+Maintainer  : syallop@gmail.com
+Stability   : experimental
+
+This module defines a quick, unrefined interpretation of "Join.Language" that may
+be used to run 'ProcessM' computations.
+
+-}
+module Join.Interpretation.Simple
+    (run
+    ) where
 
 import Prelude hiding (lookup)
 
@@ -70,10 +83,10 @@ runWith st@(PState iStR rcs) p = do
     instr <- liftIO $ viewT p
     case instr of
 
-        -- ^ Operational return.
+        -- Operational return.
         Return a     -> return a
 
-        -- ^ Def pattern.
+        -- Def pattern.
         Def dp p
             :>>= k -> do iSt <- takeIStateRef iStR
                          let rs   = matchRules iSt
@@ -82,7 +95,7 @@ runWith st@(PState iStR rcs) p = do
                          putIStateRef iStR iSt'
                          runWith st (k ())
 
-        -- ^ Request a new Channel.
+        -- Request a new Channel.
         NewChannel
             :>>= k -> do iSt <- takeIStateRef iStR
                          cId <- newChanId
@@ -93,7 +106,7 @@ runWith st@(PState iStR rcs) p = do
                          putIStateRef iStR iSt'
                          runWith st (k c)
 
-        -- ^ Send a message to a Channel.
+        -- Send a message to a Channel.
         Send c m
             :>>= k -> do iSt <- takeIStateRef iStR
                          let msgQ  = msgQueue iSt
@@ -102,12 +115,12 @@ runWith st@(PState iStR rcs) p = do
                          putIStateRef iStR iSt'
                          runWith st (k ())
 
-        -- ^ Spawn a concurrent execution of a ProcessM.
+        -- Spawn a concurrent execution of a ProcessM.
         Spawn p
             :>>= k -> do forkIO $ runWith st p
                          runWith st (k ())
 
-        -- ^ Synchronously spawn a value on a Channel, and wait for
+        -- Synchronously spawn a value on a Channel, and wait for
         -- a result.
         Sync s m
             :>>= k -> do iSt <- takeIStateRef iStR
@@ -121,7 +134,7 @@ runWith st@(PState iStR rcs) p = do
                          forkIO $ waitOn iStR r v
                          runWith st (k v)
 
-        -- ^ Spawn a value on the reply Channel of a SyncChannel.
+        -- Spawn a value on the reply Channel of a SyncChannel.
         Reply s m
             :>>= k -> do iSt <- takeIStateRef iStR
                          let rs   = replyChannels st

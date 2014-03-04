@@ -1,4 +1,14 @@
 {-# LANGUAGE MultiWayIf #-}
+
+{-|
+Module      : Join.Language.Examples
+Copyright   : (c) Samuel A. Yallop, 2014
+Maintainer  : syallop@gmail.com
+Stability   : experimental
+
+This module contains example "Join.Language" programs.
+
+-}
 module Join.Language.Examples where
 
 import Join.Language

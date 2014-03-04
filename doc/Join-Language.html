@@ -1,0 +1,189 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title>Join.Language</title><link href="ocean.css" rel="stylesheet" type="text/css" title="Ocean" /><script src="haddock-util.js" type="text/javascript"></script><script type="text/javascript">//<![CDATA[
+window.onload = function () {pageLoad();setSynopsis("mini_Join-Language.html");};
+//]]>
+</script></head><body><div id="package-header"><ul class="links" id="page-menu"><li><a href="index.html">Contents</a></li><li><a href="doc-index.html">Index</a></li></ul><p class="caption empty">&nbsp;</p></div><div id="content"><div id="module-header"><table class="info"><tr><th>Stability</th><td>experimental</td></tr><tr><th>Maintainer</th><td>syallop@gmail.com</td></tr><tr><th>Safe Haskell</th><td>None</td></tr></table><p class="caption">Join.Language</p></div><div id="table-of-contents"><p class="caption">Contents</p><ul><li><a href="#g:1">User API
+</a><ul><li><a href="#g:2">Join Process's
+</a></li><li><a href="#g:3">Channels and messages
+</a></li><li><a href="#g:4">Join patterns
+</a></li><li><a href="#g:5">Convenience functions
+</a></li></ul></li><li><a href="#g:6">Implementer API
+</a></li></ul></div><div id="description"><p class="caption">Description</p><div class="doc"><p>This module describes an encoding of the Join-Calculus.
+</p><p>It defines methods for writing Join-Calculus programs which build a type
+<code><a href="Join-Language.html#t:ProcessM">ProcessM</a></code> which is then open to interpretation.
+</p><p>Exported functions may be used to build programs of type <code><a href="Join-Language.html#t:ProcessM">ProcessM</a></code> which
+may be then inspected by an interpreter to compute the
+effect of running the described program.
+</p></div></div><div id="synopsis"><p id="control.syn" class="caption expander" onclick="toggleSection('syn')">Synopsis</p><ul id="section.syn" class="hide" onclick="toggleSection('syn')"><li class="src short"><span class="keyword">type</span> <a href="#t:ProcessM">ProcessM</a> a = ProgramT <a href="Join-Language.html#t:Instruction">Instruction</a> IO a</li><li class="src short"><a href="#v:spawn">spawn</a> :: <a href="Join-Language.html#t:ProcessM">ProcessM</a> () -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> ()</li><li class="src short"><a href="#v:with">with</a> :: <a href="Join-Language.html#t:ProcessM">ProcessM</a> () -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> () -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> ()</li><li class="src short"><a href="#v:newChannel">newChannel</a> :: <span class="keyword">forall</span> s a. (<a href="Join-Language-Types-Channel.html#t:InferSync">InferSync</a> s, Serialize a) =&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> (<a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> s a)</li><li class="src short"><a href="#v:send">send</a> :: <span class="keyword">forall</span> a. Serialize a =&gt; <a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> <a href="Join-Language-Types-Channel.html#v:A">A</a> a -&gt; a -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> ()</li><li class="src short"><a href="#v:sync">sync</a> :: Serialize a =&gt; <a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> <a href="Join-Language-Types-Channel.html#v:S">S</a> a -&gt; a -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> (<a href="Join-Language-Types-SyncVal.html#t:SyncVal">SyncVal</a> a)</li><li class="src short"><a href="#v:reply">reply</a> :: Serialize a =&gt; <a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> <a href="Join-Language-Types-Channel.html#v:S">S</a> a -&gt; a -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> ()</li><li class="src short"><a href="#v:def">def</a> :: (<a href="Join-Language.html#t:Apply">Apply</a> t, <a href="Join-Language.html#t:Pattern">Pattern</a> p t) =&gt; p -&gt; t -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> ()</li><li class="src short"><a href="#v:-124--45-">(|-)</a> :: (<a href="Join-Language.html#t:Apply">Apply</a> t, <a href="Join-Language.html#t:Pattern">Pattern</a> p t) =&gt; p -&gt; t -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> ()</li><li class="src short"><a href="#v:-38-">(&amp;)</a> :: (<a href="Join-Language.html#t:SubPattern">SubPattern</a> p t, <a href="Join-Language.html#t:Pattern">Pattern</a> p' t') =&gt; p -&gt; p' -&gt; And (t -&gt; t')</li><li class="src short"><a href="#v:-38--61-">(&amp;=)</a> :: Serialize a =&gt; <a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> s a -&gt; a -&gt; ChannelEq a</li><li class="src short"><a href="#v:inert">inert</a> :: <a href="Join-Language.html#t:ProcessM">ProcessM</a> ()</li><li class="src short"><a href="#v:onReply">onReply</a> :: Serialize a =&gt; <a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> <a href="Join-Language-Types-Channel.html#v:A">A</a> a -&gt; (a -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> ()) -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> ()</li><li class="src short"><span class="keyword">data</span>  <a href="#t:Instruction">Instruction</a> a <span class="keyword">where</span><ul class="subs"><li><a href="#v:Def">Def</a> :: (<a href="Join-Language.html#t:Apply">Apply</a> t, <a href="Join-Language.html#t:Pattern">Pattern</a> p t) =&gt; p -&gt; t -&gt; <a href="Join-Language.html#t:Instruction">Instruction</a> ()  </li><li><a href="#v:NewChannel">NewChannel</a> :: (<a href="Join-Language-Types-Channel.html#t:InferSync">InferSync</a> s, Serialize a) =&gt; <a href="Join-Language.html#t:Instruction">Instruction</a> (<a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> s a)  </li><li><a href="#v:Send">Send</a> :: Serialize a =&gt; <a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> <a href="Join-Language-Types-Channel.html#v:A">A</a> a -&gt; a -&gt; <a href="Join-Language.html#t:Instruction">Instruction</a> ()  </li><li><a href="#v:Spawn">Spawn</a> ::  <a href="Join-Language.html#t:ProcessM">ProcessM</a> () -&gt; <a href="Join-Language.html#t:Instruction">Instruction</a> ()  </li><li><a href="#v:Sync">Sync</a> :: Serialize a =&gt; <a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> <a href="Join-Language-Types-Channel.html#v:S">S</a> a -&gt; a -&gt; <a href="Join-Language.html#t:Instruction">Instruction</a> (<a href="Join-Language-Types-SyncVal.html#t:SyncVal">SyncVal</a> a)  </li><li><a href="#v:Reply">Reply</a> :: Serialize a =&gt; <a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> <a href="Join-Language-Types-Channel.html#v:S">S</a> a -&gt; a -&gt; <a href="Join-Language.html#t:Instruction">Instruction</a> ()  </li><li><a href="#v:With">With</a> ::  <a href="Join-Language.html#t:ProcessM">ProcessM</a> () -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> () -&gt; <a href="Join-Language.html#t:Instruction">Instruction</a> ()  </li></ul></li><li class="src short"><span class="keyword">class</span> Show p =&gt; <a href="#t:Pattern">Pattern</a> p t | p -&gt; t <span class="keyword">where</span><ul class="subs"><li><a href="#v:rawPattern">rawPattern</a> :: p -&gt; [(Int, Maybe ByteString)]</li></ul></li><li class="src short"><span class="keyword">class</span> Show p =&gt; <a href="#t:SubPattern">SubPattern</a> p t | p -&gt; t <span class="keyword">where</span><ul class="subs"><li><a href="#v:rawSubPattern">rawSubPattern</a> :: p -&gt; (Int, Maybe ByteString)</li></ul></li><li class="src short"><span class="keyword">class</span>  <a href="#t:Apply">Apply</a> f  <span class="keyword">where</span><ul class="subs"><li><a href="#v:apply">apply</a> :: f -&gt; [ByteString] -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> ()</li></ul></li></ul></div><div id="interface"><h1 id="g:1">User API
+</h1><h2 id="g:2">Join Process's
+</h2><div class="doc"><p>Processes are the units of computation.
+</p><p>A Process is an independent execution of a sequence of Join
+ <code><a href="Join-Language.html#t:Instruction">Instruction</a></code>s and IO actions and executes in isolation of all
+ other running Processes. Communication between Processes is achieved
+ by message passing over <code><a href="Join-Language-Types-Channel.html#t:Channel">Channel</a></code>s.
+</p><p>The <code><a href="Join-Language.html#t:ProcessM">ProcessM</a></code> type is the core user-level type of this library and
+ is the type that user programs are written in. <code><a href="Join-Language.html#t:ProcessM">ProcessM</a></code> is
+ a monadic type and so supports do notation in which it is
+ recommended that programs are written.
+</p><p>Each <code><a href="Join-Language.html#t:Instruction">Instruction</a></code> has a corresponding function which enters it into
+ a <code><a href="Join-Language.html#t:ProcessM">ProcessM</a></code> context. These are the atomic functions in which Join
+ programs are built.
+</p><p>Monadically sequencing together processes to build larger
+ computations says that each subprocess finishes execution before the next is interpreted.
+ This is not always desired. Two primitive functions for controlling
+ execution time are noted below:
+</p><ul><li> <code><a href="Join-Language.html#v:spawn">spawn</a></code> is provided to asynchronously run a ProcessM, without
+  waiting for a result.
+</li><li> <code><a href="Join-Language.html#v:with">with</a></code> is provided to specify that two processes must be executed
+   at the same time.
+</li></ul><p>For example programs, see <a href="Join-Language-Examples.html">Join.Language.Examples</a>
+</p></div><div class="top"><p class="src"><span class="keyword">type</span> <a name="t:ProcessM" class="def">ProcessM</a> a = ProgramT <a href="Join-Language.html#t:Instruction">Instruction</a> IO a</p><div class="doc"><p>ProcessM is a Monadic type that can be thought of as representing a
+ sequence of Join <code>Instructions</code>.
+</p></div></div><div class="top"><p class="src"><a name="v:spawn" class="def">spawn</a> :: <a href="Join-Language.html#t:ProcessM">ProcessM</a> () -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> ()</p><div class="doc"><p>Enter a single <code><a href="Join-Language.html#v:Spawn">Spawn</a></code> Instruction into ProcessM.
+</p><p>Asynchronously spawn a <code><a href="Join-Language.html#t:ProcessM">ProcessM</a></code> () computation in the
+ background.
+</p></div></div><div class="top"><p class="src"><a name="v:with" class="def">with</a> :: <a href="Join-Language.html#t:ProcessM">ProcessM</a> () -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> () -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> ()</p><div class="doc"><p>Enter a single <code><a href="Join-Language.html#v:With">With</a></code> Instruction into ProcessM.
+</p><p>Concurrently run two <code><a href="Join-Language.html#t:ProcessM">ProcessM</a></code> () computations.
+</p></div></div><h2 id="g:3">Channels and messages
+</h2><div class="doc"><p>Channels are the communication medium of the Join Calculus.
+ The core calculus defines Channels as being asynchronously
+ unidirectional and parameterised over a type of values that they
+ carry.
+</p><p>In a <code><a href="Join-Language.html#t:ProcessM">ProcessM</a></code> first a <code><a href="Join-Language-Types-Channel.html#t:Channel">Channel</a></code> is created by a call to
+ <code><a href="Join-Language.html#v:newChannel">newChannel</a></code> as in:
+</p><pre> c &lt;- newChannel</pre><p>The type of message the Channel carries can usually be inferred from
+ its usage, but must otherwise be annotated E.G.:
+</p><pre>c &lt;- newChannel :: ProcessM (Channel A Int)</pre><p>It may have been noticed that the <code><a href="Join-Language-Types-Channel.html#t:Channel">Channel</a></code> type specifies a type
+ parameter <code><a href="Join-Language-Types-Channel.html#v:A">A</a></code>. This is because the Language has opted to define
+ Channels as being of two varieties. The traditional asynchronous
+ variety as defined by the Join calculus and an additional
+ synchronous variety. The type parameter is either <code><a href="Join-Language-Types-Channel.html#v:A">A</a></code> or <code><a href="Join-Language-Types-Channel.html#v:S">S</a></code>, denoting
+ Asynchronous or Synchronous respectively.
+</p><p>Aynchronous Channel over messages of type t:
+</p><pre> :: Channel A t</pre><p>Synchronous Channel over messages of type t:
+</p><pre> :: Channel S t</pre><p>After a Channel has been defined, it may be sent messages is
+ a number of distinct ways:
+</p><ul><li> <code><a href="Join-Language.html#v:send">send</a></code> is used to value on an asynchronous Channel, returning
+ immediately with no return value.
+</li><li> <code><a href="Join-Language.html#v:sync">sync</a></code> is used to send a value to a synchronous Channel, returning
+ immediately with a <code><a href="Join-Language-Types-SyncVal.html#t:SyncVal">SyncVal</a></code>. A reference to a reply value which can
+ be <code><a href="Join-Language-Types-SyncVal.html#v:wait">wait</a></code>ed upon when the value is required.
+</li><li> <code><a href="Join-Language.html#v:reply">reply</a></code> is used to send a message in reply to a synchronous Channel.
+</li></ul><p><em> It is noted that the addition of synchronous </em>
+ <em> Channels does not add to the Join-Calculus by virtue of the fact </em>
+ <em> that they could otherwise be implemented by </em>
+ <em> a continuation-passing-style on the primitive asynchronous </em>
+ <em> Channels.</em>.
+</p></div><div class="top"><p class="src"><a name="v:newChannel" class="def">newChannel</a> :: <span class="keyword">forall</span> s a. (<a href="Join-Language-Types-Channel.html#t:InferSync">InferSync</a> s, Serialize a) =&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> (<a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> s a)</p><div class="doc"><p>Enter a single <code><a href="Join-Language.html#v:NewChannel">NewChannel</a></code> Instruction into ProcessM.
+</p><p>Request a new typed Channel be created. Whether the
+ Channel is synchronous or asynchronous is determined by the calling
+ context.
+</p></div></div><div class="top"><p class="src"><a name="v:send" class="def">send</a> :: <span class="keyword">forall</span> a. Serialize a =&gt; <a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> <a href="Join-Language-Types-Channel.html#v:A">A</a> a -&gt; a -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> ()</p><div class="doc"><p>Enter a single <code><a href="Join-Language.html#v:Send">Send</a></code> Instruction into ProcessM.
+</p><p>On a (regular) asynchronous <code><a href="Join-Language-Types-Channel.html#t:Channel">Channel</a></code>, send a message.
+</p></div></div><div class="top"><p class="src"><a name="v:sync" class="def">sync</a> :: Serialize a =&gt; <a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> <a href="Join-Language-Types-Channel.html#v:S">S</a> a -&gt; a -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> (<a href="Join-Language-Types-SyncVal.html#t:SyncVal">SyncVal</a> a)</p><div class="doc"><p>Enter a single <code><a href="Join-Language.html#v:Sync">Sync</a></code> Instruction into ProcessM.
+</p></div></div><div class="top"><p class="src"><a name="v:reply" class="def">reply</a> :: Serialize a =&gt; <a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> <a href="Join-Language-Types-Channel.html#v:S">S</a> a -&gt; a -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> ()</p><div class="doc"><p>Enter a single <code><a href="Join-Language.html#v:Reply">Reply</a></code> Instruction into ProcessM.
+</p><p>On a synchronous <code><a href="Join-Language-Types-Channel.html#t:Channel">Channel</a></code>, respond with a message to the
+ sender.
+</p></div></div><h2 id="g:4">Join patterns
+</h2><div class="doc"><p>Join patterns are the key construct provided by the Join-calculus
+ and allow a declarative style of defining reactions to messages sent
+ to channels.
+</p><p>On the left-hand-side (LHS) of a Join pattern is a <code><a href="Join-Language.html#t:Pattern">Pattern</a></code> to match
+ upon. The pattern is either:
+</p><ul><li> A single Channel =&gt; Match all messages sent to the channel
+</li><li> A single Channel &amp;= value =&gt; Match messages sent on the Channel
+   which are equal to the value.
+</li><li> A conjunction of the previous two forms.
+</li></ul><p>The operators <code><a href="Join-Language.html#v:-38-">&amp;</a></code> and <code><a href="Join-Language.html#v:-38--61-">&amp;=</a></code> may be used to build <code>Patterns</code>.
+</p><p>E.G. Given:
+</p><pre>cc :: Channel A Char
+
+ci :: Channel S Int
+</pre><p>Some valid patterns are:
+</p><pre>cc
+
+ci
+
+cc &amp; ci
+
+cc &amp; ci&amp;=1
+</pre><p>On the right-hand-side of the Join pattern is a trigger function, typed to accept
+ each message defined on the LHS in order and result in a function in
+ <code><a href="Join-Language.html#t:ProcessM">ProcessM</a></code>.
+</p><p>The operator <code><a href="Join-Language.html#v:-124--45-">|-</a></code> may be used to build <code><a href="Join-Language.html#v:Def">Def</a></code> patterns in infix
+ style.
+</p><p>E.G. Given the previous example patterns, valid definitions are:
+</p><pre>cc         |- (char     -&gt; undefined)
+
+ci         |- (int      -&gt; undefined)
+
+cc &amp; ci    |- (char int -&gt; undefined)
+
+cc &amp; ci&amp;=1 |- (char int -&gt; undefined)
+</pre><p>The semantics of a Join <code><a href="Join-Language.html#v:Def">Def</a></code> pattern are that when the LHS
+ <code><a href="Join-Language.html#t:Pattern">Pattern</a></code> matches, the corresponding messages are passed to the RHS
+ trigger function which is executed asynchronously in the background.
+</p></div><div class="top"><p class="src"><a name="v:def" class="def">def</a> :: (<a href="Join-Language.html#t:Apply">Apply</a> t, <a href="Join-Language.html#t:Pattern">Pattern</a> p t) =&gt; p -&gt; t -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> ()</p><div class="doc"><p>Enter a single <code><a href="Join-Language.html#v:Def">Def</a></code> Instruction into ProcessM.
+</p><p>Declares that when a <code><a href="Join-Language.html#t:Pattern">Pattern</a></code> p is matched, a trigger function t is to be called, passed the matching messages.
+</p><p>E.G. Increment:
+</p><pre> def ci (i -&gt; reply ci (i+1))</pre><p>Says that when ci (which may be inferred to have type :: Channel S Int)
+ receives a message, it is passed to the RHS function which increments it
+ and passes it back.
+</p></div></div><div class="top"><p class="src"><a name="v:-124--45-" class="def">(|-)</a> :: (<a href="Join-Language.html#t:Apply">Apply</a> t, <a href="Join-Language.html#t:Pattern">Pattern</a> p t) =&gt; p -&gt; t -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> ()</p><div class="doc"><p>Infix, enter a Def instruction into ProcessM.
+</p><p>I.E. allows:
+</p><pre> def ci (i -&gt; reply ci (i+1))</pre><p>To be written:
+</p><pre> ci |- (i -&gt; reply ci (i+1))</pre></div></div><div class="top"><p class="src"><a name="v:-38-" class="def">(&amp;)</a> :: (<a href="Join-Language.html#t:SubPattern">SubPattern</a> p t, <a href="Join-Language.html#t:Pattern">Pattern</a> p' t') =&gt; p -&gt; p' -&gt; And (t -&gt; t')</p><div class="doc"><p>Infix combine a smaller SubPattern with a Pattern.
+</p><p>Right associative, meaning:
+</p><pre> c1 &amp; (c2 &amp; c3)</pre><p>May be written as:
+</p><pre> c1 &amp; c2 &amp; c3</pre><p>As all subpatterns are also valid patterns, the operator may be thought
+ of as a way to combine subpatterns.
+</p><p>Because all subpatterns are also valid patterns, the operator may be
+ thought of as a method for conjoining subpatterns.
+</p></div></div><div class="top"><p class="src"><a name="v:-38--61-" class="def">(&amp;=)</a> :: Serialize a =&gt; <a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> s a -&gt; a -&gt; ChannelEq a</p><div class="doc"><p>Infix define a ChannelEq match.
+</p><p>Right associative and with a greater precedence than <code><a href="Join-Language.html#v:-38-">&amp;</a></code>.
+ This means:
+</p><pre> c1 &amp; (c2&amp;=1)</pre><p>Can be written as:
+</p><pre> c1 &amp; c2&amp;=1</pre></div></div><h2 id="g:5">Convenience functions
+</h2><div class="doc"><p>Composite helper functions in <code><a href="Join-Language.html#t:ProcessM">ProcessM</a></code>.
+</p></div><div class="top"><p class="src"><a name="v:inert" class="def">inert</a> :: <a href="Join-Language.html#t:ProcessM">ProcessM</a> ()</p><div class="doc"><p>Synonym for:
+</p><pre> return () :: ProcessM ()</pre><p>May be used to indicate the end of a process which returns no useful
+ value.
+</p></div></div><div class="top"><p class="src"><a name="v:onReply" class="def">onReply</a> :: Serialize a =&gt; <a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> <a href="Join-Language-Types-Channel.html#v:A">A</a> a -&gt; (a -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> ()) -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> ()</p><div class="doc"><p>Helper for continuation style programming with Channels.
+ E.G., given:
+</p><pre>
+ do s &lt;- newChannel
+    s |- (x -&gt; do liftIO $ print x
+                  reply s (x+1))
+    onReply s (liftIO . print)
+</pre><p>sending an Int value on s will print it as well as it's successor.
+</p></div></div><h1 id="g:6">Implementer API
+</h1><div class="doc"><p>Below is the base instruction type, along with typeclasses and
+ functions which should only be required directly in the
+ implementation of interpreters.
+</p></div><div class="top"><p class="src"><span class="keyword">data</span>  <a name="t:Instruction" class="def">Instruction</a> a <span class="keyword">where</span></p><div class="doc"><p>Type of atomic Join instructions.
+</p><p>This is the underlying type of the <code><a href="Join-Language.html#t:ProcessM">ProcessM</a></code> Monad which is the users
+ interface to writing Join programs.
+</p><p>For writing Join programs, see the corresponding <code><a href="Join-Language.html#t:ProcessM">ProcessM</a></code> functions:
+ I.E. For <code><a href="Join-Language.html#v:Def">Def</a></code> instruction, see <code><a href="Join-Language.html#v:def">def</a></code> function. Etc.
+</p><p>For writing interpreters of Join programs, more comprehensive documentation may be
+ found in the source (because haddock cannot currently document GADTs).
+</p></div><div class="subs constructors"><p class="caption">Constructors</p><table><tr><td class="src"><a name="v:Def" class="def">Def</a> :: (<a href="Join-Language.html#t:Apply">Apply</a> t, <a href="Join-Language.html#t:Pattern">Pattern</a> p t) =&gt; p -&gt; t -&gt; <a href="Join-Language.html#t:Instruction">Instruction</a> ()</td><td class="doc empty">&nbsp;</td></tr><tr><td class="src"><a name="v:NewChannel" class="def">NewChannel</a> :: (<a href="Join-Language-Types-Channel.html#t:InferSync">InferSync</a> s, Serialize a) =&gt; <a href="Join-Language.html#t:Instruction">Instruction</a> (<a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> s a)</td><td class="doc empty">&nbsp;</td></tr><tr><td class="src"><a name="v:Send" class="def">Send</a> :: Serialize a =&gt; <a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> <a href="Join-Language-Types-Channel.html#v:A">A</a> a -&gt; a -&gt; <a href="Join-Language.html#t:Instruction">Instruction</a> ()</td><td class="doc empty">&nbsp;</td></tr><tr><td class="src"><a name="v:Spawn" class="def">Spawn</a> ::  <a href="Join-Language.html#t:ProcessM">ProcessM</a> () -&gt; <a href="Join-Language.html#t:Instruction">Instruction</a> ()</td><td class="doc empty">&nbsp;</td></tr><tr><td class="src"><a name="v:Sync" class="def">Sync</a> :: Serialize a =&gt; <a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> <a href="Join-Language-Types-Channel.html#v:S">S</a> a -&gt; a -&gt; <a href="Join-Language.html#t:Instruction">Instruction</a> (<a href="Join-Language-Types-SyncVal.html#t:SyncVal">SyncVal</a> a)</td><td class="doc empty">&nbsp;</td></tr><tr><td class="src"><a name="v:Reply" class="def">Reply</a> :: Serialize a =&gt; <a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> <a href="Join-Language-Types-Channel.html#v:S">S</a> a -&gt; a -&gt; <a href="Join-Language.html#t:Instruction">Instruction</a> ()</td><td class="doc empty">&nbsp;</td></tr><tr><td class="src"><a name="v:With" class="def">With</a> ::  <a href="Join-Language.html#t:ProcessM">ProcessM</a> () -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> () -&gt; <a href="Join-Language.html#t:Instruction">Instruction</a> ()</td><td class="doc empty">&nbsp;</td></tr></table></div><div class="subs instances"><p id="control.i:Instruction" class="caption collapser" onclick="toggleSection('i:Instruction')">Instances</p><div id="section.i:Instruction" class="show"><table><tr><td class="src"><a href="Join-Language.html#t:Apply">Apply</a> (<a href="Join-Language.html#t:ProcessM">ProcessM</a> ())</td><td class="doc empty">&nbsp;</td></tr><tr><td class="src"><a href="Join-Language.html#t:Pattern">Pattern</a> (<a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> s a) (a -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> ())</td><td class="doc empty">&nbsp;</td></tr></table></div></div></div><div class="top"><p class="src"><span class="keyword">class</span> Show p =&gt; <a name="t:Pattern" class="def">Pattern</a> p t | p -&gt; t <span class="keyword">where</span></p><div class="doc"><p>Class of types <code>p</code> which may appear as a pattern in a <code><a href="Join-Language.html#v:def">def</a></code>, where <code>t</code>
+ gives the type the corresponding trigger function must have in order to
+ properly consume a pattern match and produce a 'ProcessM ()' result.
+</p></div><div class="subs methods"><p class="caption">Methods</p><p class="src"><a name="v:rawPattern" class="def">rawPattern</a> :: p -&gt; [(Int, Maybe ByteString)]</p></div><div class="subs instances"><p id="control.i:Pattern" class="caption collapser" onclick="toggleSection('i:Pattern')">Instances</p><div id="section.i:Pattern" class="show"><table><tr><td class="src"><a href="Join-Language.html#t:Pattern">Pattern</a> (<a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> s a) (a -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> ())</td><td class="doc empty">&nbsp;</td></tr></table></div></div></div><div class="top"><p class="src"><span class="keyword">class</span> Show p =&gt; <a name="t:SubPattern" class="def">SubPattern</a> p t | p -&gt; t <span class="keyword">where</span></p><div class="doc"><p>Class of types <code>p</code> which may appear as a subpattern, as a smaller
+ component within a pattern in a <code><a href="Join-Language.html#v:def">def</a></code>, where <code>t</code> gives the type
+ a corresponding trigger function must take in order to properly consume
+ a subpattern match.
+</p></div><div class="subs methods"><p class="caption">Methods</p><p class="src"><a name="v:rawSubPattern" class="def">rawSubPattern</a> :: p -&gt; (Int, Maybe ByteString)</p></div><div class="subs instances"><p id="control.i:SubPattern" class="caption collapser" onclick="toggleSection('i:SubPattern')">Instances</p><div id="section.i:SubPattern" class="show"><table><tr><td class="src"><a href="Join-Language.html#t:SubPattern">SubPattern</a> (<a href="Join-Language-Types-Channel.html#t:Channel">Channel</a> s a) a</td><td class="doc empty">&nbsp;</td></tr></table></div></div></div><div class="top"><p class="src"><span class="keyword">class</span>  <a name="t:Apply" class="def">Apply</a> f  <span class="keyword">where</span></p><div class="doc"><p>Class of types which can be applied to a sequence of ByteString
+ parameters.
+ <code><a href="Join-Language.html#v:apply">apply</a></code> is partial.
+</p><p>Only guaranteed to be safe when:
+</p><ul><li> The number of list items is exactly equal to the number of arguments
+   expected by f.
+</li><li> Each argument to f is serializable.
+</li><li> Each item is a serialized encoding of the corresponding expected type.
+</li></ul><p>May be <code>safely</code> used in interpreters to run the Def trigger function on
+ messages that match the corresponding pattern.
+ I.E. 'Pattern p t' says that when a sequence of messages match the
+ pattern p, then the a function of type t may be applied to them in
+ a <code>safe</code> manner.
+</p></div><div class="subs methods"><p class="caption">Methods</p><p class="src"><a name="v:apply" class="def">apply</a> :: f -&gt; [ByteString] -&gt; <a href="Join-Language.html#t:ProcessM">ProcessM</a> ()</p></div><div class="subs instances"><p id="control.i:Apply" class="caption collapser" onclick="toggleSection('i:Apply')">Instances</p><div id="section.i:Apply" class="show"><table><tr><td class="src"><a href="Join-Language.html#t:Apply">Apply</a> (<a href="Join-Language.html#t:ProcessM">ProcessM</a> ())</td><td class="doc empty">&nbsp;</td></tr><tr><td class="src">(Serialize a, <a href="Join-Language.html#t:Apply">Apply</a> r) =&gt; <a href="Join-Language.html#t:Apply">Apply</a> (a -&gt; r)</td><td class="doc empty">&nbsp;</td></tr></table></div></div></div></div></div><div id="footer"><p>Produced by <a href="http://www.haskell.org/haddock/">Haddock</a> version 2.13.2</p></div></body></html>

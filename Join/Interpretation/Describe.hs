@@ -1,4 +1,13 @@
 {-# LANGUAGE GADTs #-}
+{-|
+Module      : Join.Interpretation.Describe
+Copyright   : (c) Samuel A. Yallop, 2014
+Maintainer  : syallop@gmail.com
+Stability   : experimental
+
+This module provides an interpretation of "Join.Language" which describes the computation only.
+
+-}
 module Join.Interpretation.Describe where
 
 import Join.Language

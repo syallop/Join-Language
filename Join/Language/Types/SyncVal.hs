@@ -1,3 +1,16 @@
+{-|
+Module      : Join.Language.Types.SyncVal
+Copyright   : (c) Samuel A. Yallop, 2014
+Maintainer  : syallop@gmail.com
+Stability   : experimental
+
+This module defines a 'SyncVal' type, which can be used to encapsulate a value which may not
+have been computed yet.
+
+The type may be used to wrap the return value of synchronous calls. The advantage of doing so would be that
+other actions could be performed after the synchronous call and before the point where the value is
+required. This could eliminate unnecessary waiting.
+-}
 module Join.Language.Types.SyncVal
     ( SyncVal()
     , new
