@@ -12,7 +12,7 @@ This module contains example "Join.Language" programs.
 module Join.Language.Examples where
 
 import Join.Language
-import Join.Language.Types
+import Join.Types
 
 import Control.Applicative
 import Control.Monad.IO.Class

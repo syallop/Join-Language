@@ -189,7 +189,7 @@ module Join.Language
     , apply
     ) where
 
-import Join.Language.Types
+import Join.Types
 
 import Control.Monad.Operational (ProgramT,singleton)
 

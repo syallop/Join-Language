@@ -20,7 +20,7 @@ import Prelude hiding (lookup)
 
 import Join.Interpretation.Simple.Types
 import Join.Language
-import Join.Language.Types
+import Join.Types
 
 import Control.Concurrent.MVar
 import Control.Concurrent

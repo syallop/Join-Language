@@ -11,7 +11,7 @@ This module provides an interpretation of "Join.Language" which describes the co
 module Join.Interpretation.Describe where
 
 import Join.Language
-import Join.Language.Types
+import Join.Types
 
 import Join.Language.Examples
 

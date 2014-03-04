@@ -1,5 +1,5 @@
 {-|
-Module      : Join.Language.Types.SyncVal
+Module      : Join.Types.SyncVal
 Copyright   : (c) Samuel A. Yallop, 2014
 Maintainer  : syallop@gmail.com
 Stability   : experimental
@@ -11,7 +11,7 @@ The type may be used to wrap the return value of synchronous calls. The advantag
 other actions could be performed after the synchronous call and before the point where the value is
 required. This could eliminate unnecessary waiting.
 -}
-module Join.Language.Types.SyncVal
+module Join.Types.SyncVal
     ( SyncVal()
     , new
     , wait

@@ -44,7 +44,7 @@ module Join.Interpretation.Simple.Types
 import Prelude hiding (lookup)
 
 import Join.Language
-import Join.Language.Types
+import Join.Types
 
 import Control.Arrow       (first)
 import Control.Applicative ((<$>))
