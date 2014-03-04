@@ -39,8 +39,6 @@ module Join.Language.Types.Channel
     ,inferSync
     ) where
 
-import Data.Serialize
-
 -- | Synchronicity tag Type & Kind.
 data Synchronicity
     = A -- ^ Asynchronous.
@@ -57,8 +55,8 @@ data Synchronicity
 -- Channels are constructed with an 'Int' parameter which serves as it's
 -- unique ID. Interpreters should ensure these are unique.
 data Channel s a where
-    Channel  :: Serialize a => Int -> Channel A a
-    SChannel :: Serialize a => Int -> Channel S a
+    Channel  :: Int -> Channel A a
+    SChannel :: Int -> Channel S a
 
 instance Show (Channel s a) where
     show (Channel  i) = "Channel-"  ++ show i
@@ -81,7 +79,7 @@ getId (SChannel i) = i
 -- 
 -- and in a context where 's' is constrained to 'A' or 'S', then inferSync will
 -- create the corresponding type of Channel.
-class    InferSync s where inferSync :: Serialize a => Int -> Channel s a
+class    InferSync s where inferSync :: Int -> Channel s a
 instance InferSync A where inferSync = Channel
 instance InferSync S where inferSync = SChannel
 
