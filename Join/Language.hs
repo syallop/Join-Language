@@ -151,25 +151,25 @@ module Join.Language
     -- each message defined on the LHS in order and result in a function in
     -- 'ProcessM'.
     --
-    -- The operator '|-' may be used to build 'Def' patterns in infix
+    -- The operator '|>' may be used to build 'Def' patterns in infix
     -- style.
     --
     -- E.G. Given the previous example patterns, valid definitions are:
     --
-    -- @cc         |- (\char     -> undefined)
+    -- @cc         |> (\char     -> undefined)
     --
-    --  ci         |- (\int      -> undefined)
+    --  ci         |> (\int      -> undefined)
     --
-    --  cc & ci    |- (\char int -> undefined)
+    --  cc & ci    |> (\char int -> undefined)
     --
-    --  cc & ci&=1 |- (\char int -> undefined)
+    --  cc & ci&=1 |> (\char int -> undefined)
     -- @
     --
     -- The semantics of a Join 'Def' pattern are that when the LHS
     -- 'Pattern' matches, the corresponding messages are passed to the RHS
     -- trigger function which is executed asynchronously in the background.
     , def
-    , (|-)
+    , (|>)
     , (&)
     , (&=)
 
@@ -348,10 +348,10 @@ c &= v = ChannelEq c v
 --
 -- To be written:
 --
--- @ ci |- (\i -> reply ci (i+1)) @
-(|-) :: (Apply t, Pattern p t) => p -> t -> ProcessM ()
-infixr 7 |-
-p |- t = def p t
+-- @ ci |> (\i -> reply ci (i+1)) @
+(|>) :: (Apply t, Pattern p t) => p -> t -> ProcessM ()
+infixr 7 |>
+p |> t = def p t
 
 
 
@@ -420,7 +420,7 @@ with p q = singleton $ With p q
 -- 
 -- @
 -- do s <- newChannel
---    s |- (\x -> do liftIO $ print x
+--    s |> (\x -> do liftIO $ print x
 --                  reply s (x+1))
 --    onReply s (liftIO . print)
 -- @
