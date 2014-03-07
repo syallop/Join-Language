@@ -5,8 +5,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FunctionalDependencies #-}
-
+{-# LANGUAGE FlexibleContexts #-}
 {-# OPTIONS_HADDOCK prune #-}
 {-|
 Module      : Join.Language
@@ -112,12 +111,12 @@ module Join.Language
     , sync
     , reply
 
-    -- ** Join patterns
-    -- | Join patterns are the key construct provided by the Join-calculus
+    -- ** Join definitions
+    -- | Join definitions are the key construct provided by the Join-calculus
     -- and allow a declarative style of defining reactions to messages sent
     -- to channels.
     --
-    -- On the left-hand-side (LHS) of a Join pattern is a 'Pattern' to match
+    -- On the left-hand-side (LHS) of a Join definition is a 'Pattern' to match
     -- upon. The pattern is either:
     --
     -- - A single Channel => Match all messages sent to the channel
@@ -147,7 +146,7 @@ module Join.Language
     -- cc & ci&=1
     -- @
     --
-    -- On the right-hand-side of the Join pattern is a trigger function, typed to accept
+    -- On the right-hand-side of the Join definition is a trigger function, typed to accept
     -- each message defined on the LHS in order and result in a function in
     -- 'ProcessM'.
     --
@@ -165,7 +164,7 @@ module Join.Language
     --  cc & ci&=1 |> (\char int -> undefined)
     -- @
     --
-    -- The semantics of a Join 'Def' pattern are that when the LHS
+    -- The semantics of a Join 'Def' are that when the LHS
     -- 'Pattern' matches, the corresponding messages are passed to the RHS
     -- trigger function which is executed asynchronously in the background.
     , def
@@ -174,7 +173,8 @@ module Join.Language
     , (&=)
 
     -- ** Convenience functions
-    -- | Composite helper functions in 'ProcessM'.
+    -- | 'ProcessM' helper functions.
+    , Inert
     , inert
     , onReply
 
@@ -193,7 +193,6 @@ import Join.Types
 
 import Control.Monad.Operational (ProgramT,singleton)
 
-import Data.ByteString (ByteString)
 import Data.Serialize
 
 -- | Type of atomic Join instructions.
@@ -209,7 +208,7 @@ import Data.Serialize
 data Instruction a where
 
     -- Join definition.
-    Def        :: (Apply t, Pattern p t)    -- Trigger can be applied,pattern is associated with trigger type.
+    Def        :: (Apply t Inert, Pattern p t)    -- Trigger can be applied,pattern is associated with trigger type.
                => p                         -- Pattern matched on.
                -> t                         -- Trigger function called on match.
                -> Instruction ()
@@ -245,100 +244,6 @@ data Instruction a where
                -> ProcessM ()               -- Second process.
                -> Instruction ()
 
--- | Class of types which can be applied to a sequence of ByteString
--- parameters.
--- 'apply' is partial.
--- 
--- Only guaranteed to be safe when:
---
--- - The number of list items is exactly equal to the number of arguments
---   expected by f.
---
--- - Each argument to f is serializable.
---
--- - Each item is a serialized encoding of the corresponding expected type.
---
--- May be 'safely' used in interpreters to run the Def trigger function on
--- messages that match the corresponding pattern.
--- I.E. 'Pattern p t' says that when a sequence of messages match the
--- pattern p, then the a function of type t may be applied to them in
--- a 'safe' manner.
-class Apply f where apply :: f -> [ByteString] -> ProcessM ()
-instance Apply (ProcessM ()) where
-    apply p [] = p
-    apply _ _  = error "Remaining arguments"
-instance (Serialize a, Apply r) => Apply (a -> r) where
-    apply p (m:ms) = case decode m of
-        Left _  -> error "Mistyped argument"
-        Right v -> apply (p v) ms
-    apply _ [] = error "Too few arguments"
-
-
-
--- | Require that messages sent on a Channel must match a specific value to
--- trigger a match.
-data ChannelEq a = forall s. Serialize a => ChannelEq (Channel s a) a
-instance Show (ChannelEq a) where show (ChannelEq c a) = show c ++ "&=" ++ show (encode a)
-
--- | Class of types 'p' which may appear as a pattern in a 'def', where 't'
--- gives the type the corresponding trigger function must have in order to
--- properly consume a pattern match and produce a 'ProcessM ()' result.
-class Show p => Pattern p t | p -> t where
-    rawPattern :: p -> [(Int,Maybe ByteString)]
-
--- | Class of types 'p' which may appear as a subpattern, as a smaller
--- component within a pattern in a 'def', where 't' gives the type
--- a corresponding trigger function must take in order to properly consume
--- a subpattern match.
-class Show p => SubPattern p t | p -> t where
-    rawSubPattern :: p -> (Int,Maybe ByteString)
-
--- | Type of conjunctive patterns. Conjoins a SubPattern to a Pattern
--- specifying both must match in order for the whole pattern to match.
-data And p where And :: (SubPattern t p, Pattern t' p') => t -> t' -> And (p -> p')
-instance Show (And p) where show (And p ps) = show p ++ "&" ++ show ps
-
-instance Pattern (And p) p where rawPattern (And p ps) = rawSubPattern p : rawPattern ps
-
--- Channels and ChannelEq's may be used as part of a subpattern or as
--- a pattern in themselves.
-instance SubPattern (Channel s a) a                  where rawSubPattern c               = (getId c, Nothing)
-instance SubPattern (ChannelEq a) a                  where rawSubPattern (ChannelEq c a) = (getId c, Just $ encode a)
-instance Pattern    (Channel s a) (a -> ProcessM ()) where rawPattern    c               = [rawSubPattern c]
-instance Pattern    (ChannelEq a) (a -> ProcessM ()) where rawPattern    c               = [rawSubPattern c]
-
--- | Infix combine a smaller SubPattern with a Pattern.
---
--- Right associative, meaning:
---
--- @ c1 & (c2 & c3) @
---
--- May be written as:
---
--- @ c1 & c2 & c3 @
---
--- As all subpatterns are also valid patterns, the operator may be thought
--- of as a way to combine subpatterns.
---
--- Because all subpatterns are also valid patterns, the operator may be
--- thought of as a method for conjoining subpatterns.
-(&) :: (SubPattern p t, Pattern p' t') => p -> p' -> And (t -> t')
-infixr 7 &
-p & ps = And p ps
-
--- | Infix define a ChannelEq match.
---
--- Right associative and with a greater precedence than '&'.
--- This means:
---
--- @ c1 & (c2&=1) @
---
--- Can be written as:
---
--- @ c1 & c2&=1 @
-(&=) :: Serialize a => Channel s a -> a -> ChannelEq a
-infixr 8 &=
-c &= v = ChannelEq c v
 
 -- | Infix, enter a Def instruction into ProcessM.
 --
@@ -349,7 +254,7 @@ c &= v = ChannelEq c v
 -- To be written:
 --
 -- @ ci |> (\i -> reply ci (i+1)) @
-(|>) :: (Apply t, Pattern p t) => p -> t -> ProcessM ()
+(|>) :: (Apply t Inert, Pattern p t) => p -> t -> ProcessM ()
 infixr 7 |>
 p |> t = def p t
 
@@ -370,7 +275,7 @@ type ProcessM a = ProgramT Instruction IO a
 -- Says that when ci (which may be inferred to have type :: Channel S Int)
 -- receives a message, it is passed to the RHS function which increments it
 -- and passes it back.
-def :: (Apply t, Pattern p t) => p -> t -> ProcessM ()
+def :: (Apply t Inert, Pattern p t) => p -> t -> ProcessM ()
 def c p = singleton $ Def c p
 
 -- | Enter a single 'NewChannel' Instruction into ProcessM.
@@ -430,12 +335,15 @@ with p q = singleton $ With p q
 onReply :: Serialize a => Channel A a -> (a -> ProcessM ()) -> ProcessM ()
 onReply = def
 
+-- | Type synonym for a ProcessM which terminates without value.
+type Inert = ProcessM ()
+
 -- | Synonym for:
 --
 -- @ return () :: ProcessM () @
 --
 -- May be used to indicate the end of a process which returns no useful
 -- value.
-inert :: ProcessM ()
+inert :: Inert
 inert = return ()
 

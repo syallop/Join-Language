@@ -1,5 +1,6 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# OPTIONS_HADDOCK hide #-}
 module Join.Interpretation.Simple.Types
     (-- Encode Message/ Channel types.
@@ -111,22 +112,22 @@ type ChanMatches = [ChanMatch]
 
 -- | Encodes an entire Def Pattern.
 -- When the ChanMatches match, a function should be triggered.
-data MatchRule = forall f. Apply f => MatchRule ChanMatches f
+data MatchRule = forall f. Apply f Inert => MatchRule ChanMatches f
 
 -- Many Def Pattern's.
 type MatchRules = [MatchRule]
 
 -- | Lift a Language SubPattern into an internal ChanMatch.
 mkChanMatch :: SubPattern t p => t -> ChanMatch
-mkChanMatch t = let (i,md) = rawSubPattern t
+mkChanMatch t = let (i,md) = subpattern t
                     in ChanMatch (ChanId i,MsgData <$> md)
 
 -- | Lift a Language Pattern into an internal ChanMatches.
 mkChanMatches :: Pattern t p => t -> ChanMatches
-mkChanMatches p = (\(i,md) -> ChanMatch (ChanId i, MsgData <$> md)) <$> rawPattern p
+mkChanMatches p = (\(i,md) -> ChanMatch (ChanId i, MsgData <$> md)) <$> pattern p
 
 -- | Lift the LHS and RHS of a Language Def into an internal MatchRule.
-mkMatchRule :: (Apply f, Pattern t f) => t -> f -> MatchRule
+mkMatchRule :: (Apply f Inert, Pattern t f) => t -> f -> MatchRule
 mkMatchRule t = MatchRule (mkChanMatches t)
 
 {-= Primitive functions =-}
@@ -140,7 +141,7 @@ registerMsg i m = MsgQueue . insertWith (++) i [m] . unMsgQueue
 
 -- | Given ChanMatches and a corresponding trigger function, register it in
 -- a MatchRules collection.
-registerMatchRule :: Apply f => ChanMatches -> f -> MatchRules -> MatchRules
+registerMatchRule :: Apply f Inert => ChanMatches -> f -> MatchRules -> MatchRules
 registerMatchRule cms f rs = MatchRule cms f : rs
 
 -- | With a possible MsgData to require equality with, extract the first

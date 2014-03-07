@@ -182,7 +182,7 @@ ruleHandler iStR = forever $ do
         let rs    = extractReplyIds cms msgs
             iStR' = (mkPState iStR){replyChannels = fromList rs}
             bs    = map (unMsgData . fst . unMsg) msgs
-            p     = apply f bs
+            p     = unsafeApply f bs
            in runWith iStR' p
 
 -- | Wait for any message on a given channel, and write it to a SyncVal.
