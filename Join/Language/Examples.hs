@@ -19,6 +19,7 @@ import Prelude hiding (take)
 
 import Control.Applicative
 import Control.Concurrent (threadDelay)
+import Control.Monad (liftM,replicateM_,replicateM)
 import Control.Monad.IO.Class
 import Data.Serialize (Serialize)
 
@@ -51,13 +52,53 @@ fibonacci i = do
                                    reply fib (wait i + wait j)
     wait <$> sync fib i
 
+{- 'Counter' example: -}
+
+newtype Counter = Counter (SyncChan () (), SyncChan () Int)
+mkCounter :: ProcessM Counter
+mkCounter = do
+    count <- newChannel -- :: Chan Int
+    inc   <- newChannel -- :: SyncChan () ()
+    get   <- newChannel -- :: SyncChan () Int
+
+    inc & count |> \_ n -> reply inc () `with` send count (n+1)
+    get & count |> \_ n -> reply get n  `with` send count n
+
+    send count 1
+
+    return $ Counter (inc,get)
+
+-- | Increment counter, waiting until complete.
+inc :: Counter -> ProcessM ()
+inc (Counter (i,_)) = wait <$> sync i ()
+
+-- | Get current value, waiting until complete.
+get :: Counter -> ProcessM Int
+get (Counter (_,g)) = wait <$> sync g ()
+
+counterExample :: ProcessM ()
+counterExample = do
+    c <- mkCounter
+
+    -- Make one inc, then check the value:
+    inc c
+    liftIO $ putStrLn "After one inc: "
+    get c >>= liftIO . print
+
+    -- Make 100 inc's, and check the value in 5 seconds
+    replicateM_ 100 (inc c)
+    liftIO $ putStrLn "After at most 100 inc, and 5 seconds: " >> threadDelay 5000000
+    get c >>= liftIO . print
+
+    inert
+
 {- Buffer example: -}
 
 newtype Buffer a = Buffer (Chan a, SyncChan () a)
 mkBuffer :: Serialize a => ProcessM (Buffer a)
 mkBuffer = do
-    p <- newChannel           -- put channel  :: Chan a
-    t <- newChannel           -- take channel :: SyncChan a ()
+    p <- newChannel       -- put channel  :: Chan a
+    t <- newChannel       -- take channel :: SyncChan a ()
     t & p |> \_-> reply t -- reply put's to take's
     return $ Buffer (p,t)
 
