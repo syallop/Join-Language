@@ -33,6 +33,8 @@ implementation sufficiently, type annotations may be able to be avoided entirely
 module Join.Types.Channel
     (
      Channel()
+    ,Chan
+    ,SyncChan
     ,Synchronicity(..)
     ,getId
     ,InferSync()
@@ -55,8 +57,14 @@ data Synchronicity r
 -- Channels are constructed with an 'Int' parameter which serves as it's
 -- unique ID. Interpreters should ensure these are unique.
 data Channel s a where
-    Channel  :: Int -> Channel A a
-    SChannel :: Int -> Channel (S b) a
+    Channel  :: Int -> Channel A     a
+    SChannel :: Int -> Channel (S r) a
+
+-- | Type synonym for asynchronous 'Channel's.
+type Chan      a   = Channel A a
+
+-- | Synonym for synchronous 'Channel's.
+type SyncChan  a r = Channel (S r) a
 
 instance Show (Channel s a) where
     show (Channel  i) = "Channel-"  ++ show i

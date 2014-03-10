@@ -220,7 +220,7 @@ data Instruction a where
 
     -- Sends a value on a Channel.
     Send       :: Serialize a                  -- Message type can be serialized.
-               => Channel A a                  -- Target Asynchronous Channel.
+               => Chan a                       -- Target Asynchronous Channel.
                -> a                            -- Value sent
                -> Instruction ()
 
@@ -230,13 +230,13 @@ data Instruction a where
 
     -- Send a value on a Synchronous Channel and wait for a result.
     Sync       :: (Serialize a, Serialize r)   -- Message type can be serialized.
-               => Channel (S r) a              -- Channel sent and waited upon.
+               => SyncChan a r                 -- Channel sent and waited upon.
                -> a                            -- Value sent.
                -> Instruction (SyncVal r)      -- SyncVal encapsulated reply value.
 
     -- Send a reply value on a Synchronous Channel.
     Reply      :: Serialize r                  -- Message type can be serialized.
-               => Channel (S r) a              -- A Synchronous Channel to reply to.
+               => SyncChan a r                 -- A Synchronous Channel to reply to.
                -> r                            -- Value to reply with.
                -> Instruction ()
 
@@ -290,7 +290,7 @@ newChannel = singleton NewChannel
 -- | Enter a single 'Send' Instruction into ProcessM.
 --
 -- On a (regular) asynchronous 'Channel', send a message.
-send :: forall a. Serialize a => Channel A a -> a -> ProcessM ()
+send :: forall a. Serialize a => Chan a -> a -> ProcessM ()
 send c a = singleton $ Send c a
 
 -- | Enter a single 'Spawn' Instruction into ProcessM.
@@ -305,14 +305,14 @@ spawn p = singleton $ Spawn p
 -- Send a message to a synchronous 'Channel', returning
 -- a 'SyncVal' - a handle to the reply message which may be 'wait'ed upon
 -- when needed.
-sync :: (Serialize a,Serialize r) => Channel (S r) a -> a -> ProcessM (SyncVal r)
+sync :: (Serialize a,Serialize r) => SyncChan a r -> a -> ProcessM (SyncVal r)
 sync s a = singleton $ Sync s a
 
 -- | Enter a single 'Reply' Instruction into ProcessM.
 --
 -- On a synchronous 'Channel', respond with a message to the
 -- sender.
-reply :: Serialize r => Channel (S r) a -> r -> ProcessM ()
+reply :: Serialize r => SyncChan a r -> r -> ProcessM ()
 reply s a = singleton $ Reply s a
 
 -- | Enter a single 'With' Instruction into ProcessM.
@@ -333,7 +333,7 @@ with p q = singleton $ With p q
 -- 
 --
 -- sending an Int value on s will print it as well as it's successor.
-onReply :: Serialize a => Channel A a -> (a -> ProcessM ()) -> ProcessM ()
+onReply :: Serialize a => Chan a -> (a -> ProcessM ()) -> ProcessM ()
 onReply = def
 
 -- | Type synonym for a ProcessM which terminates without value.
