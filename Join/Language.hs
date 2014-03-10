@@ -85,9 +85,10 @@ module Join.Language
     --
     -- @ :: Channel A t @
     --
-    -- Synchronous Channel over messages of type t:
+    -- Synchronous Channel over messages of type t, returning message of
+    -- type r:
     -- 
-    -- @ :: Channel S t @
+    -- @ :: Channel (S r) t @
     --
     -- After a Channel has been defined, it may be sent messages is
     -- a number of distinct ways:
@@ -132,7 +133,7 @@ module Join.Language
     --
     -- @cc :: Channel A Char
     --
-    --  ci :: Channel S Int
+    --  ci :: Channel (S Integer) Int
     -- @
     --
     --      Some valid patterns are:
@@ -208,40 +209,40 @@ import Data.Serialize
 data Instruction a where
 
     -- Join definition.
-    Def        :: (Apply t Inert, Pattern p t)    -- Trigger can be applied,pattern is associated with trigger type.
-               => p                         -- Pattern matched on.
-               -> t                         -- Trigger function called on match.
+    Def        :: (Apply t Inert, Pattern p t) -- Trigger can be applied,pattern is associated with trigger type.
+               => p                            -- Pattern matched on.
+               -> t                            -- Trigger function called on match.
                -> Instruction ()
 
     -- Request a new typed Channel.
-    NewChannel :: (InferSync s, Serialize a) -- Synchronicity can be inferred, message type can be serialized.
-               => Instruction (Channel s a)  -- Infer the required type of a new synchronous/ asynchronous Channel.
+    NewChannel :: (InferSync s, Serialize a)   -- Synchronicity can be inferred, message type can be serialized.
+               => Instruction (Channel s a)    -- Infer the required type of a new synchronous/ asynchronous Channel.
 
     -- Sends a value on a Channel.
-    Send       :: Serialize a               -- Message type can be serialized.
-               => Channel A a               -- Target Asynchronous Channel.
-               -> a                         -- Value sent
+    Send       :: Serialize a                  -- Message type can be serialized.
+               => Channel A a                  -- Target Asynchronous Channel.
+               -> a                            -- Value sent
                -> Instruction ()
 
     -- Asynchronously spawn a Process.
-    Spawn      :: ProcessM ()               -- Process to spawn.
+    Spawn      :: ProcessM ()                  -- Process to spawn.
                -> Instruction ()
 
     -- Send a value on a Synchronous Channel and wait for a result.
-    Sync       :: Serialize a               -- Message type can be serialized.
-               => Channel S a               -- Channel sent and waited upon.
-               -> a                         -- Value sent.
-               -> Instruction (SyncVal a)   -- SyncVal encapsulated reply value.
+    Sync       :: (Serialize a, Serialize r)   -- Message type can be serialized.
+               => Channel (S r) a              -- Channel sent and waited upon.
+               -> a                            -- Value sent.
+               -> Instruction (SyncVal r)      -- SyncVal encapsulated reply value.
 
-    -- Send a reply value on a Synchronous channel.
-    Reply      :: Serialize a               -- Message type can be serialized.
-               => Channel S a               -- A Synchronous Channel to reply to.
-               -> a                         -- Value to reply with.
+    -- Send a reply value on a Synchronous Channel.
+    Reply      :: Serialize r                  -- Message type can be serialized.
+               => Channel (S r) a              -- A Synchronous Channel to reply to.
+               -> r                            -- Value to reply with.
                -> Instruction ()
 
     -- Concurrently execute two Process's.
-    With       :: ProcessM ()               -- First process.
-               -> ProcessM ()               -- Second process.
+    With       :: ProcessM ()                  -- First process.
+               -> ProcessM ()                  -- Second process.
                -> Instruction ()
 
 
@@ -304,14 +305,14 @@ spawn p = singleton $ Spawn p
 -- Send a message to a synchronous 'Channel', returning
 -- a 'SyncVal' - a handle to the reply message which may be 'wait'ed upon
 -- when needed.
-sync :: Serialize a => Channel S a -> a -> ProcessM (SyncVal a)
+sync :: (Serialize a,Serialize r) => Channel (S r) a -> a -> ProcessM (SyncVal r)
 sync s a = singleton $ Sync s a
 
 -- | Enter a single 'Reply' Instruction into ProcessM.
 --
 -- On a synchronous 'Channel', respond with a message to the
 -- sender.
-reply :: Serialize a => Channel S a -> a -> ProcessM ()
+reply :: Serialize r => Channel (S r) a -> r -> ProcessM ()
 reply s a = singleton $ Reply s a
 
 -- | Enter a single 'With' Instruction into ProcessM.

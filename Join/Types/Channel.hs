@@ -40,9 +40,9 @@ module Join.Types.Channel
     ) where
 
 -- | Synchronicity tag Type & Kind.
-data Synchronicity
-    = A -- ^ Asynchronous.
-    | S -- ^ Synchronous.
+data Synchronicity r
+    = A   -- ^ Asynchronous.
+    | S r -- ^ Synchronous, with return type.
 
 -- | A Channel uniquely identifies a port of communication.
 --
@@ -56,7 +56,7 @@ data Synchronicity
 -- unique ID. Interpreters should ensure these are unique.
 data Channel s a where
     Channel  :: Int -> Channel A a
-    SChannel :: Int -> Channel S a
+    SChannel :: Int -> Channel (S b) a
 
 instance Show (Channel s a) where
     show (Channel  i) = "Channel-"  ++ show i
@@ -79,7 +79,7 @@ getId (SChannel i) = i
 -- 
 -- and in a context where 's' is constrained to 'A' or 'S', then inferSync will
 -- create the corresponding type of Channel.
-class    InferSync s where inferSync :: Int -> Channel s a
-instance InferSync A where inferSync = Channel
-instance InferSync S where inferSync = SChannel
+class    InferSync s     where inferSync :: Int -> Channel s a
+instance InferSync A     where inferSync = Channel
+instance InferSync (S r) where inferSync = SChannel
 

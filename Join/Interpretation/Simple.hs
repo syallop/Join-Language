@@ -186,7 +186,7 @@ ruleHandler iStR = forever $ do
            in runWith iStR' p
 
 -- | Wait for any message on a given channel, and write it to a SyncVal.
-waitOn :: Serialize a => IStateRef -> Channel S a -> SyncVal a -> IO ()
+waitOn :: Serialize r => IStateRef -> Channel (S r) a -> SyncVal r -> IO ()
 waitOn iStR c r = do
     iSt <- takeIStateRef iStR
 
