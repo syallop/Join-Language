@@ -31,10 +31,10 @@ countDown n = do
     --  When there's an int on intChannel: 
     --    print it. If 0, do nothing.
     --    Otherwise spawn a de-incremented int on intChannel.
-    intChannel |> (\i -> do liftIO $ print i
-                            if i == 0
-                              then inert
-                              else send intChannel (i-1))
+    intChannel |> \i -> do liftIO $ print i
+                           if i == 0
+                             then inert
+                             else send intChannel (i-1)
 
     -- Spawn the starting number on intChannel.
     send intChannel n
@@ -45,10 +45,10 @@ countDown n = do
 fibonacci :: Int -> ProcessM Int
 fibonacci i = do
     fib <- newChannel
-    fib |> (\n -> if n <= 1 then reply fib 1
-                            else do i <- sync fib (n-1)
-                                    j <- sync fib (n-2)
-                                    reply fib (wait i + wait j))
+    fib |> \n -> if n <= 1 then reply fib 1
+                           else do i <- sync fib (n-1)
+                                   j <- sync fib (n-2)
+                                   reply fib (wait i + wait j)
     wait <$> sync fib i
 
 {- Buffer example: -}
@@ -58,7 +58,7 @@ mkBuffer :: Serialize a => ProcessM (Buffer a)
 mkBuffer = do
     p <- newChannel           -- put channel  :: Chan a
     t <- newChannel           -- take channel :: SyncChan a ()
-    (t & p) |> (\_-> reply t) -- reply put's to take's
+    t & p |> \_-> reply t -- reply put's to take's
     return $ Buffer (p,t)
 
 -- | Asynchronously put a message on the buffer.

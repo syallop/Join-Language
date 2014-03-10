@@ -256,7 +256,7 @@ data Instruction a where
 --
 -- @ ci |> (\i -> reply ci (i+1)) @
 (|>) :: (Apply t Inert, Pattern p t) => p -> t -> ProcessM ()
-infixr 7 |>
+infixr 6 |>
 p |> t = def p t
 
 
