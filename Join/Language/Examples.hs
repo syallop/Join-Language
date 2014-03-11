@@ -128,3 +128,36 @@ bufferExample = do
 
     return $ wait i + wait j
 
+{- Primitive Lock example -}
+newtype Lock = Lock (SyncChan () (),SyncChan () ())
+mkLock :: ProcessM Lock
+mkLock = do
+    free   <- newChannel -- Enforce mutex      :: Chan ()
+    lock   <- newChannel -- Request for locks  :: SyncChan () ()
+    unlock <- newChannel -- Request for unlock :: SyncChan () ()
+
+    -- Only when free, reply to a lock request.
+    free & lock |> \_ -> reply lock
+
+    -- When unlock request, set free.
+    unlock      |> \_ -> send free() `with` reply unlock()
+
+    send free()
+    return $ Lock (lock,unlock)
+
+-- | Block until a lock is acquired.
+lock :: Lock -> ProcessM ()
+lock (Lock (l,_)) = wait <$> sync l ()
+
+-- | Release a lock.
+unlock :: Lock -> ProcessM ()
+unlock (Lock (_,u)) = wait <$> sync u ()
+
+-- | Acquire lock before running a process. (unlocking afterward).
+withLock :: Lock -> ProcessM () -> ProcessM ()
+withLock l p = lock l >> p >> unlock l
+
+lockExample :: ProcessM ()
+lockExample = mkLock >>= \l -> withLock l (liftIO $ putStrLn "One")
+                        `with` withLock l (liftIO $ putStrLn "two")
+
