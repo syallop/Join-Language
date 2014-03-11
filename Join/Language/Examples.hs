@@ -23,6 +23,7 @@ import Control.Monad (liftM,replicateM_,replicateM)
 import Control.Monad.IO.Class
 import Data.Serialize (Serialize)
 
+-- | Countdown all values to 0.
 countDown :: Int -> ProcessM ()
 countDown n = do
     -- Get a new Channel, inferred to be of type 'Channel Int'.
@@ -43,6 +44,7 @@ countDown n = do
     -- Become inert.
     inert
 
+-- | Parallel computation of the fibonacci function.
 fibonacci :: Int -> ProcessM Int
 fibonacci i = do
     fib <- newChannel
@@ -76,6 +78,7 @@ inc (Counter (i,_)) = wait <$> sync i ()
 get :: Counter -> ProcessM Int
 get (Counter (_,g)) = wait <$> sync g ()
 
+-- | Increment and query a counter with implicit mutex.
 counterExample :: ProcessM ()
 counterExample = do
     c <- mkCounter
@@ -110,6 +113,7 @@ put (Buffer (p,_)) = send p
 take :: Serialize a => Buffer a -> ProcessM (SyncVal a)
 take (Buffer (_,t)) = sync t ()
 
+-- | Store some items in a buffer, retrieve them later. Simulates state.
 bufferExample :: ProcessM Int
 bufferExample = do
     -- Create a new Buffer
@@ -157,7 +161,48 @@ unlock (Lock (_,u)) = wait <$> sync u ()
 withLock :: Lock -> ProcessM () -> ProcessM ()
 withLock l p = lock l >> p >> unlock l
 
+-- | Only one subprocess may hold the lock at a time.
+-- => "One" "Two" or "Two" "One". No intermingling.
 lockExample :: ProcessM ()
 lockExample = mkLock >>= \l -> withLock l (liftIO $ putStrLn "One")
                         `with` withLock l (liftIO $ putStrLn "two")
+
+
+{- Barrier example -}
+newtype Barrier = Barrier (SyncChan () (), SyncChan () ())
+mkBarrier :: ProcessM Barrier
+mkBarrier = do
+    l <- newChannel
+    r <- newChannel
+    l & r |> \_ _ -> reply l () `with` reply r ()
+    return $ Barrier (l,r)
+
+-- | 'Left side' waits at barrier.
+signalLeft :: Barrier -> ProcessM ()
+signalLeft (Barrier (l,_)) = wait <$> sync l ()
+
+-- | 'Right side' waits at barrier.
+signalRight :: Barrier -> ProcessM ()
+signalRight (Barrier (_,r)) = wait <$> sync r ()
+
+-- | Barriers enforce a subProcesses move in step.
+-- => Result is "(lr)" or "(rl)".
+barrierExample :: ProcessM ()
+barrierExample = do
+    b <- mkBarrier
+    procLeft b `with` procRight b
+  where
+    procLeft :: Barrier -> ProcessM ()
+    procLeft b = do
+        liftIO $ putStrLn "("
+        signalLeft b
+        liftIO $ putStrLn "l"
+        signalLeft b
+        liftIO $ putStrLn ")"
+
+    procRight :: Barrier -> ProcessM ()
+    procRight b = do
+        signalRight b
+        liftIO $ putStrLn "r"
+        signalRight b
 
