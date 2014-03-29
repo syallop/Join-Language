@@ -18,6 +18,9 @@ library
    exposed-modules:    Join.Language
                      , Join.Language.Examples
                      , Join.Types
+                     , Join.Types.Pattern
+                     , Join.Types.Channel
+                     , Join.Types.SyncVal
                      , Join.Interpretation.Describe
                      , Join.Interpretation.Simple
   -- other-modules:       
@@ -28,3 +31,4 @@ library
                      , cereal
                      , ivar-simple
                      , containers
+

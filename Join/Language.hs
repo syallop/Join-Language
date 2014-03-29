@@ -110,6 +110,7 @@ module Join.Language
     , newChannel
     , send
     , sync
+    , wait
     , reply
 
     -- ** Join definitions
@@ -190,10 +191,11 @@ module Join.Language
     , apply
     ) where
 
+import Prelude hiding (read)
+
 import Join.Types
 
 import Control.Monad.Operational (ProgramT,singleton)
-
 import Data.Serialize
 
 -- | Type of atomic Join instructions.
@@ -307,6 +309,10 @@ spawn p = singleton $ Spawn p
 -- when needed.
 sync :: (Serialize a,Serialize r) => SyncChan a r -> a -> ProcessM (SyncVal r)
 sync s a = singleton $ Sync s a
+
+-- |
+wait :: SyncVal a -> ProcessM a
+wait sv = return $! read sv
 
 -- | Enter a single 'Reply' Instruction into ProcessM.
 --

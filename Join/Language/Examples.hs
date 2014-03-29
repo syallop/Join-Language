@@ -15,13 +15,14 @@ module Join.Language.Examples where
 import Join.Language
 import Join.Types
 
-import Prelude hiding (take)
+import Prelude hiding (take, read)
 
 import Control.Applicative
 import Control.Concurrent (threadDelay)
 import Control.Monad (liftM,replicateM_,replicateM)
 import Control.Monad.IO.Class
 import Data.Serialize (Serialize)
+import System.IO
 
 -- | Countdown all values to 0.
 countDown :: Int -> ProcessM ()
@@ -51,8 +52,8 @@ fibonacci i = do
     fib |> \n -> if n <= 1 then reply fib 1
                            else do i <- sync fib (n-1)
                                    j <- sync fib (n-2)
-                                   reply fib (wait i + wait j)
-    wait <$> sync fib i
+                                   reply fib (read i + read j)
+    sync fib i >>= wait
 
 {- 'Counter' example: -}
 
@@ -72,11 +73,11 @@ mkCounter = do
 
 -- | Increment counter, waiting until complete.
 inc :: Counter -> ProcessM ()
-inc (Counter (i,_)) = wait <$> sync i ()
+inc (Counter (i,_)) = sync i () >>= wait
 
 -- | Get current value, waiting until complete.
 get :: Counter -> ProcessM Int
-get (Counter (_,g)) = wait <$> sync g ()
+get (Counter (_,g)) = sync g () >>= wait
 
 -- | Increment and query a counter with implicit mutex.
 counterExample :: ProcessM ()
@@ -114,6 +115,7 @@ take :: Serialize a => Buffer a -> ProcessM (SyncVal a)
 take (Buffer (_,t)) = sync t ()
 
 -- | Store some items in a buffer, retrieve them later. Simulates state.
+-- pred> bufferExample == 3
 bufferExample :: ProcessM Int
 bufferExample = do
     -- Create a new Buffer
@@ -130,7 +132,7 @@ bufferExample = do
     i <- take b
     j <- take b
 
-    return $ wait i + wait j
+    return $ read i + read j
 
 {- Primitive Lock example -}
 newtype Lock = Lock (SyncChan () (),SyncChan () ())
@@ -151,18 +153,18 @@ mkLock = do
 
 -- | Block until a lock is acquired.
 lock :: Lock -> ProcessM ()
-lock (Lock (l,_)) = wait <$> sync l ()
+lock (Lock (l,_)) = sync l () >>= wait
 
 -- | Release a lock.
 unlock :: Lock -> ProcessM ()
-unlock (Lock (_,u)) = wait <$> sync u ()
+unlock (Lock (_,u)) = sync u () >>= wait
 
 -- | Acquire lock before running a process. (unlocking afterward).
 withLock :: Lock -> ProcessM () -> ProcessM ()
 withLock l p = lock l >> p >> unlock l
 
 -- | Only one subprocess may hold the lock at a time.
--- => "One" "Two" or "Two" "One". No intermingling.
+-- =>"One" "Two" or "Two" "One". No intermingling.
 lockExample :: ProcessM ()
 lockExample = mkLock >>= \l -> withLock l (liftIO $ putStrLn "One")
                         `with` withLock l (liftIO $ putStrLn "two")
@@ -179,11 +181,12 @@ mkBarrier = do
 
 -- | 'Left side' waits at barrier.
 signalLeft :: Barrier -> ProcessM ()
-signalLeft (Barrier (l,_)) = wait <$> sync l ()
+signalLeft (Barrier (l,_)) = sync l () >>= wait
+
 
 -- | 'Right side' waits at barrier.
 signalRight :: Barrier -> ProcessM ()
-signalRight (Barrier (_,r)) = wait <$> sync r ()
+signalRight (Barrier (_,r)) = sync r () >>= wait
 
 -- | Barriers enforce a subProcesses move in step.
 -- => Result is "(lr)" or "(rl)".

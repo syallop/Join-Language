@@ -14,9 +14,11 @@ required. This could eliminate unnecessary waiting.
 module Join.Types.SyncVal
     ( SyncVal()
     , new
-    , wait
+    , read
     , write
     ) where
+
+import Prelude hiding (read)
 
 import Control.Applicative ((<$>))
 import qualified Data.IVar.Simple as I
@@ -29,8 +31,8 @@ new :: IO (SyncVal a)
 new = SyncVal <$> I.new
 
 -- | Synchronously wait for a value on a SyncVal.
-wait :: SyncVal a -> a
-wait (SyncVal i) = I.read i
+read :: SyncVal a -> a
+read (SyncVal i) = I.read i
 
 -- | Write a value to a SyncVal.
 -- Throws Data.IVar.Simple.BlockedIndefinitelyOnIVar exception if a value
