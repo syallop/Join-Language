@@ -1,7 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE DataKinds #-}
-
 {-|
 Module      : Join.Types.Channel
 Copyright   : (c) Samuel A. Yallop, 2014

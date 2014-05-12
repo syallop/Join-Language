@@ -14,6 +14,7 @@ module Join.Types
     ( module I
     ) where
 
+import Join.Types.Apply   as I
 import Join.Types.Channel as I
 import Join.Types.Pattern as I
 import Join.Types.SyncVal as I

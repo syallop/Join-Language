@@ -20,9 +20,6 @@ import Control.Monad.IO.Class     (liftIO)
 import Control.Monad.Operational
 import Data.Unique                (hashUnique,newUnique)
 
-import Join.Language.Examples
-import Debug.Trace
-
 type Rules = Map ChanId (MVar Rule,ChanIx)
 
 data State = State
@@ -68,12 +65,6 @@ withRule st cId f = do
 withRule' :: State -> ChanId -> ((Rule,ChanIx) -> (Rule,a)) -> IO a
 withRule' st cId f = withRule st cId (return . f)
 
-{-onRule :: State -> ChanId -> ((Rule,ChanIx) -> IO Rule) -> IO ()-}
-{-onRule st cId f = undefined-}
-
-{-onRule' :: State -> ((Rule,ChanIx) -> Rule) -> IO ()-}
-{-onRule' = undefined-}
-
 lookupChanId :: State -> ChanId -> IO (MVar Rule,ChanIx)
 lookupChanId st cId = liftM (fromJust . lookup cId) (takeRules st)
 
@@ -91,12 +82,10 @@ runWith state p = do
     instr <- viewT p
     case instr of
 
-        -- Operational Return
         Return a -> return a
 
         Def p f
-            :>>= k -> trace' "Def" $ 
-                      do let cIds = ChanId . fst <$> pattern p
+            :>>= k -> do let cIds = ChanId . fst <$> pattern p
                          overlappingRules <- collectOverlaps state cIds -- :: [Rule]
                          rId <- RuleId <$> newId
                          let rule = mergeNewRule cIds (TriggerF f) overlappingRules rId
@@ -108,13 +97,11 @@ runWith state p = do
                          runWith state (k ())
 
         NewChannel
-            :>>= k -> trace' "NewChannel" $
-                      do id <- newId
+            :>>= k -> do id <- newId
                          runWith state (k $ inferSync id)
 
         Send c m
-            :>>= k -> trace' "Send" $
-                      do mProcCtx <- withRule' state (ChanId $ getId c) (\(rl,ix) -> addMessage ix (encode m,Nothing) rl)
+            :>>= k -> do mProcCtx <- withRule' state (ChanId $ getId c) (\(rl,ix) -> addMessage ix (encode m,Nothing) rl)
                          case mProcCtx of
                              Nothing
                                -> runWith state (k ())
@@ -123,13 +110,11 @@ runWith state p = do
                                      runWith state (k ())
 
         Spawn p
-            :>>= k -> trace' "Spawn" $
-                      do forkIO (runWith state p)
+            :>>= k -> do forkIO (runWith state p)
                          runWith state (k ())
 
         Sync s m
-            :>>= k -> trace' "Sync" $
-                      do replyChan <- newEmptyMVar
+            :>>= k -> do replyChan <- newEmptyMVar
                          syncVal   <- new
                          forkIO $ waitOnReply replyChan syncVal
                          mProcCtx <- withRule' state (ChanId $ getId s) (\(rl,ix) -> addMessage ix (encode m,Just replyChan) rl)
@@ -140,14 +125,12 @@ runWith state p = do
                                      runWith state (k syncVal)
 
         Reply s m
-            :>>= k -> trace' "Reply" $ 
-                      do let replyChan = lookupReply state (ChanId $ getId s)
+            :>>= k -> do let replyChan = lookupReply state (ChanId $ getId s)
                          putMVar replyChan (encode m)
                          runWith state (k ())
 
         With p q
-            :>>= k -> trace' "With" $
-                      do forkIO (runWith state p)
+            :>>= k -> do forkIO (runWith state p)
                          forkIO (runWith state q)
                          runWith state (k ())
 
@@ -171,6 +154,3 @@ collectOverlaps state cIds = withRules state (collectOverlaps' cIds)
         overlapRules <- mapM takeMVar overlapRefs'
         return (rs',overlapRules)
 
-trace' :: String -> a -> a
-{-trace' = trace-}
-trace' = const id
