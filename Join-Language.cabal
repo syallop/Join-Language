@@ -23,6 +23,10 @@ library
                      , Join.Types.SyncVal
                      , Join.Interpretation.Describe
                      , Join.Interpretation.Simple
+                     , Join.Interpretation.Simple.Types
+                     , Join.Interpretation.Complex
+                     , Join.Interpretation.Complex.Rule
+                     , Join.Interpretation.Complex.Status
   -- other-modules:       
   build-depends:       base ==4.6.*
                      , transformers
@@ -31,4 +35,5 @@ library
                      , cereal
                      , ivar-simple
                      , containers
+                     , vector
 
