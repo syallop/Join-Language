@@ -1,6 +1,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# OPTIONS_HADDOCK hide #-}
 module Join.Interpretation.Simple.Types
     (-- Encode Message/ Channel types.
@@ -26,16 +27,13 @@ module Join.Interpretation.Simple.Types
     ,ChanMatches()
     ,MatchRule(..)
     ,MatchRules
-    , mkChanMatch
     , mkChanMatches
-    , mkMatchRule
 
     ,registerChanId
     ,registerMsg
     ,registerMatchRule
 
     ,tryMsgMatch
-    ,tryChanMatch
     ,tryChanMatches
     ,tryMatchRule
 
@@ -114,21 +112,13 @@ type ChanMatches = [ChanMatch]
 -- When the ChanMatches match, a function should be triggered.
 data MatchRule = forall f. Apply f Inert => MatchRule ChanMatches f
 
+
 -- Many Def Pattern's.
 type MatchRules = [MatchRule]
 
--- | Lift a Language SubPattern into an internal ChanMatch.
-mkChanMatch :: SubPattern t p => t -> ChanMatch
-mkChanMatch t = let (i,md) = subpattern t
-                    in ChanMatch (ChanId i,MsgData <$> md)
-
 -- | Lift a Language Pattern into an internal ChanMatches.
-mkChanMatches :: Pattern t p => t -> ChanMatches
-mkChanMatches p = (\(i,md) -> ChanMatch (ChanId i, MsgData <$> md)) <$> pattern p
-
--- | Lift the LHS and RHS of a Language Def into an internal MatchRule.
-mkMatchRule :: (Apply f Inert, Pattern t f) => t -> f -> MatchRule
-mkMatchRule t = MatchRule (mkChanMatches t)
+mkChanMatches :: Pattern p Inert f => p -> ChanMatches
+mkChanMatches p = (\(i,md) -> ChanMatch (ChanId i, MsgData <$> md)) <$> rawPattern p
 
 {-= Primitive functions =-}
 -- | Register a new ChanId (With no waiting Msg's) in a MsgQueue.
@@ -171,13 +161,16 @@ tryChanMatches []       q = Just (q,[])
 tryChanMatches (cm:cms) q = do
     (q',m)   <- tryChanMatch cm q
     (q'',ms) <- tryChanMatches cms q'
-    return (q'',m:ms)
+    -- Equality matches don't apply messages.
+    let ms' = case cm of
+                  (ChanMatch (_, Just _)) -> ms
+                  _ -> m:ms
+    return (q'',ms')
 
 -- | Given a MatchRule and MessageQueues, test the rule, if successful
 -- returning the updated MessageQueues and the matching Messages.
 tryMatchRule :: MatchRule -> MsgQueue -> Maybe (MsgQueue, Msgs)
 tryMatchRule (MatchRule cms _) = tryChanMatches cms
-
 
 extractReplyIds :: ChanMatches -> Msgs -> [(ChanId,ChanId)]
 extractReplyIds = extractReplyIds' []

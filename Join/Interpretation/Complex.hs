@@ -85,7 +85,7 @@ runWith state p = do
         Return a -> return a
 
         Def p f
-            :>>= k -> do let cIds = ChanId . fst <$> pattern p
+            :>>= k -> do let cIds = ChanId . fst <$> rawPattern p
                          overlappingRules <- collectOverlaps state cIds -- :: [Rule]
                          rId <- RuleId <$> newId
                          let rule = mergeNewRule cIds (TriggerF f) overlappingRules rId

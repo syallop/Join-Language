@@ -1,19 +1,12 @@
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE DataKinds #-}
 
-{-|
-Module      : Join.Language.Examples
-Copyright   : (c) Samuel A. Yallop, 2014
-Maintainer  : syallop@gmail.com
-Stability   : experimental
 
-This module contains example "Join.Language" programs.
-
--}
-module Join.Language.Examples where
+module Join.Examples where
 
 import Join.Language
 import Join.Types
+import Join.Interpretation.Simple
 
 import Prelude hiding (take, read)
 
@@ -45,6 +38,8 @@ countDown n = do
     -- Become inert.
     inert
 
+
+
 -- | Parallel computation of the fibonacci function.
 fibonacci :: Int -> ProcessM Int
 fibonacci i = do
@@ -55,8 +50,10 @@ fibonacci i = do
                                    reply fib (read i + read j)
     sync fib i >>= wait
 
-{- 'Counter' example: -}
 
+
+
+{- 'Counter' example: -}
 newtype Counter = Counter (SyncChan () (), SyncChan () Int)
 mkCounter :: ProcessM Counter
 mkCounter = do
@@ -96,8 +93,10 @@ counterExample = do
 
     inert
 
-{- Buffer example: -}
 
+
+
+{- Buffer example: -}
 newtype Buffer a = Buffer (Chan a, SyncChan () a)
 mkBuffer :: Serialize a => ProcessM (Buffer a)
 mkBuffer = do
@@ -113,6 +112,9 @@ put (Buffer (p,_)) = send p
 -- | Synchronously take a message on the buffer.
 take :: Serialize a => Buffer a -> ProcessM (SyncVal a)
 take (Buffer (_,t)) = sync t ()
+
+
+
 
 -- | Store some items in a buffer, retrieve them later. Simulates state.
 -- pred> bufferExample == 3
@@ -133,6 +135,9 @@ bufferExample = do
     j <- take b
 
     return $ read i + read j
+
+
+
 
 {- Primitive Lock example -}
 newtype Lock = Lock (SyncChan () (),SyncChan () ())
@@ -168,6 +173,9 @@ withLock l p = lock l >> p >> unlock l
 lockExample :: ProcessM ()
 lockExample = mkLock >>= \l -> withLock l (liftIO $ putStrLn "One")
                         `with` withLock l (liftIO $ putStrLn "two")
+
+
+
 
 
 {- Barrier example -}

@@ -7,6 +7,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE IncoherentInstances #-}
 
 {-|
 Module      : Join.Types.Pattern
@@ -14,95 +16,95 @@ Copyright   : (c) Samuel A. Yallop, 2014
 Maintainer  : syallop@gmail.com
 Stability   : experimental
 
-This module encodes a representation of the pattern component of a Join-Definition.
+This module encodes a representation of Join-Definitions.
 -}
 module Join.Types.Pattern
     (
-    -- * Defining patterns
-    -- | The primary export of the module is 'Pattern' which is a closed
-    -- typeclass which pairs pattern types to the type a corresponding
-    -- consuming trigger should have.
+    -- * Overview of usage.
+    -- | The primary export of the module is the 'Pattern' constraint which
+    -- is used to map valid pattern types to the type a corresponding
+    -- trigger function should have.
     --
     -- I.E.
     --
-    -- @ Pattern p f @
+    -- @ Pattern p r f @
     --
     -- Declares:
     --
-    -- - 'p' is a valid pattern.
+    -- - 'p' as a valid pattern
     --
     -- - 'f' is the type of a function which consumes matches on the
-    --   pattern.
-    --
-    -- Valid patterns are defined as either:
-    --
-    -- - A single 'Channel' => Match all messages on Channel.
-    --
-    -- - A single 'Channel' and a value => Match only messages sent on
-    -- Channel which are equal to the value.
-    --
-    -- - A conjunction of the previous two forms.
-    --
-    -- Operators '&' and '&=' are provided for building 'Patterns'. E.G.
-    -- Given:
-    --
-    -- @cc :: Channel A Char
-    --
-    --  ci :: Channel S Int
-    --
-    --  cb :: Channel s Bool
-    -- @
-    --
-    -- Some valid 'Pattern's are:
-    --
-    -- @cc
-    --
-    -- cc & ci
-    --
-    -- cc & ci&=1
-    --
-    -- cc&='a' & cb & ci&=1
-    -- @
-    --
-    -- And the corresponding trigger type would be determined as:
-    --
-    -- @:: Char -> r
-    --
-    --  :: Char -> Int -> r
-    --
-    --  :: Char -> Int -> r
-    --
-    --  :: Char -> Bool -> Int -> r
-    -- @
-      (&)
-    , (&=)
-    , Pattern(..)
-    , SubPattern(..)
+    -- pattern, producing a 'r'.
 
-    -- * Applying patterns
-    -- | The secondary export of the module is the 'Apply' typeclass, which
-    -- provides a type-safe method of applying a function to a list of
-    -- ByteString encoded arguments, to result in an arbitrary type.
+    -- ** Building patterns
+    -- *** Matching a Channel
+    -- | The simplest pattern that can be instantiated is a single 'Channel' type.
+    -- This declares a pattern that matches all messages sent on the Channel.
     --
-    -- The intended use of this typeclass is in combination with 'Pattern'.
-    -- E.G. given:
+    -- E.G.
     --
-    -- @ (Apply f r, Pattern p f) => (p,f) @
+    -- @ intChan  @ ==> @ f :: Int -> r @
+    -- @ charChan @ ==> @ f :: Char -> r @
     --
-    -- Says:
+    -- In general, instantiating 'p' with a Channel of type 'a' produces
+    -- a trigger function of type 'a -> r' where r is some given return
+    -- value.
+    -- I.E. @ p~(Channel s a) @ ==> @ f~(a -> r) @
+
+    -- *** Matching equality on a Channel
+    -- | For convenience, another type of pattern is the equality pattern, declared infix via
+    -- '&='. This declares a pattern that matches only messages sent on the
+    -- Channel which are equal to the given value.
     --
-    -- - 'p' is a valid pattern.
+    -- E.G.
     --
-    -- - 'f' is a function which accepts each message matched by the
-    --   pattern and terminates with some type 'r'.
+    -- @ boolChan &= False @ ==> @ f :: r @
     --
-    -- An interpreter can then 'encode' the messages matched by 'pattern
-    -- p', collect them in a list and call them on 'apply f'. This
-    -- operation should always result in a 'Result r' type. For convenience
-    -- 'unsafeApply' is provided for similar situations when success can be
-    -- guaranteed/ failure cannot be recovered.
+    -- In general, instantiating 'p' with a Channel-Equality of type 'a',
+    -- produces a function of type 'r'.
+    -- NOTE: The trigger function does not take an 'a'. This is because the
+    -- value is fixed by the equality.
+    -- I.E. @ p~(ChannelEq (Channel s a) a) @ ==> @ f :: r @
+
+    -- *** Matching multiple patterns
+    -- | Multiple Patterns can be conjoined with an \'and\' pattern,
+    -- declared infix via '&'. This declares a pattern that matches only
+    -- when both individual patterns match.
+    --
+    -- E.G.
+    --
+    -- @ intChan & charChan    @ ==> @ f :: Int -> Char -> r @
+    -- @ intChan&=1 & charChan @ ==> @ f :: Char -> r @
+    -- @ intChan & charChan & boolChan&=True @ ==> @ f :: Int -> Char -> r @
+    --
+    -- In general, instantiating 'p' with a conjunction of patterns 'p' and
+    -- 'q' produces a function typed to accept 'p' followed by 'q'.
+    -- NOTE: Argument types are composed left-to-right, and the type of
+    -- equality-matches do not appear in the trigger.
+
+    -- ** Using patterns
+    -- | The 'Pattern p r f' constraint implies a
+    -- @ Apply r f @ relationship.
+    -- This means 'apply' can be used to attempt to apply a list of
+    -- 'ByteString' arguments to a patterns trigger function.
+    --
+    -- Knowledge of how to correctly apply arguments to a pattern trigger
+    -- can be attained by the 'rawPattern' function.
+    --
+    -- By following the semantics of the produced description value, a system can
+    -- store trigger functions and execute them using 'apply' without error.
+    --
+    -- The semantics of the description value is given in the
+    -- 'RawPattern' documentation.
+
+    -- * Details
+      Pattern
+    , rawPattern
+    , (&)
+    , (&=)
+
     , Application(..)
-    , Apply(..)
+    , apply
     , unsafeApply
     ) where
 
@@ -112,75 +114,74 @@ import Join.Types.Channel
 import Data.ByteString (ByteString)
 import Data.Serialize (Serialize,encode)
 
--- | Require that messages sent on a Channel must match a specific value to
--- trigger a match.
+{- Classes -}
+
+-- | Class of types with an associated raw pattern declaring what is
+-- required for a match.
+--
+-- A raw pattern '[(Int,Maybe ByteString)]' matches when there is a message
+-- on each channel identified by the Int, which must match the 'ByteString'
+-- if given.
+class RawPattern p where rawPattern :: p -> [(Int,Maybe ByteString)]
+
+type Pattern p r f = (Pattern' p r f, Apply f r)
+
+-- | Class of types 'p' which may be used as a pattern.
+--
+-- 'f'' gives the type a corresponding trigger function must have to
+-- consume the pattern and terminate with 'f'.
+class (RawPattern p, Show p) =>
+      Pattern' p f f' | p f -> f' where
+
+{- Data structures -}
+
+-- | Pattern type of matching 'Channel' messages when equal to some
+-- value.
 data ChannelEq a = forall s. Serialize a => ChannelEq (Channel s a) a
-instance Show (ChannelEq a) where show (ChannelEq c a) = show c ++ "&=" ++ show (encode a)
 
--- | Class of types 'p' which may be used as a pattern in
--- a Join-Definition.
+-- | Infix 'ChannelEq'.
 --
--- The type variable 'f' describes the type a corresponding trigger
--- function must have in order to consume a match and terminate with
--- a result type.
+-- Right associative and with greater precedence than '&' means:
 --
-class Show p => Pattern p f | p -> f where
-    pattern :: p -> [(Int,Maybe ByteString)]
-
--- | Class of types 'p' which may be used as a smaller component in
--- a Join-Definition in order to build a larger 'Pattern'.
+-- @ c1 & (c2&=1) & c3 @
 --
--- The type variable 't' gives the type a corresponding trigger function
--- must take in order to properly consume a subpattern match
-class Show p => SubPattern p t | p -> t where
-    subpattern :: p -> (Int,Maybe ByteString)
-
--- | Type of conjunctive patterns. Conjoins a SubPattern to a Pattern
--- specifying both must match in order for the whole pattern to match.
-data And f where And :: (SubPattern p t, Pattern p' f) => p -> p' -> And (t -> f)
-instance Show (And p) where show (And p ps) = show p ++ "&" ++ show ps
-
--- Only Channel's and ChannelEq's are valid subpatterns.
-instance SubPattern (Channel s a) a where subpattern c = (getId c, Nothing)
-instance SubPattern (ChannelEq a) a where subpattern (ChannelEq c a) = (getId c, Just $ encode a)
-
--- Channel's and ChannelEq's are also valid patterns in themselves.
-instance Pattern (Channel s a) (a -> r) where pattern c = [subpattern c]
-instance Pattern (ChannelEq a) (a -> r) where pattern c = [subpattern c]
-
--- And conjunctions are valid Patterns.
-instance Pattern (And f) f where pattern (And p ps) = subpattern p : pattern ps
-
--- | Infix combine a smaller SubPattern with a Pattern.
+-- Can be re-written as:
 --
--- Right associative, meaning:
+-- @ c1 & c2&=1 & c3 @
+(&=) :: Serialize a => Channel s a -> a -> ChannelEq a
+infixr 8 &=
+(&=) = ChannelEq
+
+-- | Pattern type of matching on a conjunction of two 'Patterns'.
+data And f f' where And :: (Pattern' q f f', Pattern' p f' f'') => p -> q -> And f f''
+
+-- | Infix 'And'
+--
+-- Right associative, means:
 --
 -- @ c1 & (c2 & c3) @
 --
--- May be written as:
+-- Can be re-written as:
 --
 -- @ c1 & c2 & c3 @
 --
--- As all subpatterns are also valid patterns, the operator may be thought
--- of as a way to combine subpatterns.
---
--- Because all subpatterns are also valid patterns, the operator may be
--- thought of as a method for conjoining subpatterns.
-(&) :: (SubPattern p t, Pattern p' t') => p -> p' -> And (t -> t')
+-- As all 'SubPattern's are also valid 'Pattern's, the operator may be
+-- thought of as a way to combine 'SubPattern's.
+(&) :: (Pattern' q f f', Pattern' p f' f'') => p -> q -> And f f''
 infixr 7 &
-p & ps = And p ps
+(&) = And
 
--- | Infix define a ChannelEq match.
---
--- Right associative and with a greater precedence than '&'.
--- This means:
---
--- @ c1 & (c2&=1) @
---
--- Can be written as:
---
--- @ c1 & c2&=1 @
-(&=) :: Serialize a => Channel s a -> a -> ChannelEq a
-infixr 8 &=
-c &= v = ChannelEq c v
+{- Instances -}
+
+instance RawPattern (Channel s a) where rawPattern c               = [(getId c, Nothing)]
+instance RawPattern (ChannelEq a) where rawPattern (ChannelEq c a) = [(getId c, Just $ encode a)]
+instance RawPattern (And p q)     where rawPattern (And p q)       = rawPattern p ++ rawPattern q
+
+instance Show (ChannelEq a) where show (ChannelEq c a) = show c ++ "&=" ++ show (encode a)
+instance Show (And p q) where show (And p q) = show p ++ " & " ++ show q
+
+instance Pattern' (Channel s a) f  (a -> f) where
+instance Pattern' (ChannelEq a) f        f  where
+instance f0~f1 =>
+         Pattern' (And f0 f')   f1    f'    where
 

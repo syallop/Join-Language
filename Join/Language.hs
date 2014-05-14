@@ -6,6 +6,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# OPTIONS_HADDOCK prune #-}
 {-|
 Module      : Join.Language
@@ -186,7 +187,6 @@ module Join.Language
     -- implementation of interpreters.
     , Instruction(..)
     , Pattern(..)
-    , SubPattern(..)
     , Apply
     , apply
     ) where
@@ -211,9 +211,9 @@ import Data.Serialize
 data Instruction a where
 
     -- Join definition.
-    Def        :: (Apply t Inert, Pattern p t) -- Trigger can be applied,pattern is associated with trigger type.
+    Def        :: Pattern p Inert f -- Trigger can be applied,pattern is associated with trigger type.
                => p                            -- Pattern matched on.
-               -> t                            -- Trigger function called on match.
+               -> f                            -- Trigger function called on match.
                -> Instruction ()
 
     -- Request a new typed Channel.
@@ -257,7 +257,7 @@ data Instruction a where
 -- To be written:
 --
 -- @ ci |> (\i -> reply ci (i+1)) @
-(|>) :: (Apply t Inert, Pattern p t) => p -> t -> ProcessM ()
+(|>) :: Pattern p Inert f => p -> f -> ProcessM ()
 infixr 6 |>
 p |> t = def p t
 
@@ -278,7 +278,7 @@ type ProcessM a = ProgramT Instruction IO a
 -- Says that when ci (which may be inferred to have type :: Channel S Int)
 -- receives a message, it is passed to the RHS function which increments it
 -- and passes it back.
-def :: (Apply t Inert, Pattern p t) => p -> t -> ProcessM ()
+def :: Pattern p Inert f => p -> f -> ProcessM ()
 def c p = singleton $ Def c p
 
 -- | Enter a single 'NewChannel' Instruction into ProcessM.

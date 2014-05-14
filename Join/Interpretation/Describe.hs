@@ -13,8 +13,6 @@ module Join.Interpretation.Describe where
 import Join.Language
 import Join.Types
 
-import Join.Language.Examples
-
 import Control.Monad.Operational
 import Data.Serialize (encode)
 

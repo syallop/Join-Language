@@ -23,14 +23,12 @@ import Join.Language
 import Join.Types
 
 import Control.Concurrent.MVar
-import Control.Concurrent
+import Control.Concurrent (forkIO,yield,threadDelay)
 import Control.Monad
 import Control.Monad.Operational
 import Control.Monad.IO.Class
 import Data.Map hiding (map)
 import Data.Serialize (Serialize)
-
-import Join.Language.Examples
 
 -- | State of the entire interpretation.
 data IState = IState
@@ -186,12 +184,12 @@ ruleHandler iStR = forever $ do
            in runWith iStR' p
 
 -- | Wait for any message on a given channel, and write it to a SyncVal.
-waitOn :: Serialize r => IStateRef -> SyncChan a r -> SyncVal r -> IO ()
+waitOn :: Serialize a => IStateRef -> Chan a -> SyncVal a -> IO ()
 waitOn iStR c r = do
     iSt <- takeIStateRef iStR
 
     let msgQ     = msgQueue iSt
-        matchAll = tryChanMatch (mkChanMatch c) msgQ
+        matchAll = tryChanMatches (mkChanMatches c) msgQ
 
     case matchAll of
         Nothing
@@ -200,7 +198,7 @@ waitOn iStR c r = do
                 threadDelay 100000
                 waitOn iStR c r
 
-        Just (msgQ',m)
+        Just (msgQ',[m])
           -> do putIStateRef iStR (iSt{msgQueue = msgQ'})
                 let (d,_) = unMsg m
                 write r (unsafeDecodeMsgData d)
