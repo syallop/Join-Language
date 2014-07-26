@@ -6,7 +6,8 @@ module Join.Examples where
 
 import Join.Language
 import Join.Types
-import Join.Interpretation.Simple
+{-import Join.Interpretation.Simple-}
+import Join.Interpretation.Complex
 
 import Prelude hiding (take, read)
 
@@ -48,7 +49,7 @@ fibonacci i = do
                            else do i <- sync fib (n-1)
                                    j <- sync fib (n-2)
                                    reply fib (read i + read j)
-    sync fib i >>= wait
+    sync' fib i
 
 
 
@@ -70,11 +71,11 @@ mkCounter = do
 
 -- | Increment counter, waiting until complete.
 inc :: Counter -> ProcessM ()
-inc (Counter (i,_)) = sync i () >>= wait
+inc (Counter (i,_)) = sync i () >> inert
 
 -- | Get current value, waiting until complete.
 get :: Counter -> ProcessM Int
-get (Counter (_,g)) = sync g () >>= wait
+get (Counter (_,g)) = sync' g ()
 
 -- | Increment and query a counter with implicit mutex.
 counterExample :: ProcessM ()
@@ -158,11 +159,11 @@ mkLock = do
 
 -- | Block until a lock is acquired.
 lock :: Lock -> ProcessM ()
-lock (Lock (l,_)) = sync l () >>= wait
+lock (Lock (l,_)) = sync' l ()
 
 -- | Release a lock.
 unlock :: Lock -> ProcessM ()
-unlock (Lock (_,u)) = sync u () >>= wait
+unlock (Lock (_,u)) = sync' u ()
 
 -- | Acquire lock before running a process. (unlocking afterward).
 withLock :: Lock -> ProcessM () -> ProcessM ()
@@ -189,12 +190,12 @@ mkBarrier = do
 
 -- | 'Left side' waits at barrier.
 signalLeft :: Barrier -> ProcessM ()
-signalLeft (Barrier (l,_)) = sync l () >>= wait
+signalLeft (Barrier (l,_)) = sync' l ()
 
 
 -- | 'Right side' waits at barrier.
 signalRight :: Barrier -> ProcessM ()
-signalRight (Barrier (_,r)) = sync r () >>= wait
+signalRight (Barrier (_,r)) = sync' r ()
 
 -- | Barriers enforce a subProcesses move in step.
 -- => Result is "(lr)" or "(rl)".

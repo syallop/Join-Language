@@ -101,6 +101,9 @@ module Join.Language
     -- immediately with a 'SyncVal'. A reference to a reply value which can
     -- be 'wait'ed upon when the value is required.
     --
+    -- - 'sync\'' is a variant of 'sync' which immediately blocks on a reply
+    --   value.
+    --
     -- - 'reply' is used to send a message in reply to a synchronous Channel.
     --
     -- / It is noted that the addition of synchronous /
@@ -112,6 +115,7 @@ module Join.Language
     , send
     , sync
     , wait
+    , sync'
     , reply
 
     -- ** Join definitions
@@ -310,9 +314,14 @@ spawn p = singleton $ Spawn p
 sync :: (Serialize a,Serialize r) => SyncChan a r -> a -> ProcessM (SyncVal r)
 sync s a = singleton $ Sync s a
 
--- |
+-- | In a ProcessM, block on a SyncVal.
 wait :: SyncVal a -> ProcessM a
 wait sv = return $! read sv
+
+-- | Send a message to a synchronous 'Channel', blocking on a reply value.
+sync' :: (Serialize a,Serialize r) => SyncChan a r -> a -> ProcessM r
+sync' s a = sync s a >>= wait
+
 
 -- | Enter a single 'Reply' Instruction into ProcessM.
 --
