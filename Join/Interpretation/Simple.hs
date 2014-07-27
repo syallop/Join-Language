@@ -9,7 +9,7 @@ Maintainer  : syallop@gmail.com
 Stability   : experimental
 
 This module defines a quick, unrefined interpretation of "Join.Language" that may
-be used to run 'ProcessM' computations.
+be used to run 'Process' computations.
 
 -}
 module Join.Interpretation.Simple
@@ -51,7 +51,7 @@ takeIStateRef (IStateRef r) = takeMVar r
 putIStateRef ::IStateRef -> IState -> IO ()
 putIStateRef (IStateRef r) = putMVar r
 
--- | State of interpretation of a single ProcessM.
+-- | State of interpretation of a single Process.
 data PState = PState
     { iStateRef     :: IStateRef
     , replyChannels :: Map ChanId ChanId
@@ -68,15 +68,15 @@ newPState = do
 mkPState :: IStateRef -> PState
 mkPState iStR = PState iStR empty
 
--- | Run a top-level ProcessM.
-run :: ProcessM a -> IO a
+-- | Run a top-level Process.
+run :: Process a -> IO a
 run p = do
     st    <- newPState
     forkIO $ ruleHandler (iStateRef st)
     runWith st p
 
--- | With state to be ran under, run a ProcessM to produce an IO action.
-runWith :: PState -> ProcessM a -> IO a
+-- | With state to be ran under, run a Process to produce an IO action.
+runWith :: PState -> Process a -> IO a
 runWith st@(PState iStR rcs) p = do
     instr <- liftIO $ viewT p
     case instr of
@@ -113,7 +113,7 @@ runWith st@(PState iStR rcs) p = do
                          putIStateRef iStR iSt'
                          runWith st (k ())
 
-        -- Spawn a concurrent execution of a ProcessM.
+        -- Spawn a concurrent execution of a Process.
         Spawn p
             :>>= k -> do forkIO $ runWith st p
                          runWith st (k ())

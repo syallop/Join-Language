@@ -73,11 +73,11 @@ lookupReply st cId = fromJust $ lookup cId $ replyContext st
 
 
 
-run :: ProcessM a -> IO a
+run :: Process a -> IO a
 run p = mkState >>= (`runWith` p)
 
 
-runWith :: State -> ProcessM a -> IO a
+runWith :: State -> Process a -> IO a
 runWith state p = do
     instr <- viewT p
     case instr of

@@ -142,7 +142,7 @@ mergeNewRule cIds f rs = mkRule ((cIds,f) : concatMap unRule rs)
 
 -- | For an index, add a message within a rule, producing the updated rule
 -- and a possible triggered process under a reply context.
-addMessage :: ChanIx -> Message -> Rule -> (Rule,Maybe (ProcessM (),ReplyCtx))
+addMessage :: ChanIx -> Message -> Rule -> (Rule,Maybe (Process (),ReplyCtx))
 addMessage ix msg rl
 
     -- There is already at least one message on the channel.
@@ -175,7 +175,7 @@ addMessage ix msg rl
     identifyMatches :: [(StatusPattern,Trigger)] -> Status -> [(StatusPattern,Trigger)]
     identifyMatches ps st = mapMaybe (\(p,f) -> if st `match` p then Just (p,f) else Nothing) ps
 
-    applyMatch :: (StatusPattern,Trigger) -> Rule -> (Rule,(ProcessM (),ReplyCtx))
+    applyMatch :: (StatusPattern,Trigger) -> Rule -> (Rule,(Process (),ReplyCtx))
     applyMatch (pat,Trigger (TriggerF f) ixs) rl
         {-= let ixs   = ChanIx <$> getPatternIndexes pat -- :: [ChanIx]-}
          = let (rawMsgs,replyCtx,rl') = takeMessages rl ixs

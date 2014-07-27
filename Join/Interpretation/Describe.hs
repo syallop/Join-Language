@@ -16,12 +16,12 @@ import Join.Types
 import Control.Monad.Operational
 import Data.Serialize (encode)
 
--- | Interpret a ProcessM by describing each instruction on stdout.
--- Does not describe triggered ProcessM's on RHS of Def patterns.
-describe :: ProcessM a -> IO ()
+-- | Interpret a Process by describing each instruction on stdout.
+-- Does not describe triggered Process's on RHS of Def patterns.
+describe :: Process a -> IO ()
 describe = describe' 0
   where
-    describe' :: Int -> ProcessM a -> IO ()
+    describe' :: Int -> Process a -> IO ()
     describe' i p = do
         instr <- viewT p
         case instr of

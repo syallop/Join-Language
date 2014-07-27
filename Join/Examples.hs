@@ -19,7 +19,7 @@ import Data.Serialize hiding (get,put)
 import System.IO
 
 -- | Countdown all values to 0.
-countDown :: Int -> ProcessM ()
+countDown :: Int -> Process ()
 countDown n = do
     -- Get a new Channel, inferred to be of type 'Channel Int'.
     intChannel <- newChannel
@@ -42,7 +42,7 @@ countDown n = do
 
 
 -- | Parallel computation of the fibonacci function.
-fibonacci :: Int -> ProcessM Int
+fibonacci :: Int -> Process Int
 fibonacci i = do
     fib <- newChannel
     fib |> \n -> if n <= 1 then reply fib 1
@@ -56,7 +56,7 @@ fibonacci i = do
 
 {- 'Counter' example: -}
 newtype Counter = Counter (SyncChan () (), SyncChan () Int)
-mkCounter :: ProcessM Counter
+mkCounter :: Process Counter
 mkCounter = do
     count <- newChannel -- :: Chan Int
     inc   <- newChannel -- :: SyncChan () ()
@@ -70,15 +70,15 @@ mkCounter = do
     return $ Counter (inc,get)
 
 -- | Increment counter, waiting until complete.
-inc :: Counter -> ProcessM ()
+inc :: Counter -> Process ()
 inc (Counter (i,_)) = sync i () >> inert
 
 -- | Get current value, waiting until complete.
-get :: Counter -> ProcessM Int
+get :: Counter -> Process Int
 get (Counter (_,g)) = sync' g ()
 
 -- | Increment and query a counter with implicit mutex.
-counterExample :: ProcessM ()
+counterExample :: Process ()
 counterExample = do
     c <- mkCounter
 
@@ -99,7 +99,7 @@ counterExample = do
 
 {- Buffer example: -}
 newtype Buffer a = Buffer (Chan a, SyncChan () a)
-mkBuffer :: Serialize a => ProcessM (Buffer a)
+mkBuffer :: Serialize a => Process (Buffer a)
 mkBuffer = do
     p <- newChannel       -- put channel  :: Chan a
     t <- newChannel       -- take channel :: SyncChan a ()
@@ -107,18 +107,18 @@ mkBuffer = do
     return $ Buffer (p,t)
 
 -- | Asynchronously put a message on the buffer.
-put :: Serialize a => Buffer a -> a -> ProcessM ()
+put :: Serialize a => Buffer a -> a -> Process ()
 put (Buffer (p,_)) = send p
 
 -- | Synchronously take a message on the buffer.
-take :: Serialize a => Buffer a -> ProcessM (SyncVal a)
+take :: Serialize a => Buffer a -> Process (SyncVal a)
 take (Buffer (_,t)) = syncSignal t
 
 
 
 -- | Store some items in a buffer, retrieve them later. Simulates state.
 -- pred> bufferExample == 3
-bufferExample :: ProcessM Int
+bufferExample :: Process Int
 bufferExample = do
     -- Create a new Buffer
     b <- mkBuffer
@@ -141,7 +141,7 @@ bufferExample = do
 
 {- Primitive Lock example -}
 newtype Lock = Lock (SyncSignal (),SyncSignal ())
-mkLock :: ProcessM Lock
+mkLock :: Process Lock
 mkLock = do
     free   <- newChannel -- Enforce mutex      :: Chan ()
     lock   <- newChannel -- Request for locks  :: SyncChan () ()
@@ -157,20 +157,20 @@ mkLock = do
     return $ Lock (lock,unlock)
 
 -- | Block until a lock is acquired.
-lock :: Lock -> ProcessM ()
+lock :: Lock -> Process ()
 lock (Lock (l,_)) = sync' l ()
 
 -- | Release a lock.
-unlock :: Lock -> ProcessM ()
+unlock :: Lock -> Process ()
 unlock (Lock (_,u)) = sync' u ()
 
 -- | Acquire lock before running a process. (unlocking afterward).
-withLock :: Lock -> ProcessM () -> ProcessM ()
+withLock :: Lock -> Process () -> Process ()
 withLock l p = lock l >> p >> unlock l
 
 -- | Only one subprocess may hold the lock at a time.
 -- =>"One" "Two" or "Two" "One". No intermingling.
-lockExample :: ProcessM ()
+lockExample :: Process ()
 lockExample = mkLock >>= \l -> withLock l (liftIO $ putStrLn "One")
                         `with` withLock l (liftIO $ putStrLn "two")
 
@@ -180,7 +180,7 @@ lockExample = mkLock >>= \l -> withLock l (liftIO $ putStrLn "One")
 
 {- Barrier example -}
 newtype Barrier = Barrier (SyncChan () (), SyncChan () ())
-mkBarrier :: ProcessM Barrier
+mkBarrier :: Process Barrier
 mkBarrier = do
     l <- newChannel
     r <- newChannel
@@ -188,21 +188,21 @@ mkBarrier = do
     return $ Barrier (l,r)
 
 -- | 'Left side' waits at barrier.
-signalLeft :: Barrier -> ProcessM ()
+signalLeft :: Barrier -> Process ()
 signalLeft (Barrier (l,_)) = syncSignal' l
 
 -- | 'Right side' waits at barrier.
-signalRight :: Barrier -> ProcessM ()
+signalRight :: Barrier -> Process ()
 signalRight (Barrier (_,r)) = syncSignal' r
 
 -- | Barriers enforce a subProcesses move in step.
 -- => Result is "(lr)" or "(rl)".
-barrierExample :: ProcessM ()
+barrierExample :: Process ()
 barrierExample = do
     b <- mkBarrier
     procLeft b `with` procRight b
   where
-    procLeft :: Barrier -> ProcessM ()
+    procLeft :: Barrier -> Process ()
     procLeft b = do
         liftIO $ putStrLn "("
         signalLeft b
@@ -210,7 +210,7 @@ barrierExample = do
         signalLeft b
         liftIO $ putStrLn ")"
 
-    procRight :: Barrier -> ProcessM ()
+    procRight :: Barrier -> Process ()
     procRight b = do
         signalRight b
         liftIO $ putStrLn "r"

@@ -17,9 +17,9 @@ Stability   : experimental
 This module describes an encoding of the Join-Calculus.
 
 It defines methods for writing Join-Calculus programs which build a type
-'ProcessM' which is then open to interpretation.
+'Process' which is then open to interpretation.
 
-Exported functions may be used to build programs of type 'ProcessM' which
+Exported functions may be used to build programs of type 'Process' which
 may be then inspected by an interpreter to compute the
 effect of running the described program.
 -}
@@ -34,13 +34,13 @@ module Join.Language
     -- other running Processes. Communication between Processes is achieved
     -- by message passing over 'Channel's.
     --
-    -- The 'ProcessM' type is the core user-level type of this library and
-    -- is the type that user programs are written in. 'ProcessM' is
+    -- The 'Process' type is the core user-level type of this library and
+    -- is the type that user programs are written in. 'Process' is
     -- a monadic type and so supports do notation in which it is
     -- recommended that programs are written.
     --
     -- Each 'Instruction' has a corresponding function which enters it into
-    -- a 'ProcessM' context. These are the atomic functions in which Join
+    -- a 'Process' context. These are the atomic functions in which Join
     -- programs are built.
     --
     -- Monadically sequencing together processes to build larger
@@ -48,14 +48,14 @@ module Join.Language
     -- This is not always desired. Two primitive functions for controlling
     -- execution time are noted below:
     --
-    -- - 'spawn' is provided to asynchronously run a ProcessM, without
+    -- - 'spawn' is provided to asynchronously run a Process, without
     --  waiting for a result.
     --
     -- - 'with' is provided to specify that two processes must be executed
     --   at the same time.
     --
     -- For example programs, see "Join.Language.Examples"
-      ProcessM
+      Process
     , spawn
     , with
 
@@ -65,7 +65,7 @@ module Join.Language
     -- unidirectional and parameterised over a type of values that they
     -- carry.
     --
-    -- In a 'ProcessM' first a 'Channel' is created by a call to
+    -- In a 'Process' first a 'Channel' is created by a call to
     -- 'newChannel' as in:
     --
     -- @ c <- newChannel @
@@ -73,7 +73,7 @@ module Join.Language
     -- The type of message the Channel carries can usually be inferred from
     -- its usage, but must otherwise be annotated E.G.:
     --
-    -- @c <- newChannel :: ProcessM (Channel A Int)@
+    -- @c <- newChannel :: Process (Channel A Int)@
     --
     -- It may have been noticed that the 'Channel' type specifies a type
     -- parameter 'A'. This is because the Language has opted to define
@@ -167,7 +167,7 @@ module Join.Language
     --
     -- On the right-hand-side of the Join definition is a trigger function, typed to accept
     -- each message defined on the LHS in order and result in a function in
-    -- 'ProcessM'.
+    -- 'Process'.
     --
     -- The operator '|>' may be used to build 'Def' patterns in infix
     -- style.
@@ -192,7 +192,7 @@ module Join.Language
     , (&=)
 
     -- ** Convenience functions
-    -- | 'ProcessM' helper functions.
+    -- | 'Process' helper functions.
     , Inert
     , inert
     , onReply
@@ -216,10 +216,10 @@ import Data.Serialize
 
 -- | Type of atomic Join instructions.
 --
--- This is the underlying type of the 'ProcessM' Monad which is the users
+-- This is the underlying type of the 'Process' Monad which is the users
 -- interface to writing Join programs.
 --
--- For writing Join programs, see the corresponding 'ProcessM' functions:
+-- For writing Join programs, see the corresponding 'Process' functions:
 -- I.E. For 'Def' instruction, see 'def' function. Etc.
 --
 -- For writing interpreters of Join programs, more comprehensive documentation may be
@@ -243,7 +243,7 @@ data Instruction a where
                -> Instruction ()
 
     -- Asynchronously spawn a Process.
-    Spawn      :: ProcessM ()                  -- Process to spawn.
+    Spawn      :: Process ()                  -- Process to spawn.
                -> Instruction ()
 
     -- Send a value on a Synchronous Channel and wait for a result.
@@ -259,12 +259,12 @@ data Instruction a where
                -> Instruction ()
 
     -- Concurrently execute two Process's.
-    With       :: ProcessM ()                  -- First process.
-               -> ProcessM ()                  -- Second process.
+    With       :: Process ()                  -- First process.
+               -> Process ()                  -- Second process.
                -> Instruction ()
 
 
--- | Infix, enter a Def instruction into ProcessM.
+-- | Infix, enter a Def instruction into Process.
 --
 -- I.E. allows:
 --
@@ -273,17 +273,17 @@ data Instruction a where
 -- To be written:
 --
 -- @ ci |> (\i -> reply ci (i+1)) @
-(|>) :: Pattern p Inert f => p -> f -> ProcessM ()
+(|>) :: Pattern p Inert f => p -> f -> Process ()
 infixr 6 |>
 p |> t = def p t
 
 
 
--- | ProcessM is a Monadic type that can be thought of as representing a
+-- | Process is a Monadic type that can be thought of as representing a
 -- sequence of Join 'Instructions'.
-type ProcessM a = ProgramT Instruction IO a
+type Process a = ProgramT Instruction IO a
 
--- | Enter a single 'Def' Instruction into ProcessM.
+-- | Enter a single 'Def' Instruction into Process.
 --
 -- Declares that when a 'Pattern' p is matched, a trigger function t is to be called, passed the matching messages.
 --
@@ -294,71 +294,71 @@ type ProcessM a = ProgramT Instruction IO a
 -- Says that when ci (which may be inferred to have type :: Channel S Int)
 -- receives a message, it is passed to the RHS function which increments it
 -- and passes it back.
-def :: Pattern p Inert f => p -> f -> ProcessM ()
+def :: Pattern p Inert f => p -> f -> Process ()
 def c p = singleton $ Def c p
 
--- | Enter a single 'NewChannel' Instruction into ProcessM.
+-- | Enter a single 'NewChannel' Instruction into Process.
 --
 -- Request a new typed Channel be created. Whether the
 -- Channel is synchronous or asynchronous is determined by the calling
 -- context.
-newChannel :: (InferSync s,Serialize a) => ProcessM (Channel s a)
+newChannel :: (InferSync s,Serialize a) => Process (Channel s a)
 newChannel = singleton NewChannel
 
--- | Enter a single 'Send' Instruction into ProcessM.
+-- | Enter a single 'Send' Instruction into Process.
 --
 -- On a (regular) asynchronous 'Channel', send a message.
-send :: Serialize a => Chan a -> a -> ProcessM ()
+send :: Serialize a => Chan a -> a -> Process ()
 send c a = singleton $ Send c a
 
 -- | Send an asynchronous signal.
-signal :: Signal -> ProcessM ()
+signal :: Signal -> Process ()
 signal c = send c ()
 
--- | Enter a single 'Spawn' Instruction into ProcessM.
+-- | Enter a single 'Spawn' Instruction into Process.
 --
--- Asynchronously spawn a 'ProcessM' () computation in the
+-- Asynchronously spawn a 'Process' () computation in the
 -- background.
-spawn :: ProcessM () -> ProcessM ()
+spawn :: Process () -> Process ()
 spawn p = singleton $ Spawn p
 
--- | Enter a single 'Sync' Instruction into ProcessM.
+-- | Enter a single 'Sync' Instruction into Process.
 
 -- Send a message to a synchronous 'Channel', returning
 -- a 'SyncVal' - a handle to the reply message which may be 'wait'ed upon
 -- when needed.
-sync :: (Serialize a,Serialize r) => SyncChan a r -> a -> ProcessM (SyncVal r)
+sync :: (Serialize a,Serialize r) => SyncChan a r -> a -> Process (SyncVal r)
 sync s a = singleton $ Sync s a
 
--- | In a ProcessM, block on a SyncVal.
-wait :: SyncVal a -> ProcessM a
+-- | In a Process, block on a SyncVal.
+wait :: SyncVal a -> Process a
 wait sv = return $! read sv
 
 -- | Send a message to a synchronous 'Channel', blocking on a reply value.
-sync' :: (Serialize a,Serialize r) => SyncChan a r -> a -> ProcessM r
+sync' :: (Serialize a,Serialize r) => SyncChan a r -> a -> Process r
 sync' s a = sync s a >>= wait
 
 -- | Send a synchronous signal, returning a 'SyncVal' - a handle to the
 -- reply message which may be 'wait'ed upon when needed.
-syncSignal :: Serialize r => SyncSignal r -> ProcessM (SyncVal r)
+syncSignal :: Serialize r => SyncSignal r -> Process (SyncVal r)
 syncSignal s = sync s ()
 
 -- | Send a synchronous signal, blocking on a reply value.
-syncSignal' :: Serialize r => SyncSignal r -> ProcessM r
+syncSignal' :: Serialize r => SyncSignal r -> Process r
 syncSignal' s = syncSignal s >>= wait
 
 
--- | Enter a single 'Reply' Instruction into ProcessM.
+-- | Enter a single 'Reply' Instruction into Process.
 --
 -- On a synchronous 'Channel', respond with a message to the
 -- sender.
-reply :: Serialize r => SyncChan a r -> r -> ProcessM ()
+reply :: Serialize r => SyncChan a r -> r -> Process ()
 reply s a = singleton $ Reply s a
 
--- | Enter a single 'With' Instruction into ProcessM.
+-- | Enter a single 'With' Instruction into Process.
 --
--- Concurrently run two 'ProcessM' () computations.
-with :: ProcessM () -> ProcessM () -> ProcessM ()
+-- Concurrently run two 'Process' () computations.
+with :: Process () -> Process () -> Process ()
 with p q = singleton $ With p q
 
 -- | Helper for continuation style programming with Channels.
@@ -373,15 +373,15 @@ with p q = singleton $ With p q
 -- 
 --
 -- sending an Int value on s will print it as well as it's successor.
-onReply :: Serialize a => Chan a -> (a -> ProcessM ()) -> ProcessM ()
+onReply :: Serialize a => Chan a -> (a -> Process ()) -> Process ()
 onReply = def
 
--- | Type synonym for a ProcessM which terminates without value.
-type Inert = ProcessM ()
+-- | Type synonym for a Process which terminates without value.
+type Inert = Process ()
 
 -- | Synonym for:
 --
--- @ return () :: ProcessM () @
+-- @ return () :: Process () @
 --
 -- May be used to indicate the end of a process which returns no useful
 -- value.
