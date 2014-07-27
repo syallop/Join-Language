@@ -10,10 +10,10 @@ import Join.Language
 import Join.Types
 import Join.Interpretation.Complex
 
-import Join.Examples.Counter
-import Join.Examples.Buffer
-import Join.Examples.Lock
-import Join.Examples.Barrier
+import Join.Data.Counter
+import Join.Data.Buffer
+import Join.Data.Lock
+import Join.Data.Barrier
 
 import Control.Applicative
 import Control.Concurrent (threadDelay)
