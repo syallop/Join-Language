@@ -290,13 +290,13 @@ def c p = singleton $ Def c p
 -- Request a new typed Channel be created. Whether the
 -- Channel is synchronous or asynchronous is determined by the calling
 -- context.
-newChannel :: forall s a. (InferSync s,Serialize a) => ProcessM (Channel s a)
+newChannel :: (InferSync s,Serialize a) => ProcessM (Channel s a)
 newChannel = singleton NewChannel
 
 -- | Enter a single 'Send' Instruction into ProcessM.
 --
 -- On a (regular) asynchronous 'Channel', send a message.
-send :: forall a. Serialize a => Chan a -> a -> ProcessM ()
+send :: Serialize a => Chan a -> a -> ProcessM ()
 send c a = singleton $ Send c a
 
 -- | Enter a single 'Spawn' Instruction into ProcessM.
