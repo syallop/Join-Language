@@ -24,6 +24,7 @@ library
                      , Join.Data.Barrier
                      , Join.Data.Pair
                      , Join.Data.Timeout
+                     , Join.Data.Count
                      , Join.Types
                      , Join.Types.Pattern
                      , Join.Types.Channel
