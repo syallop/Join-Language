@@ -15,7 +15,8 @@ build-type:          Simple
 cabal-version:       >=1.8
 
 library
-   exposed-modules:    Join.Language
+   exposed-modules:    Join
+                     , Join.Language
                      , Join.Examples
                      , Join.Data.Counter
                      , Join.Data.Buffer

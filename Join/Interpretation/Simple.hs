@@ -18,9 +18,9 @@ module Join.Interpretation.Simple
 
 import Prelude hiding (lookup)
 
+import Join
+
 import Join.Interpretation.Simple.Types
-import Join.Language
-import Join.Types
 
 import Control.Concurrent.MVar
 import Control.Concurrent (forkIO,yield,threadDelay)

@@ -1,12 +1,11 @@
 {-# LANGUAGE GADTs #-}
 module Join.Interpretation.Complex where
 
-import Join.Interpretation.Complex.Rule
-
-import Join.Language
-import Join.Types
-
 import Prelude hiding (lookup)
+
+import Join
+
+import Join.Interpretation.Complex.Rule
 
 import Control.Applicative        ((<$>),(<*>),pure)
 import Control.Concurrent         (forkIO,newMVar,newEmptyMVar,threadDelay)

@@ -6,8 +6,8 @@ module Join.Examples where
 
 import Prelude hiding (take, read)
 
-import Join.Language
-import Join.Types
+import Join
+
 import Join.Interpretation.Complex
 
 import Join.Data.Counter

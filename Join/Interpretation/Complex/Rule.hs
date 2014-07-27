@@ -30,13 +30,11 @@ module Join.Interpretation.Complex.Rule
 
 import Join.Interpretation.Complex.Status
 
-import Join.Language
-import Join.Types
+import Join
 
 import Prelude hiding (lookup)
 
 import Control.Applicative      ((<$>))
-import Control.Arrow            (first,second)
 import Control.Concurrent.MVar  (MVar)
 import Data.ByteString          (ByteString)
 import Data.List                (nub)

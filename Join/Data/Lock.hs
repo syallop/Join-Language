@@ -6,8 +6,7 @@ module Join.Data.Lock
     , withLock
     ) where
 
-import Join.Language
-import Join.Types
+import Join
 
 {- Primitive Lock example -}
 newtype Lock = Lock (SyncSignal (),SyncSignal ())

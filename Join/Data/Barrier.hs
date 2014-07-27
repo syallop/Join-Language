@@ -5,8 +5,7 @@ module Join.Data.Barrier
     , signalRight
     ) where
 
-import Join.Language
-import Join.Types
+import Join
 
 -- | Barriers enforce a subProcesses move in step.
 -- => Result is "(lr)" or "(rl)".

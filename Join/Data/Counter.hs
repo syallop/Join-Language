@@ -5,8 +5,7 @@ module Join.Data.Counter
     , get
     ) where
 
-import Join.Language
-import Join.Types
+import Join
 
 newtype Counter = Counter (SyncChan () (), SyncChan () Int)
 mkCounter :: Process Counter

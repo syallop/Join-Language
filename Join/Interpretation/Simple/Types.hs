@@ -5,12 +5,12 @@
 {-# OPTIONS_HADDOCK hide #-}
 module Join.Interpretation.Simple.Types
     (-- Encode Message/ Channel types.
-     ChanId()
-    ,ReplyId
-    ,MsgData()
-    ,Msg()
-    ,Msgs
-    ,MsgQueue()
+      ChanId()
+    , ReplyId
+    , MsgData()
+    , Msg()
+    , Msgs
+    , MsgQueue()
     -- Smart constructors of Message/ Channel types.
     , newChanId
     , mkChanId
@@ -23,27 +23,26 @@ module Join.Interpretation.Simple.Types
     , mkMsgQueue
 
     -- Encode Def Pattern types.
-    ,ChanMatch()
-    ,ChanMatches()
-    ,MatchRule(..)
-    ,MatchRules
+    , ChanMatch()
+    , ChanMatches()
+    , MatchRule(..)
+    , MatchRules
     , mkChanMatches
 
-    ,registerChanId
-    ,registerMsg
-    ,registerMatchRule
+    , registerChanId
+    , registerMsg
+    , registerMatchRule
 
-    ,tryMsgMatch
-    ,tryChanMatches
-    ,tryMatchRule
+    , tryMsgMatch
+    , tryChanMatches
+    , tryMatchRule
 
-    ,extractReplyIds
+    , extractReplyIds
     ) where
 
 import Prelude hiding (lookup)
 
-import Join.Language
-import Join.Types
+import Join
 
 import Control.Arrow       (first)
 import Control.Applicative ((<$>))

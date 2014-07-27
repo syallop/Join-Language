@@ -7,8 +7,7 @@ module Join.Data.Buffer
 
 import Prelude hiding (take)
 
-import Join.Language
-import Join.Types
+import Join
 
 import Data.Serialize (Serialize)
 
