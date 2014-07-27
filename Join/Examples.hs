@@ -15,7 +15,7 @@ import Control.Applicative
 import Control.Concurrent (threadDelay)
 import Control.Monad (liftM,replicateM_,replicateM)
 import Control.Monad.IO.Class
-import Data.Serialize (Serialize)
+import Data.Serialize hiding (get,put)
 import System.IO
 
 -- | Countdown all values to 0.
@@ -112,8 +112,7 @@ put (Buffer (p,_)) = send p
 
 -- | Synchronously take a message on the buffer.
 take :: Serialize a => Buffer a -> ProcessM (SyncVal a)
-take (Buffer (_,t)) = sync t ()
-
+take (Buffer (_,t)) = syncSignal t
 
 
 
@@ -141,7 +140,7 @@ bufferExample = do
 
 
 {- Primitive Lock example -}
-newtype Lock = Lock (SyncChan () (),SyncChan () ())
+newtype Lock = Lock (SyncSignal (),SyncSignal ())
 mkLock :: ProcessM Lock
 mkLock = do
     free   <- newChannel -- Enforce mutex      :: Chan ()
@@ -152,9 +151,9 @@ mkLock = do
     free & lock |> \_ -> reply lock
 
     -- When unlock request, set free.
-    unlock      |> \_ -> send free() `with` reply unlock()
+    unlock      |> \_ -> signal free `with` reply unlock()
 
-    send free()
+    signal free
     return $ Lock (lock,unlock)
 
 -- | Block until a lock is acquired.
@@ -190,12 +189,11 @@ mkBarrier = do
 
 -- | 'Left side' waits at barrier.
 signalLeft :: Barrier -> ProcessM ()
-signalLeft (Barrier (l,_)) = sync' l ()
-
+signalLeft (Barrier (l,_)) = syncSignal' l
 
 -- | 'Right side' waits at barrier.
 signalRight :: Barrier -> ProcessM ()
-signalRight (Barrier (_,r)) = sync' r ()
+signalRight (Barrier (_,r)) = syncSignal' r
 
 -- | Barriers enforce a subProcesses move in step.
 -- => Result is "(lr)" or "(rl)".
