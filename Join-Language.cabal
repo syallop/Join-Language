@@ -17,6 +17,10 @@ cabal-version:       >=1.8
 library
    exposed-modules:    Join.Language
                      , Join.Examples
+                     , Join.Examples.Counter
+                     , Join.Examples.Buffer
+                     , Join.Examples.Lock
+                     , Join.Examples.Barrier
                      , Join.Types
                      , Join.Types.Pattern
                      , Join.Types.Channel
