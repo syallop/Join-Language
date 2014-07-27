@@ -38,6 +38,10 @@ module Join.Types.Channel
     ,getId
     ,InferSync()
     ,inferSync
+
+    , SignalChannel
+    , Signal
+    , SyncSignal
     ) where
 
 -- | Synchronicity tag Type & Kind.
@@ -59,7 +63,7 @@ data Channel s a where
     Channel  :: Int -> Channel A     a
     SChannel :: Int -> Channel (S r) a
 
--- | Type synonym for asynchronous 'Channel's.
+-- | Synonym for asynchronous 'Channel's.
 type Chan      a   = Channel A a
 
 -- | Synonym for synchronous 'Channel's.
@@ -89,4 +93,16 @@ getId (SChannel i) = i
 class    InferSync s     where inferSync :: Int -> Channel s a
 instance InferSync A     where inferSync = Channel
 instance InferSync (S r) where inferSync = SChannel
+
+
+-- | Synonym for 'Channel's which receive signals - the unit value ().
+type SignalChannel s = Channel s ()
+
+-- | Synonym for asynchronous 'Channel's which receive signals - the unit
+-- value ().
+type Signal = SignalChannel A
+
+-- | Synonym for synchronous 'Channel's which receive signals -the unit
+-- value ()- and reply with some 'r'.
+type SyncSignal r = SignalChannel (S r)
 

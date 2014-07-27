@@ -97,6 +97,9 @@ module Join.Language
     -- - 'send' is used to value on an asynchronous Channel, returning
     -- immediately with no return value.
     --
+    -- - 'signal' is a convenience for 'send c ()' "signaling" the unit
+    --   value to a 'Signal' channel ('Chan A ()').
+    --
     -- - 'sync' is used to send a value to a synchronous Channel, returning
     -- immediately with a 'SyncVal'. A reference to a reply value which can
     -- be 'wait'ed upon when the value is required.
@@ -106,6 +109,12 @@ module Join.Language
     --
     -- - 'reply' is used to send a message in reply to a synchronous Channel.
     --
+    -- - 'syncSignal' is a convenience for 'sync s ()' "signaling" the unit
+    --   value to a 'SyncSignal' channel ('SyncChan () r').
+    --
+    -- - 'syncSignal\'' is a variant of 'syncSignal' which immediately
+    --   blocks on a reply value.
+    --
     -- / It is noted that the addition of synchronous /
     -- / Channels does not add to the Join-Calculus by virtue of the fact /
     -- / that they could otherwise be implemented by /
@@ -113,9 +122,12 @@ module Join.Language
     -- / Channels./.
     , newChannel
     , send
+    , signal
     , sync
     , wait
     , sync'
+    , syncSignal
+    , syncSignal'
     , reply
 
     -- ** Join definitions
@@ -299,6 +311,10 @@ newChannel = singleton NewChannel
 send :: Serialize a => Chan a -> a -> ProcessM ()
 send c a = singleton $ Send c a
 
+-- | Send an asynchronous signal.
+signal :: Signal -> ProcessM ()
+signal c = send c ()
+
 -- | Enter a single 'Spawn' Instruction into ProcessM.
 --
 -- Asynchronously spawn a 'ProcessM' () computation in the
@@ -321,6 +337,15 @@ wait sv = return $! read sv
 -- | Send a message to a synchronous 'Channel', blocking on a reply value.
 sync' :: (Serialize a,Serialize r) => SyncChan a r -> a -> ProcessM r
 sync' s a = sync s a >>= wait
+
+-- | Send a synchronous signal, returning a 'SyncVal' - a handle to the
+-- reply message which may be 'wait'ed upon when needed.
+syncSignal :: Serialize r => SyncSignal r -> ProcessM (SyncVal r)
+syncSignal s = sync s ()
+
+-- | Send a synchronous signal, blocking on a reply value.
+syncSignal' :: Serialize r => SyncSignal r -> ProcessM r
+syncSignal' s = syncSignal s >>= wait
 
 
 -- | Enter a single 'Reply' Instruction into ProcessM.
