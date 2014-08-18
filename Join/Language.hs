@@ -115,6 +115,10 @@ module Join.Language
     -- - 'syncSignal\'' is a variant of 'syncSignal' which immediately
     --   blocks on a reply value.
     --
+    -- - 'acknowledge' is a convenience for 'reply s ()' "acknowledging"
+    --   a message sent on a synchronous channel by replying with the unit
+    --   value.
+    --
     -- / It is noted that the addition of synchronous /
     -- / Channels does not add to the Join-Calculus by virtue of the fact /
     -- / that they could otherwise be implemented by /
@@ -129,6 +133,7 @@ module Join.Language
     , syncSignal
     , syncSignal'
     , reply
+    , acknowledge
 
     -- ** Join definitions
     -- | Join definitions are the key construct provided by the Join-calculus
@@ -354,6 +359,10 @@ syncSignal' s = syncSignal s >>= wait
 -- sender.
 reply :: Serialize r => SyncChan a r -> r -> Process ()
 reply s a = singleton $ Reply s a
+
+-- | Reply with a synchronous acknowledgment.
+acknowledge :: SyncChan a () -> Process ()
+acknowledge s = reply s ()
 
 -- | Enter a single 'With' Instruction into Process.
 --

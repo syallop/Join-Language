@@ -17,21 +17,21 @@ mkLock = do
     unlock <- newChannel -- Request for unlock :: SyncChan () ()
 
     -- Only when free, reply to a lock request.
-    free & lock |> \_ -> reply lock
+    free & lock |> \_ _ -> acknowledge lock
 
     -- When unlock request, set free.
-    unlock      |> \_ -> signal free `with` reply unlock()
+    unlock      |> \_ -> signal free `with` acknowledge unlock
 
     signal free
     return $ Lock (lock,unlock)
 
 -- | Block until a lock is acquired.
 lock :: Lock -> Process ()
-lock (Lock (l,_)) = sync' l ()
+lock (Lock (l,_)) = syncSignal' l
 
 -- | Release a lock.
 unlock :: Lock -> Process ()
-unlock (Lock (_,u)) = sync' u ()
+unlock (Lock (_,u)) = syncSignal' u
 
 -- | Acquire lock before running a process. (unlocking afterward).
 withLock :: Lock -> Process () -> Process ()

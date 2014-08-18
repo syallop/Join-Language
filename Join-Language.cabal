@@ -17,25 +17,31 @@ cabal-version:       >=1.8
 library
    exposed-modules:    Join
                      , Join.Language
-                     , Join.Examples
-                     , Join.Data.Counter
-                     , Join.Data.Buffer
-                     , Join.Data.Lock
-                     , Join.Data.Barrier
-                     , Join.Data.Pair
-                     , Join.Data.Timeout
-                     , Join.Data.Count
                      , Join.Types
-                     , Join.Types.Pattern
                      , Join.Types.Channel
+                     , Join.Types.Pattern
                      , Join.Types.SyncVal
+
                      , Join.Interpretation.Describe
+
                      , Join.Interpretation.Simple
                      , Join.Interpretation.Simple.Types
+
                      , Join.Interpretation.Complex
                      , Join.Interpretation.Complex.Rule
                      , Join.Interpretation.Complex.Status
-  -- other-modules:       
+
+                     , Join.Examples
+
+                     , Join.Data.Barrier
+                     , Join.Data.Buffer
+                     , Join.Data.Count
+                     , Join.Data.Counter
+                     , Join.Data.Lock
+                     , Join.Data.Loop
+                     , Join.Data.Pair
+                     , Join.Data.Timeout
+
   build-depends:       base ==4.6.*
                      , transformers
                      , operational

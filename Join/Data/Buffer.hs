@@ -14,7 +14,7 @@ import Data.Serialize (Serialize)
 {- Buffer example:
  - A 'Buffer' is isomorphic to a Pi calculus channel.
  -}
-newtype Buffer a = Buffer (Chan a, SyncChan () a)
+newtype Buffer a = Buffer (Chan a, SyncSignal a)
 mkBuffer :: Serialize a => Process (Buffer a)
 mkBuffer = do
     p <- newChannel       -- put channel  :: Chan a
