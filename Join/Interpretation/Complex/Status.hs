@@ -33,9 +33,9 @@ module Join.Interpretation.Complex.Status
 
 import Prelude hiding (replicate,zipWith,and)
 
-import Data.Maybe (mapMaybe)
-import Data.Vector (Vector,replicate,unsafeIndex,modify,(//),zipWith,and,toList,indexed)
-import Data.Vector.Mutable (write)
+import Data.Maybe           (mapMaybe)
+import Data.Vector          (Vector,replicate,unsafeIndex,modify,(//),zipWith,and,toList,indexed)
+import Data.Vector.Mutable  (write)
 
 newtype Status = Status (Vector Bool) deriving Show
 

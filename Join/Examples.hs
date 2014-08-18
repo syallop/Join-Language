@@ -1,6 +1,5 @@
-{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE DataKinds #-}
-
+{-# LANGUAGE MultiWayIf #-}
 
 module Join.Examples where
 
@@ -10,10 +9,10 @@ import Join
 
 import Join.Interpretation.Complex
 
-import Join.Data.Counter
-import Join.Data.Buffer
-import Join.Data.Lock
 import Join.Data.Barrier
+import Join.Data.Buffer
+import Join.Data.Counter
+import Join.Data.Lock
 
 import Control.Applicative
 import Control.Concurrent (threadDelay)

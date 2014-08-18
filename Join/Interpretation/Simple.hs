@@ -1,5 +1,5 @@
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 {-|
@@ -22,11 +22,11 @@ import Join
 
 import Join.Interpretation.Simple.Types
 
-import Control.Concurrent.MVar
 import Control.Concurrent (forkIO,yield,threadDelay)
+import Control.Concurrent.MVar
 import Control.Monad
-import Control.Monad.Operational
 import Control.Monad.IO.Class
+import Control.Monad.Operational
 import Data.Map hiding (map)
 import Data.Serialize (Serialize)
 

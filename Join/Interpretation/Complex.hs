@@ -11,12 +11,12 @@ import Control.Applicative        ((<$>),(<*>),pure)
 import Control.Concurrent         (forkIO,newMVar,newEmptyMVar,threadDelay)
 import Control.Concurrent.MVar    (MVar,takeMVar,putMVar,readMVar)
 import Control.Monad              (liftM)
+import Control.Monad.IO.Class     (liftIO)
+import Control.Monad.Operational
 import Data.List                  (nub)
 import Data.Map                   (Map,map,union,lookup,empty,delete)
 import Data.Maybe                 (fromJust)
 import Data.Serialize             (Serialize,encode,decode)
-import Control.Monad.IO.Class     (liftIO)
-import Control.Monad.Operational
 import Data.Unique                (hashUnique,newUnique)
 
 type Rules = Map ChanId (MVar Rule,ChanIx)

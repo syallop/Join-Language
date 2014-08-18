@@ -1,7 +1,7 @@
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
 {-# OPTIONS_HADDOCK hide #-}
 module Join.Interpretation.Simple.Types
     (-- Encode Message/ Channel types.
@@ -44,8 +44,8 @@ import Prelude hiding (lookup)
 
 import Join
 
-import Control.Arrow       (first)
 import Control.Applicative ((<$>))
+import Control.Arrow       (first)
 import Data.ByteString     (ByteString)
 import Data.Map            (Map,empty,insert,insertWith,lookup)
 import Data.Serialize      (decode,encode,Serialize)
