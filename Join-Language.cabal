@@ -24,12 +24,9 @@ library
 
                      , Join.Interpretation.Describe
 
-                     , Join.Interpretation.Simple
-                     , Join.Interpretation.Simple.Types
-
-                     , Join.Interpretation.Complex
-                     , Join.Interpretation.Complex.Rule
-                     , Join.Interpretation.Complex.Status
+                     , Join.Interpretation.Basic
+                     , Join.Interpretation.Basic.Rule
+                     , Join.Interpretation.Basic.Status
 
                      , Join.Examples
 

@@ -5,7 +5,7 @@
 {-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
-module Join.Interpretation.Complex.Rule
+module Join.Interpretation.Basic.Rule
     ( Rule()
     , mkRule
     , mergeNewRule
@@ -28,7 +28,7 @@ module Join.Interpretation.Complex.Rule
     , TriggerF(..)
     ) where
 
-import Join.Interpretation.Complex.Status
+import Join.Interpretation.Basic.Status
 
 import Join
 

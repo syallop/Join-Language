@@ -6,7 +6,7 @@ Stability  : experimental
 
 This module provides a fixed-length bitstring types which may be used to track the status of a system.
 -}
-module Join.Interpretation.Complex.Status
+module Join.Interpretation.Basic.Status
     (
      -- * Title
      -- | A Status is a fixed length, mutable bitstring of 1's and 0's.
