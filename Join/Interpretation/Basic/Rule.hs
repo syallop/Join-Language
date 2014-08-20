@@ -1,10 +1,11 @@
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImpredicativeTypes #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE FlexibleInstances #-}
 module Join.Interpretation.Basic.Rule
     ( Rule()
     , mkRule
@@ -167,6 +168,7 @@ addMessage ix msg rl
     nonEmptyChannel :: Bool
     nonEmptyChannel = status rl `index` unChanIx ix
 
+    -- existing messages ++ new msg's
     messages' :: Map ChanIx Messages
     messages' = insertWith (++) ix [msg] $ messages rl
 
@@ -175,9 +177,13 @@ addMessage ix msg rl
 
     applyMatch :: (StatusPattern,Trigger) -> Rule -> (Rule,(Process (),ReplyCtx))
     applyMatch (pat,Trigger (TriggerF f) ixs) rl
-        {-= let ixs   = ChanIx <$> getPatternIndexes pat -- :: [ChanIx]-}
          = let (rawMsgs,replyCtx,rl') = takeMessages rl ixs
-              in (rl',(unsafeApply f (reverse rawMsgs),replyCtx))
+               rawMsgs' = dropUnits rawMsgs
+              in (rl',(unsafeApply f (reverse rawMsgs'),replyCtx))
+
+    -- Drop messages which are identical to the encoded unit value ().
+    dropUnits :: [RawMessage] -> [RawMessage]
+    dropUnits = filter (/= "")
 
     takeMessages :: Rule -> [ChanIx] -> ([RawMessage],ReplyCtx,Rule)
     takeMessages rl = foldr f ([],empty,rl)

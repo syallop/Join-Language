@@ -17,9 +17,9 @@ import Data.Serialize (Serialize)
 newtype Buffer a = Buffer (Chan a, SyncSignal a)
 mkBuffer :: Serialize a => Process (Buffer a)
 mkBuffer = do
-    p <- newChannel       -- put channel  :: Chan a
-    t <- newChannel       -- take channel :: SyncChan a ()
-    t & p |> \_-> reply t -- reply put's to take's
+    p <- newChannel  -- put channel  :: Chan a
+    t <- newChannel  -- take channel :: SyncChan a ()
+    t & p |> reply t -- reply put's to take's
     return $ Buffer (p,t)
 
 -- | Asynchronously put a message on the buffer.

@@ -14,7 +14,7 @@ mkBarrier :: Process Barrier
 mkBarrier = do
     l <- newChannel
     r <- newChannel
-    l & r |> \_ _ -> acknowledge l `with` acknowledge r
+    l & r |> acknowledge l `with` acknowledge r
     return $ Barrier (l,r)
 
 -- | 'Left side' waits at barrier.

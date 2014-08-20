@@ -14,8 +14,8 @@ mkCount i = do
     tick  <- newChannel
     zero  <- newChannel
 
-    count    & tick |> \n () -> reply count (n-1)
-    count&=0 & zero |> \()   -> acknowledge zero
+    count    & tick |> \n -> reply count (n-1)
+    count&=0 & zero |> acknowledge zero
 
     sync count i
     return $ Count (zero,tick)

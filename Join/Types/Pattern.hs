@@ -1,4 +1,5 @@
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -180,8 +181,34 @@ instance RawPattern (And p q)     where rawPattern (And p q)       = rawPattern 
 instance Show (ChannelEq a) where show (ChannelEq c a) = show c ++ "&=" ++ show (encode a)
 instance Show (And p q) where show (And p q) = show p ++ " & " ++ show q
 
-instance Pattern' (Channel s a) f  (a -> f) where
-instance Pattern' (ChannelEq a) f        f  where
-instance f0~f1 =>
-         Pattern' (And f0 f')   f1    f'    where
+instance Combine a f f' => Pattern' (Channel s a) f  f' where
+instance                   Pattern' (ChannelEq a) f  f  where
+instance f0~f1          => Pattern' (And f0 f')   f1 f' where
+
+-- Class of types 'a' which can be combined with a type 'f', resulting in
+-- a conjunctive trigger type 'f\'''.
+--
+-- The below machinery is needed to implement the relation:
+-- Combine () f ~> f
+-- Combine a  f ~> (a -> f)
+class Combine a f f' where
+instance (DecideKeep a shouldKeep, Combine' a shouldKeep f f')
+      => Combine a f f' where
+
+-- Class of types 'a', when given a flag indicating whether it should be
+-- kept, can be combined with a type 'f', resulting in a conjunctive
+-- trigger type 'f\''.
+class Combine' a shouldKeep f f' | a shouldKeep f -> f' where
+instance Combine' () Drop f f where
+instance Serialize a
+      => Combine' a Keep f (a -> f) where
+
+data Drop -- Type is dropped in composition.
+data Keep -- Type is kept in composition.
+
+-- Class of type's 'a' which we can decide whether to keep when combining
+-- pattern trigger function types.
+class DecideKeep a shouldKeep | a -> shouldKeep where
+instance shouldKeep~Keep => DecideKeep a shouldKeep where
+instance DecideKeep () Drop where
 
