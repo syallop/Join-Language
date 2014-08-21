@@ -100,7 +100,7 @@ module Join.Types.Pattern
 
     -- * Details
       Pattern
-    , rawPattern
+    , rawPattern, MatchType(..)
     , (&)
     , (&=)
 
@@ -123,8 +123,32 @@ import Data.Serialize (Serialize,encode)
 -- A raw pattern '[(Int,Maybe ByteString)]' matches when there is a message
 -- on each channel identified by the Int, which must match the 'ByteString'
 -- if given.
-class RawPattern p where rawPattern :: p -> [(Int,Maybe ByteString)]
+--
 
+-- | Class of pattern types which can be converted to a raw pattern
+-- describing the semantics of a match.
+--
+-- A raw pattern '[(Int,MatchOn)]' states to match when a message is
+-- waiting on each listed channel, as identified by the Int id. Each
+-- channel must in turn be matched according to it's MatchType:
+-- - MatchAny              => No restriction. Any available message
+--                            counts as a match.
+-- - MatchEqual ByteString => Only messages equal to the string should
+--                            match.
+-- - MatchSignal           => Special case of MatchAny when the underlying
+--                            message-type has the shape of the unit type ().
+class RawPattern p where rawPattern :: p -> [(Int,MatchType)]
+
+-- | How a message should be matched on a channel.
+data MatchType
+    = MatchAny              -- ^ Match any message
+    | MatchEqual ByteString -- ^ Match only equal messages
+    | MatchSignal           -- ^ Match signals - ()
+
+-- | Class of types 'p' which may be used as a pattern.
+--
+-- 'f' gives the type a corresponding trigger function must have to
+-- consume the pattern and terminate with 'r'.
 type Pattern p r f = (Pattern' p r f, Apply f r)
 
 -- | Class of types 'p' which may be used as a pattern.
@@ -174,9 +198,10 @@ infixr 7 &
 
 {- Instances -}
 
-instance RawPattern (Channel s a) where rawPattern c               = [(getId c, Nothing)]
-instance RawPattern (ChannelEq a) where rawPattern (ChannelEq c a) = [(getId c, Just $ encode a)]
-instance RawPattern (And p q)     where rawPattern (And p q)       = rawPattern p ++ rawPattern q
+instance RawPattern (Channel s ()) where rawPattern c               = [(getId c, MatchSignal)]
+instance RawPattern (Channel s a)  where rawPattern c               = [(getId c, MatchAny)]
+instance RawPattern (ChannelEq a)  where rawPattern (ChannelEq c a) = [(getId c, MatchEqual $ encode a)]
+instance RawPattern (And p q)      where rawPattern (And p q)       = rawPattern p ++ rawPattern q
 
 instance Show (ChannelEq a) where show (ChannelEq c a) = show c ++ "&=" ++ show (encode a)
 instance Show (And p q) where show (And p q) = show p ++ " & " ++ show q
