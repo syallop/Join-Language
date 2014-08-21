@@ -117,14 +117,6 @@ import Data.Serialize (Serialize,encode)
 
 {- Classes -}
 
--- | Class of types with an associated raw pattern declaring what is
--- required for a match.
---
--- A raw pattern '[(Int,Maybe ByteString)]' matches when there is a message
--- on each channel identified by the Int, which must match the 'ByteString'
--- if given.
---
-
 -- | Class of pattern types which can be converted to a raw pattern
 -- describing the semantics of a match.
 --
