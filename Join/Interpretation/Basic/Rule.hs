@@ -18,7 +18,6 @@ module Join.Interpretation.Basic.Rule
 
     , addMessage
 
-    , ChanId(..)
     , ChanIx()
     , RuleId(..)
     , RawMessage
@@ -42,9 +41,6 @@ import Data.List                (nub)
 import Data.Map                 (Map,fromList,lookup,assocs,insertWith,insert,empty)
 import Data.Maybe               (fromJust,mapMaybe)
 import Data.Tuple               (swap)
-
--- | System-wide unique channel id.
-newtype ChanId = ChanId {unChanId :: Int} deriving (Show,Eq,Ord,Enum,Num)
 
 -- | Rule-wide unique channel id.
 newtype ChanIx = ChanIx {unChanIx :: Int} deriving (Show,Eq,Ord,Enum,Num)

@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-|
 Module      : Join.Types.Channel
@@ -30,8 +31,8 @@ implementation sufficiently, type annotations may be able to be avoided entirely
 -}
 
 module Join.Types.Channel
-    (
-     Channel()
+    (ChanId(..)
+    ,Channel()
     ,Chan
     ,SyncChan
     ,Synchronicity(..)
@@ -43,6 +44,9 @@ module Join.Types.Channel
     , Signal
     , SyncSignal
     ) where
+
+-- | System-wide unique channel id.
+newtype ChanId = ChanId {unChanId :: Int} deriving (Show,Eq,Ord,Enum,Num)
 
 -- | Synchronicity tag Type & Kind.
 data Synchronicity r
@@ -57,11 +61,11 @@ data Synchronicity r
 -- values should be sent 'A'synchronously (a regular channel as defined by
 -- the core calculus) or 'S'ynchronously, where a return value is expected.
 --
--- Channels are constructed with an 'Int' parameter which serves as it's
+-- Channels are constructed with an ChanId parameter which serves as it's
 -- unique ID. Interpreters should ensure these are unique.
 data Channel s a where
-    Channel  :: Int -> Channel A     a
-    SChannel :: Int -> Channel (S r) a
+    Channel  :: ChanId -> Channel A     a
+    SChannel :: ChanId -> Channel (S r) a
 
 -- | Synonym for asynchronous 'Channel's.
 type Chan      a   = Channel A a
@@ -70,11 +74,11 @@ type Chan      a   = Channel A a
 type SyncChan  a r = Channel (S r) a
 
 instance Show (Channel s a) where
-    show (Channel  i) = "Channel-"  ++ show i
-    show (SChannel i) = "SChannel-" ++ show i
+    show (Channel  (ChanId i)) = "Channel-"  ++ show i
+    show (SChannel (ChanId i)) = "SChannel-" ++ show i
 
 -- | Extract the Id of a Channel.
-getId :: Channel s a -> Int
+getId :: Channel s a -> ChanId
 getId (Channel i) = i
 getId (SChannel i) = i
 
@@ -84,13 +88,13 @@ getId (SChannel i) = i
 -- I.E. When:
 --
 -- @
---  i :: Int
+--  i :: ChanId
 --  c = inferSync i :: Channel s a
 -- @
 -- 
 -- and in a context where 's' is constrained to 'A' or 'S', then inferSync will
 -- create the corresponding type of Channel.
-class    InferSync s     where inferSync :: Int -> Channel s a
+class    InferSync s     where inferSync :: ChanId -> Channel s a
 instance InferSync A     where inferSync = Channel
 instance InferSync (S r) where inferSync = SChannel
 

@@ -18,9 +18,9 @@ import Data.Serialize (encode)
 -- | Interpret a Process by describing each instruction on stdout.
 -- Does not describe triggered Process's on RHS of Def patterns.
 describe :: Process a -> IO ()
-describe = describe' 0
+describe = describe' (ChanId 0)
   where
-    describe' :: Int -> Process a -> IO ()
+    describe' :: ChanId -> Process a -> IO ()
     describe' i p = do
         instr <- viewT p
         case instr of

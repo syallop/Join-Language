@@ -120,8 +120,8 @@ import Data.Serialize (Serialize,encode)
 -- | Class of pattern types which can be converted to a raw pattern
 -- describing the semantics of a match.
 --
--- A raw pattern '[(Int,MatchOn)]' states to match when a message is
--- waiting on each listed channel, as identified by the Int id. Each
+-- A raw pattern '[(ChanId,MatchOn)]' states to match when a message is
+-- waiting on each listed channel, as identified by the ChanId. Each
 -- channel must in turn be matched according to it's MatchType:
 -- - MatchAny              => No restriction. Any available message
 --                            counts as a match.
@@ -129,7 +129,7 @@ import Data.Serialize (Serialize,encode)
 --                            match.
 -- - MatchSignal           => Special case of MatchAny when the underlying
 --                            message-type has the shape of the unit type ().
-class RawPattern p where rawPattern :: p -> [(Int,MatchType)]
+class RawPattern p where rawPattern :: p -> [(ChanId,MatchType)]
 
 -- | How a message should be matched on a channel.
 data MatchType

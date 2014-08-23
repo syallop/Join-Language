@@ -84,7 +84,7 @@ runWith state p = do
         Return a -> return a
 
         Def p f
-            :>>= k -> do let cIds = ChanId . fst <$> rawPattern p
+            :>>= k -> do let cIds = fst <$> rawPattern p
                          overlappingRules <- collectOverlaps state cIds -- :: [Rule]
                          rId <- RuleId <$> newId
                          let rule = mergeNewRule cIds (TriggerF f) overlappingRules rId
@@ -96,11 +96,11 @@ runWith state p = do
                          runWith state (k ())
 
         NewChannel
-            :>>= k -> do id <- newId
+            :>>= k -> do id <- newChanId
                          runWith state (k $ inferSync id)
 
         Send c m
-            :>>= k -> do mProcCtx <- withRule' state (ChanId $ getId c) (\(rl,ix) -> addMessage ix (encode m,Nothing) rl)
+            :>>= k -> do mProcCtx <- withRule' state (getId c) (\(rl,ix) -> addMessage ix (encode m,Nothing) rl)
                          case mProcCtx of
                              Nothing
                                -> runWith state (k ())
@@ -116,7 +116,7 @@ runWith state p = do
             :>>= k -> do replyChan <- newEmptyMVar
                          syncVal   <- new
                          forkIO $ waitOnReply replyChan syncVal
-                         mProcCtx <- withRule' state (ChanId $ getId s) (\(rl,ix) -> addMessage ix (encode m,Just replyChan) rl)
+                         mProcCtx <- withRule' state (getId s) (\(rl,ix) -> addMessage ix (encode m,Just replyChan) rl)
                          case mProcCtx of
                              Nothing -> do runWith state (k syncVal)
                              Just (p,replyCtx)
@@ -124,7 +124,7 @@ runWith state p = do
                                      runWith state (k syncVal)
 
         Reply s m
-            :>>= k -> do let replyChan = lookupReply state (ChanId $ getId s)
+            :>>= k -> do let replyChan = lookupReply state (getId s)
                          putMVar replyChan (encode m)
                          runWith state (k ())
 
@@ -135,6 +135,9 @@ runWith state p = do
 
 newId :: IO Int
 newId = hashUnique <$> newUnique
+
+newChanId :: IO ChanId
+newChanId = ChanId <$> newId
 
 waitOnReply :: Serialize a => ReplyChan -> SyncVal a -> IO ()
 waitOnReply replyChan syncVal = do
