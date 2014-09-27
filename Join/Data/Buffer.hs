@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds, GADTs #-}
 module Join.Data.Buffer
     ( Buffer()
     , mkBuffer
@@ -15,7 +16,7 @@ import Data.Serialize (Serialize)
  - A 'Buffer' is isomorphic to a Pi calculus channel.
  -}
 newtype Buffer a = Buffer (Chan a, SyncSignal a)
-mkBuffer :: Serialize a => Process (Buffer a)
+mkBuffer :: (Serialize a,MessagePassed a) => Process (Buffer a)
 mkBuffer = do
     p <- newChannel  -- put channel  :: Chan a
     t <- newChannel  -- take channel :: SyncChan a ()

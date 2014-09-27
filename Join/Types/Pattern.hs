@@ -1,14 +1,13 @@
 {-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE EmptyDataDecls #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE IncoherentInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 {-|
@@ -23,86 +22,102 @@ module Join.Types.Pattern
     (
     -- * Overview of usage.
     -- | The primary export of the module is the 'Pattern' constraint which
-    -- is used to map valid pattern types to the type a corresponding
-    -- trigger function should have.
+    -- is used to map valid pattern types to type(s) a corresponding
+    -- trigger function may have.
     --
     -- I.E.
     --
-    -- @ Pattern p r f @
+    -- @ Pattern pat return trigger @
     --
     -- Declares:
     --
-    -- - 'p' as a valid pattern
+    -- - 'pat' as a valid pattern.
     --
-    -- - 'f' is the type of a function which consumes matches on the
-    -- pattern, producing a 'r'.
-
+    -- - 'trigger' as the type of a function which consumes matches on the
+    -- pattern, producing a value typed 'return'.
+    --
     -- ** Building patterns
     -- *** Matching a Channel
-    -- | The simplest pattern that can be instantiated is a single 'Channel' type.
+    -- | The simplest pattern is a single 'Channel s a' type.
     -- This declares a pattern that matches all messages sent on the Channel.
     --
     -- E.G.
     --
-    -- @ intChan  @ ==> @ f :: Int -> r @
-    -- @ charChan @ ==> @ f :: Char -> r @
+    -- @ intChan  :: Channel s Int  ==> trigger :: Int  -> return @
+    -- @ charChan :: Channel s Char ==> trigger :: Char -> return @
     --
-    -- In general, instantiating 'p' with a Channel of type 'a' produces
-    -- a trigger function of type 'a -> r' where r is some given return
-    -- value.
-    -- I.E. @ p~(Channel s a) @ ==> @ f~(a -> r) @
-
-    -- *** Matching equality on a Channel
-    -- | For convenience, another type of pattern is the equality pattern, declared infix via
-    -- '&='. This declares a pattern that matches only messages sent on the
-    -- Channel which are equal to the given value.
+    -- In general, instantiating 'pat' with a 'Channel s' of type 'a'
+    -- determines a trigger function of type 'a -> return', return being
+    -- some given return type.
+    -- I.E. @ pat ~ Channel s a ==> trigger ~ (a -> return) @
     --
-    -- E.G.
+    -- There is one exception, which is when the message type of the
+    -- channel is a~'()'. This is because the unit type '()' only has one
+    -- value (also named ()) making passing the value unnecessary. The
+    -- corresponding trigger type therefore does not pass a value.
     --
-    -- @ boolChan &= False @ ==> @ f :: r @
+    -- I.E. @ pat ~ Channel s () @ ==> @ trigger ~ return @
+    -- NOT  @                            trigger ~ (() -> return) @
     --
-    -- In general, instantiating 'p' with a Channel-Equality of type 'a',
-    -- produces a function of type 'r'.
-    -- NOTE: The trigger function does not take an 'a'. This is because the
-    -- value is fixed by the equality.
-    -- I.E. @ p~(ChannelEq (Channel s a) a) @ ==> @ f :: r @
-
+    -- *** Matching equality on a channel
+    -- | For convenience, another type of pattern provided is the equality
+    -- pattern, declared infix via '&='. This declares a pattern that
+    -- matches messages sent on the channel ONLY when they are equal to
+    -- some given value.
+    --
+    -- I.E. @ boolChan &= False  ==> trigger ~ return @
+    --
+    -- Note, like the special case of the simple 'Channel' pattern where the
+    -- carried message type is '()', a corresponding trigger is NOT passed
+    -- a value.
+    -- This is because when matching for message equality, by definition
+    -- we know what the message value is -It's whatever was
+    -- equality matched upon- and so there is no need to pass it.
+    --
     -- *** Matching multiple patterns
-    -- | Multiple Patterns can be conjoined with an \'and\' pattern,
-    -- declared infix via '&'. This declares a pattern that matches only
-    -- when both individual patterns match.
+    -- | Multiple Patterns can be composed with an '&' pattern, declared
+    -- infix. An '&' composition declares a pattern that matches only when
+    -- both component patterns match.
+    --
+    -- I.E. '&' is loosely declared like:
+    -- '&' = (Pattern l, Pattern r) => l -> r -> l :&: r
     --
     -- E.G.
     --
-    -- @ intChan & charChan    @ ==> @ f :: Int -> Char -> r @
-    -- @ intChan&=1 & charChan @ ==> @ f :: Char -> r @
-    -- @ intChan & charChan & boolChan&=True @ ==> @ f :: Int -> Char -> r @
+    -- @ intChan & charChan                 ==> trigger ~ Int -> Char -> return @
+    -- @ intChan&=1 & charChan              ==> trigger ~ Char -> return @
+    -- @ intChan & charChan&='a' & boolChan ==> trigger ~ Int -> Bool -> return @
     --
-    -- In general, instantiating 'p' with a conjunction of patterns 'p' and
-    -- 'q' produces a function typed to accept 'p' followed by 'q'.
-    -- NOTE: Argument types are composed left-to-right, and the type of
-    -- equality-matches do not appear in the trigger.
-
+    -- Effectively the deduced trigger type of a composition 'c0 & c1 & .. & cn'
+    -- is equal to a function ('->') consuming each message type 0..n,
+    -- dropping messages typed '()' and messages matched by '&=' patterns.
+    --
+    --
     -- ** Using patterns
-    -- | The 'Pattern p r f' constraint implies a
-    -- @ Apply r f @ relationship.
-    -- This means 'apply' can be used to attempt to apply a list of
-    -- 'ByteString' arguments to a patterns trigger function.
+    -- | 'Pattern pat return trigger' requires an 'Apply return trigger'
+    -- constraint. This means 'apply' can be used to attempt to apply
+    -- a list of 'ByteString' arguments' to a 'pat's 'trigger' functon.
     --
-    -- Knowledge of how to correctly apply arguments to a pattern trigger
-    -- can be attained by the 'rawPattern' function.
+    -- The 'rawPattern' method, available on all instances of 'Pattern'
+    -- defines how the runtime system should correctly pass messages into
+    -- trigger functions.
     --
-    -- By following the semantics of the produced description value, a system can
-    -- store trigger functions and execute them using 'apply' without error.
+    -- By following the semantics of the produced 'PatternDescription'
+    -- value, a system can store trigger functions and execute them using
+    -- 'apply' without error.
     --
-    -- The semantics of the description value is given in the
-    -- 'RawPattern' documentation.
-
+    -- The semantics of the 'PatternDescription' value is given in the
+    -- 'RawPattern' documentation and is only relevant to those writing
+    -- interpreters.
+    -- 
     -- * Details
       Pattern
-    , rawPattern, MatchType(..)
+    , rawPattern, PatternDescription, MatchType(..)
     , (&)
     , (&=)
+
+    , MessageDropped
+    , MessagePassed
 
     , Application(..)
     , apply
@@ -115,45 +130,9 @@ import Join.Types.Channel
 import Data.ByteString (ByteString)
 import Data.Serialize (Serialize,encode)
 
-{- Classes -}
+{- New pattern data types -}
 
--- | Class of pattern types which can be converted to a raw pattern
--- describing the semantics of a match.
---
--- A raw pattern '[(ChanId,MatchOn)]' states to match when a message is
--- waiting on each listed channel, as identified by the ChanId. Each
--- channel must in turn be matched according to it's MatchType:
--- - MatchAny              => No restriction. Any available message
---                            counts as a match.
--- - MatchEqual ByteString => Only messages equal to the string should
---                            match.
--- - MatchSignal           => Special case of MatchAny when the underlying
---                            message-type has the shape of the unit type ().
-class RawPattern p where rawPattern :: p -> [(ChanId,MatchType)]
-
--- | How a message should be matched on a channel.
-data MatchType
-    = MatchAny              -- ^ Match any message
-    | MatchEqual ByteString -- ^ Match only equal messages
-    | MatchSignal           -- ^ Match signals - ()
-
--- | Class of types 'p' which may be used as a pattern.
---
--- 'f' gives the type a corresponding trigger function must have to
--- consume the pattern and terminate with 'r'.
-type Pattern p r f = (Pattern' p r f, Apply f r)
-
--- | Class of types 'p' which may be used as a pattern.
---
--- 'f'' gives the type a corresponding trigger function must have to
--- consume the pattern and terminate with 'f'.
-class (RawPattern p, Show p) =>
-      Pattern' p f f' | p f -> f' where
-
-{- Data structures -}
-
--- | Pattern type of matching 'Channel' messages when equal to some
--- value.
+-- | Pattern type of matching 'Channel' messages when equal to some value.
 data ChannelEq a = forall s. Serialize a => ChannelEq (Channel s a) a
 
 -- | Infix 'ChannelEq'.
@@ -162,15 +141,23 @@ data ChannelEq a = forall s. Serialize a => ChannelEq (Channel s a) a
 --
 -- @ c1 & (c2&=1) & c3 @
 --
--- Can be re-written as:
+-- Is equivalent to:
 --
 -- @ c1 & c2&=1 & c3 @
 (&=) :: Serialize a => Channel s a -> a -> ChannelEq a
 infixr 8 &=
 (&=) = ChannelEq
 
--- | Pattern type of matching on a conjunction of two 'Patterns'.
-data And f f' where And :: (Pattern' q f f', Pattern' p f' f'') => p -> q -> And f f''
+instance Show (ChannelEq a) where show (ChannelEq c a) = show c ++ "&=" ++ show (encode a)
+
+
+-- | Pattern type of matching on a conjunction of patterns.
+data patL :&: patR where
+    And :: (RawPattern patL, RawPattern patR)
+        => patL -> patR -> patL :&: patR
+
+-- | Prefix type synonym of ':&:'.
+type And patL patR = patL :&: patR
 
 -- | Infix 'And'
 --
@@ -178,54 +165,141 @@ data And f f' where And :: (Pattern' q f f', Pattern' p f' f'') => p -> q -> And
 --
 -- @ c1 & (c2 & c3) @
 --
--- Can be re-written as:
+-- Is equivalent to:
 --
--- @ c1 & c2 & c3 @
---
--- As all 'SubPattern's are also valid 'Pattern's, the operator may be
--- thought of as a way to combine 'SubPattern's.
-(&) :: (Pattern' q f f', Pattern' p f' f'') => p -> q -> And f f''
+-- @ c1 @ c2 @ c3 @
+(&) :: (RawPattern patL, RawPattern patR)
+    => patL -> patR -> patL :&: patR
 infixr 7 &
 (&) = And
 
-{- Instances -}
+instance Show (patL :&: patR) where show (And p q) = show p ++ " & " ++ show q
 
-instance RawPattern (Channel s ()) where rawPattern c               = [(getId c, MatchSignal)]
-instance RawPattern (Channel s a)  where rawPattern c               = [(getId c, MatchAny)]
-instance RawPattern (ChannelEq a)  where rawPattern (ChannelEq c a) = [(getId c, MatchEqual $ encode a)]
-instance RawPattern (And p q)      where rawPattern (And p q)       = rawPattern p ++ rawPattern q
 
-instance Show (ChannelEq a) where show (ChannelEq c a) = show c ++ "&=" ++ show (encode a)
-instance Show (And p q) where show (And p q) = show p ++ " & " ++ show q
 
-instance Combine a f f' => Pattern' (Channel s a) f  f' where
-instance                   Pattern' (ChannelEq a) f  f  where
-instance f0~f1          => Pattern' (And f0 f')   f1 f' where
+{- Definition of type passing -}
 
--- Class of types 'a' which can be combined with a type 'f', resulting in
--- a conjunctive trigger type 'f\'''.
+-- | Via DataKinds, the Kind ('Passes a') of Types used to denote the shape
+-- of a patterns corresponding trigger function.
+data Passes a
+    = PassNothing -- ^ Nothing is passed.
+    | Pass a      -- ^ 'a' should be passed.
+
+-- | Closed type function deciding whether a message type 'a' is should be passed 
+-- All but () is.
+type family MessagePasses (a :: *) :: Passes * where
+    MessagePasses () = PassNothing
+    MessagePasses a  = Pass a
+
+-- | Closed type function combining 'Passes' kinded types.
+-- Effectively combines all 'Pass a' 'Pass b' with arrows to 'Pass (a->b)',
+-- where 'PassNothing' acts emptily.
+type family ComposePasses (p :: Passes *) (p' :: Passes *) :: Passes * where
+    ComposePasses PassNothing p'          = p'
+    ComposePasses p           PassNothing = p
+    ComposePasses (Pass p)    (Pass p')   = Pass (p -> p')
+-- | Infix 'ComposePasses'
+type p :->: p' = ComposePasses p p'
+
+-- | Class of 'Passes' kinded types 'pass' which, when given a specific
+-- 'return' type determine a 'trigger' type.
+
+-- | Class constraint. Given a 'Passes *' shape 'pass', determine a
+-- corresponding trigger type which terminates in a 'return' type.
+type family ToTrigger (pass :: Passes *) r :: * where
+    ToTrigger PassNothing r = r
+    ToTrigger (Pass a)    r = (a -> r)
+
+
+
+{- Definition of runtime semantics -}
+
+-- | How a message should be matched on a channel.
+data MatchType
+    = MatchAny              -- ^ Match any message
+    | MatchEqual ByteString -- ^ Match only equal messages
+    | MatchSignal           -- ^ Match signals - ()
+
+-- | A 'PatternDescription' describes the runtime semantics of a pattern.
 --
--- The below machinery is needed to implement the relation:
--- Combine () f ~> f
--- Combine a  f ~> (a -> f)
-class Combine a f f' where
-instance (DecideKeep a shouldKeep, Combine' a shouldKeep f f')
-      => Combine a f f' where
+-- A 'PatternDescription'=[(ChanId,MatchType)] states to match when
+-- a message is waiting on each listed channel, as identified by the
+-- 'ChanId'. Each 'Channel' must in turn be matched according to it's
+-- 'MatchType'.
+--
+-- 'MatchType':
+--
+-- - MatchAny              => No restriction. Any available message
+--                            counts as a match.
+--
+-- - MatchEqual ByteString => Only messages equal to the string should
+--                            match.
+--
+-- - MatchSignal           => Special case of MatchAny when the underlying
+--                            message-type has the shape of the unit type ().
+type PatternDescription = [(ChanId,MatchType)]
 
--- Class of types 'a', when given a flag indicating whether it should be
--- kept, can be combined with a type 'f', resulting in a conjunctive
--- trigger type 'f\''.
-class Combine' a shouldKeep f f' | a shouldKeep f -> f' where
-instance Combine' () Drop f f where
-instance Serialize a
-      => Combine' a Keep f (a -> f) where
+-- | Class of pattern types 'pat' which can produce a description of their
+-- runtime semantics by calling 'rawPattern' on a 'pat'.
+--
+-- All 'RawPattern' instances have a 'Show' instance.
+-- See 'PatternDescription' documentation for a defintion of the expected
+-- runtime pattern matching semantics.
+class Show pat
+   => RawPattern pat where
+    rawPattern :: pat -> PatternDescription
+instance RawPattern (Channel s ())  where rawPattern c               = [(getId c, MatchSignal)]
+instance RawPattern (Channel s a)   where rawPattern c               = [(getId c, MatchAny)]
+instance RawPattern (ChannelEq a)   where rawPattern (ChannelEq c a) = [(getId c, MatchEqual $ encode a)]
+instance RawPattern (patL :&: patR) where rawPattern (And p q)       = rawPattern p ++ rawPattern q
 
-data Drop -- Type is dropped in composition.
-data Keep -- Type is kept in composition.
+-- | Type function given a pattern type 'pat', determines a 'Passes *' type
+-- which describes the types of value expected to be passed to
+-- a corresponding trigger function
+-- (if anything is to be passed at all).
+type family PatternPasses pat :: Passes * where
+   PatternPasses (Channel s a)   = MessagePasses a
+   PatternPasses (ChannelEq a)   = PassNothing
+   PatternPasses (patL :&: patR) = (PatternPasses patL) :->: (PatternPasses patR)
+-- | Type function. Given a pattern type 'pat', and a return type 'r',
+-- determine the type of a corresponding trigger function
+-- (Via 'PatternPasses').
+type PatternTrigger pat r = ToTrigger (PatternPasses pat) r
 
--- Class of type's 'a' which we can decide whether to keep when combining
--- pattern trigger function types.
-class DecideKeep a shouldKeep | a -> shouldKeep where
-instance shouldKeep~Keep => DecideKeep a shouldKeep where
-instance DecideKeep () Drop where
+
+
+-- | Class of pattern types 'pat' which, when given a specific 'return'
+-- type determine a 'trigger' type.
+class (RawPattern pat
+      ,Apply trigger return
+      )
+    => Pattern pat return trigger | pat return -> trigger
+instance (trigger~PatternTrigger pat return
+         ,RawPattern pat
+         ,Apply trigger return
+         )
+      => Pattern pat return trigger
+
+
+-- | Constraint. 'a' requires that when used as a message type
+-- (I.E. 'Chan a') the message value is passed into a corresponding
+-- trigger function.
+--
+-- Useful for constraining an overly polymorphic join definition from all
+-- 'a', to 'a' except ().
+--
+-- E.G. Given the following code, if 'a' is left unconstrained, and
+-- completely polymorphic to the call site, it cannot be compiled. Thi
+-- do chan :: Chan a <- newChannel
+--    chan |> \v -> ...
+--
+-- 'a' is left completly unconstrained and is polymorphic to the call site.
+-- It can't therefore be compiled as when 'a'~() no messages are passed.
+-- This may be fixed by constraining 'a' by 'MessagePassed a'.
+type MessagePassed a = MessagePasses a ~ Pass a
+
+-- | Counterpart to constraint 'MessagePassed'. Most likely of little use
+-- as currently 'MessageDropped a' seems to imply a~() which can probably
+-- be otherwise deduced by it's usage.
+type MessageDropped a = MessagePasses a ~ PassNothing
 

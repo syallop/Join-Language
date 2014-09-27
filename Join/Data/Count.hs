@@ -1,3 +1,4 @@
+{-# LANGUAGE ExtendedDefaultRules #-}
 module Join.Data.Count
     ( mkCount
     , waitZero
@@ -5,6 +6,7 @@ module Join.Data.Count
     ) where
 
 import Join
+
 
 newtype Count = Count (SyncSignal (), Signal)
 

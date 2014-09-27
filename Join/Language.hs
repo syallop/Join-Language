@@ -232,9 +232,10 @@ import Data.Serialize
 data Instruction a where
 
     -- Join definition.
-    Def        :: Pattern p Inert f -- Trigger can be applied,pattern is associated with trigger type.
-               => p                            -- Pattern matched on.
-               -> f                            -- Trigger function called on match.
+    Def        -- Trigger can be applied,pattern is associated with trigger type.
+               :: Pattern pat Inert trigger
+               => pat                            -- Pattern matched on.
+               -> trigger                            -- Trigger function called on match.
                -> Instruction ()
 
     -- Request a new typed Channel.
@@ -278,7 +279,8 @@ data Instruction a where
 -- To be written:
 --
 -- @ ci |> (\i -> reply ci (i+1)) @
-(|>) :: Pattern p Inert f => p -> f -> Process ()
+(|>) :: Pattern pat Inert trigger
+     => pat -> trigger -> Process ()
 infixr 6 |>
 p |> t = def p t
 
@@ -299,7 +301,8 @@ type Process a = ProgramT Instruction IO a
 -- Says that when ci (which may be inferred to have type :: Channel S Int)
 -- receives a message, it is passed to the RHS function which increments it
 -- and passes it back.
-def :: Pattern p Inert f => p -> f -> Process ()
+def :: Pattern pat Inert trigger
+    => pat -> trigger -> Process ()
 def c p = singleton $ Def c p
 
 -- | Enter a single 'NewChannel' Instruction into Process.
@@ -382,7 +385,9 @@ with p q = singleton $ With p q
 -- 
 --
 -- sending an Int value on s will print it as well as it's successor.
-onReply :: Serialize a => Chan a -> (a -> Process ()) -> Process ()
+onReply :: Pattern pat Inert trigger
+        => pat -> trigger -> Process ()
+
 onReply = def
 
 -- | Type synonym for a Process which terminates without value.
