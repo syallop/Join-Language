@@ -58,6 +58,7 @@ module Join.Language
       Process
     , spawn
     , with
+    , withAll
 
     -- ** Channels and messages
     -- | Channels are the communication medium of the Join Calculus.
@@ -125,6 +126,7 @@ module Join.Language
     -- / a continuation-passing-style on the primitive asynchronous /
     -- / Channels./.
     , newChannel
+    , newChannels
     , send
     , signal
     , sync
@@ -217,6 +219,8 @@ import Prelude hiding (read)
 import Join.Types
 
 import Control.Monad.Operational (ProgramT,singleton)
+import Control.Monad             (replicateM)
+import Data.Monoid
 import Data.Serialize
 
 -- | Type of atomic Join instructions.
@@ -313,6 +317,13 @@ def c p = singleton $ Def c p
 newChannel :: (InferSync s,Serialize a) => Process (Channel s a)
 newChannel = singleton NewChannel
 
+-- | Request a given number of new typed Channels be created.
+-- All Channels will have the same message type and synchronicity type.
+-- Whether the Channels are synchronous or asynchronous is determined by
+-- the calling context.
+newChannels :: (InferSync s,Serialize a) => Int -> Process [Channel s a]
+newChannels i = replicateM i newChannel
+
 -- | Enter a single 'Send' Instruction into Process.
 --
 -- On a (regular) asynchronous 'Channel', send a message.
@@ -373,6 +384,14 @@ acknowledge s = reply s ()
 with :: Process () -> Process () -> Process ()
 with p q = singleton $ With p q
 
+instance Monoid Inert where
+    mempty  = inert
+    mappend = with
+
+-- | Compose a list of 'Inert' 'Process's to be ran concurrently.
+withAll :: [Inert] -> Inert
+withAll = mconcat
+
 -- | Helper for continuation style programming with Channels.
 -- E.G., given:
 -- 
@@ -401,4 +420,5 @@ type Inert = Process ()
 -- value.
 inert :: Inert
 inert = return ()
+
 
