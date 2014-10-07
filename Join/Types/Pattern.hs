@@ -150,7 +150,6 @@ infixr 8 &=
 
 instance Show (ChannelEq a) where show (ChannelEq c a) = show c ++ "&=" ++ show (encode a)
 
-
 -- | Pattern type of matching on a conjunction of patterns.
 data patL :&: patR where
     And :: (RawPattern patL, RawPattern patR)
@@ -158,6 +157,7 @@ data patL :&: patR where
 
 -- | Prefix type synonym of ':&:'.
 type And patL patR = patL :&: patR
+infixr :&:
 
 -- | Infix 'And'
 --
@@ -174,41 +174,6 @@ infixr 7 &
 (&) = And
 
 instance Show (patL :&: patR) where show (And p q) = show p ++ " & " ++ show q
-
-
-
-{- Definition of type passing -}
-
--- | Via DataKinds, the Kind ('Passes a') of Types used to denote the shape
--- of a patterns corresponding trigger function.
-data Passes a
-    = PassNothing -- ^ Nothing is passed.
-    | Pass a      -- ^ 'a' should be passed.
-
--- | Closed type function deciding whether a message type 'a' is should be passed 
--- All but () is.
-type family MessagePasses (a :: *) :: Passes * where
-    MessagePasses () = PassNothing
-    MessagePasses a  = Pass a
-
--- | Closed type function combining 'Passes' kinded types.
--- Effectively combines all 'Pass a' 'Pass b' with arrows to 'Pass (a->b)',
--- where 'PassNothing' acts emptily.
-type family ComposePasses (p :: Passes *) (p' :: Passes *) :: Passes * where
-    ComposePasses PassNothing p'          = p'
-    ComposePasses p           PassNothing = p
-    ComposePasses (Pass p)    (Pass p')   = Pass (p -> p')
--- | Infix 'ComposePasses'
-type p :->: p' = ComposePasses p p'
-
--- | Class of 'Passes' kinded types 'pass' which, when given a specific
--- 'return' type determine a 'trigger' type.
-
--- | Class constraint. Given a 'Passes *' shape 'pass', determine a
--- corresponding trigger type which terminates in a 'return' type.
-type family ToTrigger (pass :: Passes *) r :: * where
-    ToTrigger PassNothing r = r
-    ToTrigger (Pass a)    r = (a -> r)
 
 
 
@@ -253,20 +218,31 @@ instance RawPattern (Channel s a)   where rawPattern c               = [(getId c
 instance RawPattern (ChannelEq a)   where rawPattern (ChannelEq c a) = [(getId c, MatchEqual $ encode a)]
 instance RawPattern (patL :&: patR) where rawPattern (And p q)       = rawPattern p ++ rawPattern q
 
--- | Type function given a pattern type 'pat', determines a 'Passes *' type
--- which describes the types of value expected to be passed to
--- a corresponding trigger function
--- (if anything is to be passed at all).
-type family PatternPasses pat :: Passes * where
-   PatternPasses (Channel s a)   = MessagePasses a
-   PatternPasses (ChannelEq a)   = PassNothing
-   PatternPasses (patL :&: patR) = (PatternPasses patL) :->: (PatternPasses patR)
+
+
+{- Definition of type passing -}
+
 -- | Type function. Given a pattern type 'pat', and a return type 'r',
--- determine the type of a corresponding trigger function
--- (Via 'PatternPasses').
-type PatternTrigger pat r = ToTrigger (PatternPasses pat) r
+-- determine the type of a corresponding trigger function.
+type family PatternTrigger pat r :: * where
+    PatternTrigger (Channel s a)   r = ChannelTrigger a (ShouldPassMessage a) r
+    PatternTrigger (ChannelEq a)   r = r
+    PatternTrigger (patL :&: patR) r = PatternTrigger patL (PatternTrigger patR r)
 
+-- | Type function. Given a 'Channel' message type 'a', and a return type
+-- 'r', use a 'shouldPass' flag to determine the corresponding trigger
+-- type.
+-- True => Message type 'a' is passed => 'a -> r'
+-- False => Message type 'a' is NOT passed => 'r'
+type family ChannelTrigger a (shouldPass::Bool) r where
+    ChannelTrigger a True  r = a -> r
+    ChannelTrigger a False r = r
 
+-- | Type function. Decide whether a given message type 'a' should be
+-- passed into trigger function's.
+type family ShouldPassMessage a :: Bool where
+    ShouldPassMessage () = False
+    ShouldPassMessage a  = True
 
 -- | Class of pattern types 'pat' which, when given a specific 'return'
 -- type determine a 'trigger' type.
@@ -280,26 +256,25 @@ instance (trigger~PatternTrigger pat return
          )
       => Pattern pat return trigger
 
-
 -- | Constraint. 'a' requires that when used as a message type
--- (I.E. 'Chan a') the message value is passed into a corresponding
+-- (I.E. 'Chan a') the message value will be passed into a corresponding
 -- trigger function.
 --
 -- Useful for constraining an overly polymorphic join definition from all
 -- 'a', to 'a' except ().
 --
 -- E.G. Given the following code, if 'a' is left unconstrained, and
--- completely polymorphic to the call site, it cannot be compiled. Thi
+-- completely polymorphic to the call site, it cannot be compiled.
 -- do chan :: Chan a <- newChannel
 --    chan |> \v -> ...
 --
--- 'a' is left completly unconstrained and is polymorphic to the call site.
+-- 'a' is left completely unconstrained and is polymorphic to the call site.
 -- It can't therefore be compiled as when 'a'~() no messages are passed.
 -- This may be fixed by constraining 'a' by 'MessagePassed a'.
-type MessagePassed a = MessagePasses a ~ Pass a
+type MessagePassed a = True~ShouldPassMessage a
 
 -- | Counterpart to constraint 'MessagePassed'. Most likely of little use
 -- as currently 'MessageDropped a' seems to imply a~() which can probably
 -- be otherwise deduced by it's usage.
-type MessageDropped a = MessagePasses a ~ PassNothing
+type MessageDropped a = False~ShouldPassMessage a
 
