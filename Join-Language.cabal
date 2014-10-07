@@ -59,6 +59,7 @@ library
                     , Join.Interpretation.Basic
 
                     , Join.Examples
+                    , Join.Examples.DiningPhilosophers
 
                     , Join.Data.Barrier
                     , Join.Data.Buffer
@@ -103,6 +104,7 @@ library
                     , bytestring   >=0.10 && <0.11
                     , vector       >=0.10 && <0.11
                     , ivar-simple  >=0.3  && <0.4
+                    , random
   
   -- Directories containing source files.
   -- hs-source-dirs:      
