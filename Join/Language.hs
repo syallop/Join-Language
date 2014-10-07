@@ -54,6 +54,9 @@ module Join.Language
     -- - 'with' is provided to specify that two processes must be executed
     --   at the same time.
     --
+    -- - 'withAll' specifies a list of processes to be executed at the
+    --    same time.
+    --
     -- For example programs, see "Join.Language.Examples"
       Process
     , spawn
@@ -120,22 +123,25 @@ module Join.Language
     --   a message sent on a synchronous channel by replying with the unit
     --   value.
     --
+    --   Each of these functions also provide an 'all'-suffixed variant
+    --   which runs the corresponding action on a list of arguments, in
+    --   parallel via 'with' when possible.
+    --
     -- / It is noted that the addition of synchronous /
     -- / Channels does not add to the Join-Calculus by virtue of the fact /
     -- / that they could otherwise be implemented by /
     -- / a continuation-passing-style on the primitive asynchronous /
     -- / Channels./.
-    , newChannel
-    , newChannels
-    , send
-    , signal
-    , sync
-    , wait
-    , sync'
-    , syncSignal
-    , syncSignal'
-    , reply
-    , acknowledge
+    , newChannel , newChannels
+    , send       , sendAll
+    , signal     , signalAll
+    , sync       , syncAll
+    , wait       , waitAll
+    , sync'      , syncAll'
+    , syncSignal , syncSignalAll
+    , syncSignal', syncSignalAll'
+    , reply      , replyAll
+    , acknowledge, acknowledgeAll
 
     -- ** Join definitions
     -- | Join definitions are the key construct provided by the Join-calculus
@@ -330,9 +336,17 @@ newChannels i = replicateM i newChannel
 send :: Serialize a => Chan a -> a -> Process ()
 send c a = singleton $ Send c a
 
+-- | Simultaneously send messages to (regular) asynchronous 'Channel's.
+sendAll :: Serialize a => [(Chan a,a)] -> Process ()
+sendAll = withAll . map (uncurry send)
+
 -- | Send an asynchronous signal.
 signal :: Signal -> Process ()
 signal c = send c ()
+
+-- | Simultaneously send asynchronous signals.
+signalAll :: [Signal] -> Process ()
+signalAll = withAll . map signal
 
 -- | Enter a single 'Spawn' Instruction into Process.
 --
@@ -349,23 +363,46 @@ spawn p = singleton $ Spawn p
 sync :: (Serialize a,Serialize r) => SyncChan a r -> a -> Process (SyncVal r)
 sync s a = singleton $ Sync s a
 
--- | In a Process, block on a SyncVal.
+-- | Send messages to synchronous 'Channel's, returning a list
+-- of 'SyncVal's - handles to the reply messages which may be 'wait'ed upon
+-- when needed.
+syncAll :: (Serialize a,Serialize r) => [(SyncChan a r,a)] -> Process [SyncVal r]
+syncAll = mapM (uncurry sync)
+
+-- | In a Process, block on a 'SyncVal'.
 wait :: SyncVal a -> Process a
 wait sv = return $! read sv
+
+-- | Block on many 'SyncVal's.
+waitAll :: [SyncVal a] -> Process [a]
+waitAll = mapM wait
 
 -- | Send a message to a synchronous 'Channel', blocking on a reply value.
 sync' :: (Serialize a,Serialize r) => SyncChan a r -> a -> Process r
 sync' s a = sync s a >>= wait
+
+-- | Send messages to synchronous 'Channel's, blocking on
+-- the reply values.
+syncAll' :: (Serialize a,Serialize r) => [(SyncChan a r,a)] -> Process [r]
+syncAll' = mapM (uncurry sync')
 
 -- | Send a synchronous signal, returning a 'SyncVal' - a handle to the
 -- reply message which may be 'wait'ed upon when needed.
 syncSignal :: Serialize r => SyncSignal r -> Process (SyncVal r)
 syncSignal s = sync s ()
 
+-- | Send synchronous signals returning a list of 'SyncVal's - handles
+-- to the reply messages which may be 'wait'ed upon when needed.
+syncSignalAll :: Serialize r => [SyncSignal r] -> Process [SyncVal r]
+syncSignalAll = mapM syncSignal
+
 -- | Send a synchronous signal, blocking on a reply value.
 syncSignal' :: Serialize r => SyncSignal r -> Process r
 syncSignal' s = syncSignal s >>= wait
 
+-- | Send synchronous signals. blocking on the reply values.
+syncSignalAll' :: Serialize r => [SyncSignal r] -> Process [r]
+syncSignalAll' = mapM syncSignal'
 
 -- | Enter a single 'Reply' Instruction into Process.
 --
@@ -374,9 +411,17 @@ syncSignal' s = syncSignal s >>= wait
 reply :: Serialize r => SyncChan a r -> r -> Process ()
 reply s a = singleton $ Reply s a
 
+-- | Simultaneously, respond with messages to synchronous 'Channels.
+replyAll :: Serialize r => [(SyncChan a r,r)] -> Process ()
+replyAll = withAll . map (uncurry reply)
+
 -- | Reply with a synchronous acknowledgment.
 acknowledge :: SyncChan a () -> Process ()
 acknowledge s = reply s ()
+
+-- | Simultaneously reply with synchronous acknowledgements.
+acknowledgeAll :: [SyncChan a ()] -> Process ()
+acknowledgeAll = withAll . map acknowledge
 
 -- | Enter a single 'With' Instruction into Process.
 --
@@ -420,5 +465,4 @@ type Inert = Process ()
 -- value.
 inert :: Inert
 inert = return ()
-
 
