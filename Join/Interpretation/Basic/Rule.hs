@@ -1,11 +1,12 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ImpredicativeTypes #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleContexts
+            ,FlexibleInstances
+            ,GADTs
+            ,GeneralizedNewtypeDeriving
+            ,ImpredicativeTypes
+            ,OverloadedStrings
+            ,RankNTypes
+            ,TypeSynonymInstances
+ #-}
 module Join.Interpretation.Basic.Rule
     ( Rule()
     , mkRule
@@ -39,7 +40,7 @@ import Control.Concurrent.MVar  (MVar)
 import Data.ByteString          (ByteString)
 import Data.List                (nub)
 import Data.Map                 (Map,fromList,lookup,assocs,insertWith,insert,empty)
-import Data.Maybe               (fromJust,mapMaybe)
+import Data.Maybe               (fromJust,fromMaybe,mapMaybe)
 import Data.Tuple               (swap)
 
 -- | Rule-wide unique channel id.
@@ -84,10 +85,15 @@ data Rule = Rule
     } deriving Show
 
 chanId :: ChanIx -> Rule -> ChanId
-chanId cIx = fromJust . lookup cIx . chanMapping
+chanId cIx rl = case lookup cIx $ chanMapping rl of
+    Nothing -> error $ "chanId: chanIx: " ++ show cIx
+                     ++ " has no chanId in rule: " ++ show rl
+    Just id -> id
 
 chanIx :: ChanId -> Rule -> ChanIx
-chanIx cId = fromJust . lookup cId . swapMap . chanMapping
+chanIx cId rl = case lookup cId . swapMap $ chanMapping rl of
+    Nothing -> error $ "chanIx: chanId: " ++ show cId
+                     ++ " hasno chanIx in rule: " ++ show rl
 
 chanMapping' :: Rule -> Map ChanId ChanIx
 chanMapping' = swapMap . chanMapping
@@ -117,7 +123,10 @@ mkRule ps rId = Rule
     buildPattern pIds = mkStatusPattern idCount (unChanIx <$> convertIds pIds)
 
     convertIds :: [ChanId] -> [ChanIx]
-    convertIds = map (\cId -> fromJust $ lookup cId idTix)
+    convertIds = map (\cId -> case lookup cId idTix of
+        Nothing -> error $ "convertIds: chanId: " ++ show cId
+                         ++ "not in: " ++ show idTix
+        Just ix -> ix)
 
 -- | Given a rule, decompose it to a raw pattern
 unRule :: Rule -> [([ChanId],TriggerF)]
@@ -127,7 +136,10 @@ unRule rl = destroyTrigger . snd <$> patterns rl
     destroyTrigger (Trigger f cIxs) = (convertIxs cIxs, f)
 
     convertIxs :: [ChanIx] -> [ChanId]
-    convertIxs = map (\cIx -> fromJust $ lookup cIx (chanMapping rl))
+    convertIxs = map (\cIx -> case lookup cIx (chanMapping rl) of
+        Nothing -> error $ "convertIxs: chanIx: " ++ show cIx
+                         ++ "not in: " ++ show (chanMapping rl)
+        Just id -> id)
 
 -- | Given a new, one clause synchronisation pattern and a map from all
 -- overlapping channel ids to their corresponding rules, merge into a new
@@ -192,7 +204,10 @@ addMessage ix msg rl
 
 
     takeMessage :: Rule -> ChanIx -> (RawMessage,Maybe (MVar RawMessage),Rule)
-    takeMessage rl ix = case fromJust $ lookup ix (messages rl) of
+    takeMessage rl ix = case fromMaybe 
+                               (error $ "takeMessage: chanIx: " ++ show ix ++ " has no message in "
+                                     ++ show (messages rl))
+                               $ lookup ix (messages rl) of
         [] -> error "No message to take."
 
         ((m,mr):ms)

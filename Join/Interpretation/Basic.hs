@@ -1,4 +1,6 @@
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE GADTs
+            ,FlexibleInstances
+ #-}
 module Join.Interpretation.Basic where
 
 import Prelude hiding (lookup)
@@ -15,11 +17,14 @@ import Control.Monad.IO.Class     (liftIO)
 import Control.Monad.Operational
 import Data.List                  (nub)
 import Data.Map                   (Map,map,union,lookup,empty,delete)
-import Data.Maybe                 (fromJust)
+import Data.Maybe                 (fromJust,fromMaybe)
 import Data.Serialize             (Serialize,encode,decode)
 import Data.Unique                (hashUnique,newUnique)
 
 type Rules = Map ChanId (MVar Rule,ChanIx)
+instance Show (MVar Rule) where
+    show _ = "MVar Rule"
+
 
 data State = State
     { rules        :: MVar Rules
@@ -53,7 +58,10 @@ withRule st cId f = do
     rs <- takeRules st
     putRules st rs
 
-    let (ruleRef,ix) = fromJust $ lookup cId rs
+    let (ruleRef,ix) = fromMaybe
+                         (error $ "withRule: chanId: " ++ show cId ++ "has no corresponding"
+                               ++ "ruleref and chanIx in rules: " ++ show rs)
+                         $ lookup cId rs
 
     rl <- takeMVar ruleRef
     (rl',a) <- f (rl,ix)
@@ -84,11 +92,10 @@ runWith state p = do
         Return a -> return a
 
         Def p f
-            :>>= k -> do let cIds = fst <$> rawPattern p
-                         overlappingRules <- collectOverlaps state cIds -- :: [Rule]
+            :>>= k -> do let ptn = rawPattern p
+                         overlappingRules <- collectOverlaps state ptn -- :: [Rule]
                          rId <- RuleId <$> newId
-                         let rule = mergeNewRule cIds (TriggerF f) overlappingRules rId
-
+                         let rule = mergeNewRule ptn (TriggerF f) overlappingRules rId
                          rlRef <- newMVar rule
                          let newRules = (\ix -> (rlRef,ix)) <$> chanMapping' rule
                          onRules' state (newRules `union`)
@@ -97,6 +104,7 @@ runWith state p = do
 
         NewChannel
             :>>= k -> do id <- newChanId
+                         putStrLn $ "NewChannel id: " ++ show id
                          runWith state (k $ inferSync id)
 
         Send c m

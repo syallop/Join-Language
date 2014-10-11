@@ -1,14 +1,15 @@
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE IncoherentInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE ConstraintKinds
+            ,DataKinds
+            ,ExistentialQuantification
+            ,FlexibleInstances
+            ,FunctionalDependencies
+            ,GADTs
+            ,IncoherentInstances
+            ,MultiParamTypeClasses
+            ,TypeFamilies
+            ,TypeOperators
+            ,UndecidableInstances
+ #-}
 
 {-|
 Module      : Join.Types.Pattern

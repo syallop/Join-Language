@@ -17,6 +17,7 @@ module Join.Interpretation.Basic.Status
     , set
     , unset
     , getStatusIndexes
+    , extend
 
     -- | A StatusPattern is a fixed length, immutable bitstring of 1's and 0's
     -- describing a pattern upon which Status's may be matched.
@@ -34,7 +35,7 @@ module Join.Interpretation.Basic.Status
 import Prelude hiding (replicate,zipWith,and)
 
 import Data.Maybe           (mapMaybe)
-import Data.Vector          (Vector,replicate,unsafeIndex,modify,(//),zipWith,and,toList,indexed)
+import Data.Vector          (Vector,replicate,unsafeIndex,modify,(//),zipWith,and,toList,indexed,snoc)
 import Data.Vector.Mutable  (write)
 
 newtype Status = Status (Vector Bool) deriving Show
@@ -65,6 +66,13 @@ setTo b (Status v) i = Status $ modify (\v' -> write v' i b) v
 -- prop> getSetIndexes <FFTFT> == [2,4]
 getStatusIndexes :: Status -> [Int]
 getStatusIndexes (Status v) = getIndexes v
+
+-- | Extend the length of a 'Status' by one value (initialised to False)
+--
+-- E.G.
+-- extend [1,0,1] = [1,0,1,0]
+extend :: Status -> Status
+extend (Status v) = Status $ snoc v False
 
 
 newtype StatusPattern = StatusPattern (Vector Bool) deriving Show

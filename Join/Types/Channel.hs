@@ -1,7 +1,8 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE DataKinds
+            ,GADTs
+            ,GeneralizedNewtypeDeriving
+            ,MultiParamTypeClasses
+ #-}
 {-|
 Module      : Join.Types.Channel
 Copyright   : (c) Samuel A. Yallop, 2014

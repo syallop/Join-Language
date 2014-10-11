@@ -1,12 +1,14 @@
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE ConstraintKinds
+            ,DataKinds
+            ,FlexibleContexts
+            ,FlexibleInstances
+            ,GADTs
+            ,MultiParamTypeClasses
+            ,RankNTypes
+            ,TypeOperators
+            ,TypeSynonymInstances
+ #-}
+
 {-# OPTIONS_HADDOCK prune #-}
 {-|
 Module      : Join.Language

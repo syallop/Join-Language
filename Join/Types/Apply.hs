@@ -1,6 +1,7 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE IncoherentInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances
+            ,IncoherentInstances
+            ,MultiParamTypeClasses
+ #-}
 module Join.Types.Apply
     ( Application(..)
     , Apply(..)
