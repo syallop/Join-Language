@@ -15,8 +15,8 @@ mkTimeout t f x = do
     finished <- newChannel -- Chan fin
     timeout  <- newChannel -- Signal
 
-    wait & finished |> \r  -> reply wait (Just r)
-    wait & timeout  |> reply wait Nothing
+    def $ (wait & finished |> \r  -> reply wait (Just r))
+       |$ wait & timeout  |> reply wait Nothing
 
     send finished (f x) `with` (do liftIO $ threadDelay t
                                    signal timeout)

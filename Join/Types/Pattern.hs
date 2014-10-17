@@ -21,43 +21,58 @@ This module encodes a representation of Join-Definitions.
 module Join.Types.Pattern
     (
     -- * Overview of usage.
-    -- | The primary export of the module is the 'Pattern' constraint which
-    -- is used to map valid pattern types to type(s) a corresponding
-    -- trigger function may have.
+    -- | The primary export of the module is the 'JoinDefinition'
+    -- constraint which is used to declare valid JoinDefinitions where each
+    -- contained clause of pattern types is paired with an appropriately
+    -- typed trigger function.
     --
     -- I.E.
     --
-    -- @ Pattern pat return trigger @
+    -- @ JoinDefinition jdef return @
     --
     -- Declares:
     --
-    -- - 'pat' as a valid pattern.
+    -- - 'jdef' as the type of a valid join definition
     --
-    -- - 'trigger' as the type of a function which consumes matches on the
-    -- pattern, producing a value typed 'return'.
+    -- - 'return' as the terminating return type of all contained trigger
+    --   functions.
     --
-    -- ** Building patterns
+    -- ** Single Clauses
+    -- | A single join definition clause is defined by the infix operator
+    -- '|>':
+    --
+    -- I.E.:
+    --
+    -- @ pattern |> trigger @
+    --
+    -- Declares:
+    --
+    -- - 'pattern' to be a valid pattern value.
+    --
+    -- - 'trigger' to be a trigger function, correctly typed to accept
+    --    messages from the matching 'pattern'.
+    --
     -- *** Matching a Channel
     -- | The simplest pattern is a single 'Channel s a' type.
-    -- This declares a pattern that matches all messages sent on the Channel.
+    -- This declares a pattern that matches all messages sent on the
+    -- Channel.
     --
     -- E.G.
     --
-    -- @ intChan  :: Channel s Int  ==> trigger :: Int  -> return @
-    -- @ charChan :: Channel s Char ==> trigger :: Char -> return @
+    -- @ (intChan  :: Channel s Int)  |> (trigger :: Int  -> return) @
+    -- @ (charChan :: Channel s Char) |> (trigger :: Char -> return) @
     --
-    -- In general, instantiating 'pat' with a 'Channel s' of type 'a'
-    -- determines a trigger function of type 'a -> return', return being
-    -- some given return type.
-    -- I.E. @ pat ~ Channel s a ==> trigger ~ (a -> return) @
+    -- In general a 'Channel s a' will determine a corresponding trigger
+    -- typed 'a -> return'
     --
     -- There is one exception, which is when the message type of the
-    -- channel is a~'()'. This is because the unit type '()' only has one
-    -- value (also named ()) making passing the value unnecessary. The
-    -- corresponding trigger type therefore does not pass a value.
+    -- channel is '()'. Because the unit type '()' only has one value (also
+    -- named '()') explicitly passing the value to the trigger is
+    -- unnecessary. The corresponding trigger type therefore does not
+    -- accept a value.
     --
-    -- I.E. @ pat ~ Channel s () @ ==> @ trigger ~ return @
-    -- NOT  @                            trigger ~ (() -> return) @
+    -- I.E. @ (signalChannel :: Channel s ()) |> (trigger :: return)
+    -- NOT  @ (signalChannel :: Channel s ()) |> (trigger :: () -> return)
     --
     -- *** Matching equality on a channel
     -- | For convenience, another type of pattern provided is the equality
@@ -65,53 +80,66 @@ module Join.Types.Pattern
     -- matches messages sent on the channel ONLY when they are equal to
     -- some given value.
     --
-    -- I.E. @ boolChan &= False  ==> trigger ~ return @
+    -- Note that like the special case of the 'Channel s ()' pattern,
+    -- a corresponding trigger is NOT passed a value.
+    -- This is because when matching for message equality, by definition we
+    -- know what the message value is -It's whatever was equality matched
+    -- upon- and so there's no need to pass it.
     --
-    -- Note, like the special case of the simple 'Channel' pattern where the
-    -- carried message type is '()', a corresponding trigger is NOT passed
-    -- a value.
-    -- This is because when matching for message equality, by definition
-    -- we know what the message value is -It's whatever was
-    -- equality matched upon- and so there is no need to pass it.
+    -- I.E. @ boolChan&=False |> (trigger :: return) @
+    -- NOT  @ boolChan&=False |> (trigger :: Bool -> return) @
     --
-    -- *** Matching multiple patterns
-    -- | Multiple Patterns can be composed with an '&' pattern, declared
+    --
+    -- *** Matching multiple patterns in a clause
+    -- | Multiple patterns can be composed with an '&' pattern, declared
     -- infix. An '&' composition declares a pattern that matches only when
     -- both component patterns match.
     --
-    -- I.E. '&' is loosely declared like:
-    -- '&' = (Pattern l, Pattern r) => l -> r -> l :&: r
-    --
     -- E.G.
     --
-    -- @ intChan & charChan                 ==> trigger ~ Int -> Char -> return @
-    -- @ intChan&=1 & charChan              ==> trigger ~ Char -> return @
-    -- @ intChan & charChan&='a' & boolChan ==> trigger ~ Int -> Bool -> return @
+    -- @ intChan & charChan |> (trigger :: Int -> Char -> return) @
+    -- @ intChan&=1 & charChan |> (trigger :: Char -> return) @
+    -- @ intChan & charChan&='a' & boolChan |> (trigger :: Int -> Bool -> return) @
     --
     -- Effectively the deduced trigger type of a composition 'c0 & c1 & .. & cn'
     -- is equal to a function ('->') consuming each message type 0..n,
     -- dropping messages typed '()' and messages matched by '&=' patterns.
     --
+    -- ** Multiple clauses
+    -- | Many clauses with overlapping patterns can be defined
+    -- disjunctively using the infix operator '|$'.
     --
-    -- ** Using patterns
-    -- | 'Pattern pat return trigger' requires an 'Apply return trigger'
-    -- constraint. This means 'apply' can be used to attempt to apply
-    -- a list of 'ByteString' arguments' to a 'pat's 'trigger' functon.
+    -- E.G.
+    -- @   (intChan & charChan          |> (trigger1 :: Int -> Char -> return))
+    --  |$ (intChan&=1                  |> (trigger2 :: return))
+    --  |$ (charChan&=1 & charChan&='a' |> (trigger3 :: return))
+    -- @
+    -- 
     --
-    -- The 'rawPattern' method, available on all instances of 'Pattern'
-    -- defines how the runtime system should correctly pass messages into
-    -- trigger functions.
+    -- ** Interpreting Join Definition
+    -- | The 'describe' method, available on all instances of
+    -- 'JoinDefinition' defines how the runtime system should correctly
+    -- pass messages to trigger functions.
     --
-    -- By following the semantics of the produced 'PatternDescription'
-    -- value, a system can store trigger functions and execute them using
-    -- 'apply' without error.
+    -- Each clause requires an 'Apply' constraint, meaning 'apply' can be
+    -- used to attempt to apply a list of 'ByteString' arguments to
+    -- a patterns trigger function.
+    --
+    -- By following the semantics of the 'PatternDescription' values produced by
+    -- 'describe', an interpreter can store trigger functions and execute them
+    -- using 'apply' without error.
     --
     -- The semantics of the 'PatternDescription' value is given in the
-    -- 'RawPattern' documentation and is only relevant to those writing
+    -- 'RawPattern' documentation and is only relevant to writing
     -- interpreters.
-    -- 
+    --
     -- * Details
-      Pattern
+      JoinDefinition, describe
+    , TriggerF(..)
+    , (|>)
+    , (|$)
+
+    , Pattern
     , rawPattern, PatternDescription, MatchType(..)
     , (&)
     , (&=)
@@ -255,6 +283,55 @@ instance (trigger~PatternTrigger pat return
          ,Apply trigger return
          )
       => Pattern pat return trigger
+
+-- | A trigger function with an 'Apply' instance returning a value typed
+-- 'return'
+data TriggerF return = forall trigger. Apply trigger return => TriggerF trigger
+
+-- | Class of types which can be used as Join Definitions, with all trigger
+-- functions terminating with a 'return' type.
+class JoinDefinition jdef return | jdef -> return where
+    describe :: jdef -> [(PatternDescription,TriggerF return)]
+
+
+-- | A single 'PatternClause' is a 'Pattern' type and an associated trigger
+-- function.
+--
+-- E.G. PatternClause (c1 & c2) (\a b -> return)
+data PatternClause return where
+    PatternClause :: Pattern pat return trigger => pat -> trigger -> PatternClause return
+
+-- | Infix 'PatternClause'
+--
+-- E.G. c1 & c2 |> (\a b -> return)
+(|>) :: Pattern pat return trigger => pat -> trigger -> PatternClause return
+infixr 6 |>
+(|>) = PatternClause
+
+instance JoinDefinition (PatternClause return) return where
+    describe (PatternClause pat trigger) = [(rawPattern pat,TriggerF trigger)]
+
+-- | Disjunctive alternative of 'PatternClause'.
+--
+-- E.G. OrPatternClause (c1 & c2 |> \a b -> return)
+--                      (c2 & c3 |> \b c -> return)
+data OrPatternClause return where
+    OrPatternClause :: JoinDefinition jdef return
+                    => PatternClause return
+                    -> jdef
+                    -> OrPatternClause return
+
+-- | Infix 'OrPatternClause'
+--
+-- E.G.   (c1 & c2 |> \a b -> return)
+--     |$ (c2 & c3 |> \b c -> return)
+infixr 5 |$
+(|$) :: JoinDefinition jdef return => PatternClause return -> jdef -> OrPatternClause return
+(|$) = OrPatternClause
+
+instance JoinDefinition (OrPatternClause return) return where
+    describe (OrPatternClause pc pcs) = describe pc ++ describe pcs
+
 
 -- | Constraint. 'a' requires that when used as a message type
 -- (I.E. 'Chan a') the message value will be passed into a corresponding

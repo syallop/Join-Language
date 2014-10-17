@@ -20,7 +20,7 @@ mkBuffer :: (Serialize a,MessagePassed a) => Process (Buffer a)
 mkBuffer = do
     p <- newChannel  -- put channel  :: Chan a
     t <- newChannel  -- take channel :: SyncChan a ()
-    t & p |> reply t -- reply put's to take's
+    def $ t & p |> reply t -- reply put's to take's
     return $ Buffer (p,t)
 
 -- | Asynchronously put a message on the buffer.

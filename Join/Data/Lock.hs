@@ -17,10 +17,10 @@ mkLock = do
     unlock <- newChannel -- Request for unlock :: SyncChan () ()
 
     -- Only when free, reply to a lock request.
-    free & lock |> acknowledge lock
+    def $ free & lock |> acknowledge lock
 
     -- When unlock request, set free.
-    unlock      |> signal free `with` acknowledge unlock
+       |$ unlock      |> signal free `with` acknowledge unlock
 
     signal free
     return $ Lock (lock,unlock)

@@ -18,6 +18,8 @@ module Join.Interpretation.Basic.Status
     , unset
     , getStatusIndexes
 
+    , setMany
+
     -- | A StatusPattern is a fixed length, immutable bitstring of 1's and 0's
     -- describing a pattern upon which Status's may be matched.
     --
@@ -29,15 +31,22 @@ module Join.Interpretation.Basic.Status
     , mkStatusPattern
     , match
     , getPatternIndexes
+
+    , showStatus
+    , showStatusPattern
     ) where
 
 import Prelude hiding (replicate,zipWith,and)
 
-import Data.Maybe           (mapMaybe)
-import Data.Vector          (Vector,replicate,unsafeIndex,modify,(//),zipWith,and,toList,indexed)
-import Data.Vector.Mutable  (write)
+import Data.Maybe               (mapMaybe)
+import Data.Vector         as V (Vector,replicate,unsafeIndex,modify,(//),zipWith,and,toList,indexed,foldl)
+import Data.Vector.Mutable      (write)
 
 newtype Status = Status (Vector Bool) deriving Show
+
+-- | Format a human-readable representation of a Status.
+showStatus :: Status -> String
+showStatus (Status v) = V.foldl (\str b -> str ++ if b then "1" else "0") "" v
 
 -- | Create a new Status with 'i' elements.
 mkStatus :: Int -> Status
@@ -50,6 +59,9 @@ index (Status v) = unsafeIndex v
 -- | Set an index to True.
 set :: Status -> Int -> Status
 set = setTo True
+
+setMany :: Status -> [Int] -> Status
+setMany (Status v) ixs = Status $ v // [(ix,True) | ix <- ixs]
 
 -- | Set an index to False.
 unset :: Status -> Int -> Status
@@ -68,6 +80,10 @@ getStatusIndexes (Status v) = getIndexes v
 
 
 newtype StatusPattern = StatusPattern (Vector Bool) deriving Show
+
+-- | Format a human-readable representation of a StatusPattern.
+showStatusPattern :: StatusPattern -> String
+showStatusPattern (StatusPattern v) = V.foldl (\str b -> str ++ if b then "1" else "0") "" v
 
 -- | Create a new StatusPattern of length 'i' where 'ixs' denotes a list of
 -- indexes set to 1.

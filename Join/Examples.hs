@@ -11,6 +11,7 @@ import Join.Interpretation.Basic
 
 import Join.Data.Barrier
 import Join.Data.Buffer
+import Join.Data.Count
 import Join.Data.Counter
 import Join.Data.Lock
 
@@ -29,10 +30,10 @@ countDown n = do
     --  When there's an int on intChannel: 
     --    print it. If 0, do nothing.
     --    Otherwise spawn a de-incremented int on intChannel.
-    intChannel |> \i -> do liftIO $ print i
-                           if i == 0
-                             then inert
-                             else send intChannel (i-1)
+    def $ intChannel |> \i -> do liftIO $ print i
+                                 if i == 0
+                                   then inert
+                                   else send intChannel (i-1)
 
     -- Spawn the starting number on intChannel.
     send intChannel n
@@ -44,12 +45,31 @@ countDown n = do
 fibonacci :: Int -> Process Int
 fibonacci i = do
     fib <- newChannel
-    fib |> \n -> if n <= 1 then reply fib 1
-                           else do i <- sync fib (n-1)
-                                   j <- sync fib (n-2)
-                                   reply fib (read i + read j)
+    def $ fib |> \n -> if n <= 1 then reply fib 1
+                                 else do i <- sync fib (n-1)
+                                         j <- sync fib (n-2)
+                                         reply fib (read i + read j)
     sync' fib i
 
+{- 'Count' example: -}
+countExample :: Process ()
+countExample = do
+    liftIO $ putStrLn "Initialising Count to 100"
+    c <- mkCount 100
+
+    waitForZero c `with` tickDown c
+
+  where
+    waitForZero c = do
+        waitZero c
+        liftIO $ putStrLn "Counter reached zero"
+
+    tickDown c = do
+        replicateM_ 99 $ tick c
+        liftIO $ putStrLn "Sent 99 ticks, waiting."
+        liftIO $ threadDelay 100000
+        liftIO $ putStrLn "Sending 100th tick."
+        tick c
 
 {- 'Counter' example: -}
 -- | Increment and query a counter with implicit mutex.
@@ -114,4 +134,5 @@ barrierExample = do
         signalRight b
         liftIO $ putStrLn "r"
         signalRight b
+
 

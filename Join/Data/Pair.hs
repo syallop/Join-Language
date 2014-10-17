@@ -15,7 +15,7 @@ type Pair a b = SyncSignal (a,b)
 mkPair :: (Serialize a, Serialize b) => a -> b -> Process (Pair a b)
 mkPair a b = do
     unPair <- newChannel
-    unPair |> reply unPair (a,b)
+    def $ unPair |> reply unPair (a,b)
 
     return unPair
 

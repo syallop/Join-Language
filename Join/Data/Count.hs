@@ -16,10 +16,10 @@ mkCount i = do
     tick  <- newChannel
     zero  <- newChannel
 
-    count    & tick |> \n -> reply count (n-1)
-    count&=0 & zero |> acknowledge zero
+    def $ (count    & tick |> \n -> send count (n-1))
+       |$ (count&=0 & zero |> acknowledge zero)
 
-    sync count i
+    send count i
     return $ Count (zero,tick)
 
 waitZero :: Count -> Process ()

@@ -38,26 +38,26 @@ diningPhilosophersExplicit = do
     [tA,tB,tC,tD,tE          -- A..E are thinking
        ,hA,hB,hC,hD,hE       -- A..E are hungry
        ,fAB,fBC,fCD,fDE,fEA  -- AB..EA forks are set
-       ] <- newChannels 15 :: Process [Signal]
+       ]                 <- newChannels 15 :: Process [Signal]
 
     -- For each philosopher:
     -- - When the philosopher is thinking => think for a random amount of
     --   time before becoming hungry.
-    tA |> do thinkRandom "A"; signal hA
-    tB |> do thinkRandom "B"; signal hB
-    tC |> do thinkRandom "C"; signal hC
-    tD |> do thinkRandom "D"; signal hD
-    tE |> do thinkRandom "E"; signal hE
+    def $ tA             |> do thinkRandom "A"; signal hA
+       |$ tB             |> do thinkRandom "B"; signal hB
+       |$ tC             |> do thinkRandom "C"; signal hC
+       |$ tD             |> do thinkRandom "D"; signal hD
+       |$ tE             |> do thinkRandom "E"; signal hE
 
-    -- For each seating arrangement (a philosopher between two forks):
-    -- - When the philosopher is hungry and both forks are free =>
-    --   eat for a random amount of time before replacing the forks and
-    --   resuming thinking.
-    fEA & hA & fAB |> do eatRandom "A"; signal fEA `with` signal tA `with` signal fAB
-    fAB & hB & fBC |> do eatRandom "B"; signal fAB `with` signal tB `with` signal fBC
-    fBC & hC & fCD |> do eatRandom "C"; signal fBC `with` signal tC `with` signal fCD
-    fCD & hD & fDE |> do eatRandom "D"; signal fCD `with` signal tD `with` signal fDE
-    fDE & hE & fEA |> do eatRandom "E"; signal fDE `with` signal tE `with` signal fEA
+       -- For each seating arrangement (a philosopher between two forks):
+       -- - When the philosopher is hungry and both forks are free =>
+       --   eat for a random amount of time before replacing the forks and
+       --   resuming thinking.
+       |$ fEA & hA & fAB |> do eatRandom "A"; signal fEA `with` signal tA `with` signal fAB
+       |$ fAB & hB & fBC |> do eatRandom "B"; signal fAB `with` signal tB `with` signal fBC
+       |$ fBC & hC & fCD |> do eatRandom "C"; signal fBC `with` signal tC `with` signal fCD
+       |$ fCD & hD & fDE |> do eatRandom "D"; signal fCD `with` signal tD `with` signal fDE
+       |$ fDE & hE & fEA |> do eatRandom "E"; signal fDE `with` signal tE `with` signal fEA
 
     -- All begin thinking and lay all forks.
     signalAll [fAB,fBC,fCD,fDE,fEA
@@ -88,9 +88,9 @@ diningPhilosophers i =
     --   eat for a random amount of time before replacing the forks and
     --   resuming thinking.
     philosophers <- forM arrangement $ \(name,(leftFork,rightFork)) -> do
-        [thinking,hungry]             <- newChannels 2
-        thinking                      |> do thinkRandom name; signal hungry
-        leftFork & hungry & rightFork |> do eatRandom name; signalAll [leftFork,thinking,rightFork]
+        [thinking,hungry]                   <- newChannels 2
+        def $ thinking                      |> do thinkRandom name; signal hungry
+           |$ leftFork & hungry & rightFork |> do eatRandom name; signalAll [leftFork,thinking,rightFork]
         return thinking
 
     -- All begin thinking and lay all forks.

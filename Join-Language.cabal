@@ -71,7 +71,9 @@ library
                     , Join.Data.Timeout
 
   -- Modules included in this library but not exported.
-  other-modules:      Join.Interpretation.Basic.Rule
+  other-modules:      Join.Interpretation.Basic.Debug
+                    , Join.Interpretation.Basic.MessageBox
+                    , Join.Interpretation.Basic.Rule
                     , Join.Interpretation.Basic.Status
   
   -- LANGUAGE extensions used by modules in this package.
@@ -105,6 +107,7 @@ library
                     , vector       >=0.10 && <0.11
                     , ivar-simple  >=0.3  && <0.4
                     , random
+                    , bimap
   
   -- Directories containing source files.
   -- hs-source-dirs:      
