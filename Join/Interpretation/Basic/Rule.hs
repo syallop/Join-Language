@@ -1,220 +1,412 @@
 {-# LANGUAGE FlexibleContexts
             ,FlexibleInstances
             ,GADTs
-            ,GeneralizedNewtypeDeriving
             ,ImpredicativeTypes
+            ,OverloadedLists
             ,OverloadedStrings
             ,RankNTypes
             ,TypeSynonymInstances
- #-}
+            #-}
 module Join.Interpretation.Basic.Rule
-    ( Rule()
-    , mkRule
-    , mergeNewRule
+    (Rule()
+    ,ReplyCtx
+    ,ReplyChan
+    ,RuleId(..)
+    ,BoxId(..)
 
-    , ruleId
-    , chanMapping
-    , chanMapping'
-    , maxIndex
+    ,mkRule
+    ,addMessage
 
-    , addMessage
-
-    , ChanIx()
-    , RuleId(..)
-    , RawMessage
-    , ReplyChan
-    , ReplyCtx
-    , Message
-    , Messages
-    , TriggerF(..)
+    ,_chanMapping
+    ,showRule
     ) where
-
-import Join.Interpretation.Basic.Status
 
 import Join
 
-import Prelude hiding (lookup)
+import Join.Interpretation.Basic.Debug
+import Join.Interpretation.Basic.MessageBox
+import Join.Interpretation.Basic.Status
 
-import Control.Applicative      ((<$>))
-import Control.Concurrent.MVar  (MVar)
-import Data.ByteString          (ByteString)
-import Data.List                (nub)
-import Data.Map                 (Map,fromList,lookup,assocs,insertWith,insert,empty)
-import Data.Maybe               (fromJust,fromMaybe,mapMaybe)
-import Data.Tuple               (swap)
+import           Control.Arrow
+import qualified Data.Bimap     as Bimap
+import           Data.List               (intercalate)
+import qualified Data.Map       as Map
+import           Data.Serialize
+import qualified Data.Set       as Set
+import           Data.Maybe
 
--- | Rule-wide unique channel id.
-newtype ChanIx = ChanIx {unChanIx :: Int} deriving (Show,Eq,Ord,Enum,Num)
+import Prelude hiding (take)
 
 -- | System-wide unique rule id.
-newtype RuleId = RuleId {unRuleId :: Int} deriving (Show)
+newtype RuleId = RuleId {unRuleId :: Int} deriving Show
 
--- | Type of raw, encoded message data.
-type RawMessage = ByteString
+-- | Internal representation of a single clause of a join definition.
+-- Encapsulates a 'RequiredMessages' describing the messages required for
+-- the clause to match alongside a 'TriggerF' - the trigger function
+-- the matching messages should be passed to.
+data StoredPattern = StoredPattern RequiredMessages (TriggerF Inert) deriving Show
+instance Show (TriggerF r) where show _ = "TRIGGERF"
 
--- | Location for a single RawMessage reply to a sync.
-type ReplyChan = MVar RawMessage
+-- | Ordered list of 'RequiredMessage's
+type RequiredMessages = [RequiredMessage]
 
--- | Reply context for 'Sync'/'Reply' instructions. Associates the ChanId
--- of synchronous channel calls to a one-use reply channel.
-type ReplyCtx  = Map ChanId ReplyChan
+-- | MessageBoxId, possible subBox index, whether message should be passed
+-- to trigger.
+type RequiredMessage = (BoxId,Maybe BoxIx,Bool)
 
--- | A Message is raw message data with a possible associated reply
--- channel.
-type Message  = (RawMessage,Maybe ReplyChan)
-type Messages = [Message]
+-- | A 'StatusIx' is an int index into a 'Status'.
+type StatusIx = Int
 
-instance Show ReplyChan where
-    show _ = "REPLYCHAN"
+-- | Associate 'ChanId's to 'BoxId's.
+type ChanMapping = Bimap.Bimap ChanId BoxId
 
-data Trigger = Trigger TriggerF [ChanIx] deriving Show
-data TriggerF = forall f. Apply f Inert => TriggerF f
+-- | Associate 'BoxId's to 'MessageBox's.
+type MessageBoxes = Map.Map BoxId MessageBox
 
-instance Show TriggerF where show _ = "TRIGGERF"
+-- | Describes a location where messages may be retrieved.
+-- Nothing => Any message from the corresponding MessageBox.
+type MessageLocation = (BoxId,Maybe BoxIx)
+
+-- | Associate 'MessageLocation's to 'StatusIx's.
+type StatusIxs = Map.Map MessageLocation StatusIx
+
+-- | Reply context for 'Sync'/'Reply' instructions.
+-- Associate the triggered MessageBox location to a one-use reply channel.
+type ReplyCtx = Map.Map ChanId ReplyChan
 
 -- | A Rule encapsulates the state of a single Join synchronisation
--- pattern and is responsible for tracking all messages sent on the
+-- definition and is responsible for tracking all messages sent on the
 -- contained channels and determining when triggers are to be ran.
+--
+-- - 'mkRule'     : Create a new rule representing a Join Definition
+-- - 'addMessage' : Add a message on a contained 'ChanId', returning
+--                  a 'Process's and 'ReplyCtx's if triggered.
 data Rule = Rule
-    { ruleId      :: RuleId                     -- Uniquely identify a rule
-    , chanMapping :: Map ChanIx ChanId          -- Map each contained channel index to an external id
-    , maxIndex    :: ChanIx                     -- Maximum contained channel index
-    , status      :: Status                     -- Status of messages waiting on rule
-    , patterns    :: [(StatusPattern,Trigger)]  -- Collection of patterns and associated triggers
-    , messages    :: Map ChanIx Messages        -- Stored messages waiting on the rule
+    { _ruleId       :: RuleId                          -- ^ Uniquely identify the 'Rule'
+    , _chanMapping  :: ChanMapping                     -- ^ Map each contained ChanId to a BoxId
+    , _messageBoxes :: MessageBoxes                    -- ^ Map each contained BoxId to a MessageBox
+    , _statusIxs    :: StatusIxs                       -- ^ Associate 'MessageLocation's to StatusIx's (in the Status) caching their emptyness.
+    , _status       :: Status                          -- ^ Cache the emptyness of all known MessageLocations used by the rule.
+    , _patterns     :: [(StatusPattern,StoredPattern)] -- ^ Collection of StatusPatterns and corresponding StoredPatterns.
+                                                       --   each StatusPattern can be quickly compared against the Status to determine whether a pattern
+                                                       --   has been matched. If so, the associated StoredPattern describes how to perform the match.
+                                                       --   (which messages should be taken, what order, whether they should be passed)
     } deriving Show
 
-chanId :: ChanIx -> Rule -> ChanId
-chanId cIx rl = case lookup cIx $ chanMapping rl of
-    Nothing -> error $ "chanId: chanIx: " ++ show cIx
-                     ++ " has no chanId in rule: " ++ show rl
-    Just id -> id
+-- | From a list of 'PatternDescription's and associated 'TriggerF'
+-- functions, build a corresponding 'Rule'.
+mkRule :: [(PatternDescription,TriggerF Inert)] -> RuleId -> Rule
+mkRule desc rId = rule
+ where
+    -- Every unique channelId passed in desc.
+    cIds :: Set.Set ChanId
+    cIds = Set.fromList $ map fst $ concatMap fst desc
 
-chanIx :: ChanId -> Rule -> ChanIx
-chanIx cId rl = case lookup cId . swapMap $ chanMapping rl of
-    Nothing -> error $ "chanIx: chanId: " ++ show cId
-                     ++ " hasno chanIx in rule: " ++ show rl
+    -- Map every ChanId to a BoxId
+    chanMapping :: ChanMapping
+    chanMapping = Bimap.fromList $ zip (Set.toList cIds) [0..]
 
-chanMapping' :: Rule -> Map ChanId ChanIx
-chanMapping' = swapMap . chanMapping
+    -- Map every (boxId,Nothing) location to a StatusIx.
+    statusIxs :: StatusIxs
+    statusIxs = Map.fromList $ zip (map (\boxId -> (boxId,Nothing)) $ Bimap.keysR chanMapping) [0..]
 
-swapMap :: Ord b => Map a b -> Map b a
-swapMap = fromList . map swap . assocs
+    -- Empty MessageBox for each BoxId.
+    uninitialisedMessageBoxes :: MessageBoxes
+    uninitialisedMessageBoxes = Map.fromList $ zip (Bimap.keysR chanMapping) (repeat emptyMessageBox)
 
--- | Given a new synchronisation pattern (which shouldnt overlap with any
--- prior pattern) create a corresponding Rule with a new unique Id.
-mkRule :: [([ChanId],TriggerF)] -> RuleId -> Rule
-mkRule ps rId = Rule
-    { ruleId      = rId
-    , chanMapping = ixTid
-    , maxIndex    = ChanIx maxIx
-    , status      = mkStatus idCount
-    , patterns    = (\(ids,f) -> (buildPattern ids,Trigger f (convertIds ids))) <$> ps
-    , messages    = const [] <$> ixTid
-    }
-  where
-    cIds    = nub $ concatMap fst ps    -- :: [ChanId]
-    ixTid   = fromList $ zip [0..] cIds -- :: Map ChanIx ChanId
-    idTix   = swapMap ixTid
-    idCount = length cIds
-    maxIx   = idCount - 1
+    -- Transform the input description, replacing the MatchTypes in the PatternDescription by
+    -- a (Maybe (Message -> Bool), Bool) which describes:
+    -- - Whether the matched channel has a messagepredicate which must
+    --   succeed to trigger a match
+    -- - whether matched values should be passed into the trigger function.
+    internalDesc :: [([(ChanId, (Maybe (Message -> Bool), Bool))],TriggerF Inert)]
+    internalDesc = map (first $ map $ second mkMaybePredicate) desc
 
-    buildPattern :: [ChanId] -> StatusPattern
-    buildPattern pIds = mkStatusPattern idCount (unChanIx <$> convertIds pIds)
+    -- Complete built rule
+    rule :: Rule
+    rule = let uninitialisedRule = Rule
+                 {_ruleId       = rId
+                 ,_chanMapping  = chanMapping
 
-    convertIds :: [ChanId] -> [ChanIx]
-    convertIds = map (\cId -> case lookup cId idTix of
-        Nothing -> error $ "convertIds: chanId: " ++ show cId
-                         ++ "not in: " ++ show idTix
-        Just ix -> ix)
+                 ,_messageBoxes = uninitialisedMessageBoxes
+                 ,_statusIxs    = statusIxs
 
--- | Given a rule, decompose it to a raw pattern
-unRule :: Rule -> [([ChanId],TriggerF)]
-unRule rl = destroyTrigger . snd <$> patterns rl
-  where
-    destroyTrigger :: Trigger -> ([ChanId],TriggerF)
-    destroyTrigger (Trigger f cIxs) = (convertIxs cIxs, f)
+                 -- Status can't be built until we know it's size, which we can't know until we know the total number of unique channelPatterns
+                 -- Calculating the number of unique channel patterns
+                 -- requires traversing the entire
+                 -- description, so we might as well initialise the statusIxs at the same time (the mapping of boxIx's to statusIxs).
+                 --
+                 -- BoxIx's are only known once we add the corresponding subbox,
+                 -- so we also initialise the messageBoxes at the same
+                 -- time.
+                 --
+                 -- Initialising all of this data requires an input
+                 -- structure similar to a Rule but without a status and
+                 -- ruleId so instead of creating a new record, we pass an
+                 -- unfinished rule with status=undefined. This is OK
+                 -- because we don't touch the status, and overwrite it
+                 -- before returning.
+                 ,_status       = undefined
+                 ,_patterns     = []
+                 }
+               (rl,nextStatusIx,storedPatterns) = foldr (\pc (accRl,nextStatusIx,storedPatterns)
+                                                          -> let (accRl',nextStatusIx',storedPattern) = preparePatternClause pc accRl nextStatusIx
+                                                                in (accRl',nextStatusIx',storedPatterns ++ [storedPattern])
+                                                        )
+                                                        (uninitialisedRule,Set.size cIds,[])
+                                                        internalDesc
+               status                           = mkStatus (nextStatusIx) -- -1
+               patterns                         = buildStatusPatterns storedPatterns (_statusIxs rl) (nextStatusIx) -- -1
+             in rl{_status   = status
+                  ,_patterns = patterns
+                  }
 
-    convertIxs :: [ChanIx] -> [ChanId]
-    convertIxs = map (\cIx -> case lookup cIx (chanMapping rl) of
-        Nothing -> error $ "convertIxs: chanIx: " ++ show cIx
-                         ++ "not in: " ++ show (chanMapping rl)
-        Just id -> id)
+    -- Given a list of StoredPatterns, the StatusIxs mapping and the size
+    -- of the status, associate each StoredPattern with the StatusPattern
+    -- that decides when it triggers.
+    buildStatusPatterns :: [StoredPattern] -> StatusIxs -> Int -> [(StatusPattern,StoredPattern)]
+    buildStatusPatterns storedPatterns statusIxs size = map (\storedPattern -> (buildStatusPattern (extractLocations storedPattern) statusIxs size,storedPattern)) storedPatterns
+      where 
+        extractLocations :: StoredPattern -> [(BoxId,Maybe BoxIx)]
+        extractLocations (StoredPattern reqMsgs _) = map (\(boxId,mboxIx,_) -> (boxId,mboxIx)) reqMsgs
 
--- | Given a new, one clause synchronisation pattern and a map from all
--- overlapping channel ids to their corresponding rules, merge into a new
--- rule.
-mergeNewRule :: [ChanId] -> TriggerF -> [Rule] -> RuleId -> Rule
-mergeNewRule cIds f rs = mkRule ((cIds,f) : concatMap unRule rs)
-
--- | For an index, add a message within a rule, producing the updated rule
--- and a possible triggered process under a reply context.
-addMessage :: ChanIx -> Message -> Rule -> (Rule,Maybe (Process (),ReplyCtx))
-addMessage ix msg rl
-
-    -- There is already at least one message on the channel.
-    -- => No change in rule status
-    -- => No patterns need to be considered
-    | status rl `index` unChanIx ix
-     = (rl{messages = messages'},Nothing)
-
-    -- There are no existing messages on the channel.
-    | otherwise
-     = let status' = status rl `set` unChanIx ix
-          in case identifyMatches (patterns rl) status' of
-
-            -- Adding the message does not require a trigger.
-            [] -> (rl{messages = messages', status = status'}, Nothing)
-
-            -- Adding the message causes at least one trigger.
-            -- Choose the first, apply to matching messages and produce the
-            -- resulting rule and applied processM to be ran.
-            ((p,f):_) -> let (rl',procCtx) = applyMatch (p,f) rl{messages = messages', status = status'}
-                            in (rl',Just procCtx)
-
-  where
-    nonEmptyChannel :: Bool
-    nonEmptyChannel = status rl `index` unChanIx ix
-
-    -- existing messages ++ new msg's
-    messages' :: Map ChanIx Messages
-    messages' = insertWith (++) ix [msg] $ messages rl
-
-    identifyMatches :: [(StatusPattern,Trigger)] -> Status -> [(StatusPattern,Trigger)]
-    identifyMatches ps st = mapMaybe (\(p,f) -> if st `match` p then Just (p,f) else Nothing) ps
-
-    applyMatch :: (StatusPattern,Trigger) -> Rule -> (Rule,(Process (),ReplyCtx))
-    applyMatch (pat,Trigger (TriggerF f) ixs) rl
-         = let (rawMsgs,replyCtx,rl') = takeMessages rl ixs
-               rawMsgs' = dropUnits rawMsgs
-              in (rl',(unsafeApply f (reverse rawMsgs'),replyCtx))
-
-    -- Drop messages which are identical to the encoded unit value ().
-    dropUnits :: [RawMessage] -> [RawMessage]
-    dropUnits = filter (/= "")
-
-    takeMessages :: Rule -> [ChanIx] -> ([RawMessage],ReplyCtx,Rule)
-    takeMessages rl = foldr f ([],empty,rl)
-      where f ix (msgs,rplyCtx,rl) = let (msg,mRply,rl') = takeMessage rl ix
-                                         id = chanId ix rl'
-                                        in (msgs ++ [msg]
-                                           ,maybe rplyCtx (\rply -> insert id rply rplyCtx) mRply
-                                           ,rl'
-                                           )
+        buildStatusPattern :: [(BoxId,Maybe BoxIx)] -> StatusIxs -> Int -> StatusPattern
+        buildStatusPattern locations statusIxs size =
+          let reqIxs = foldr (\loc acc -> acc ++ [fromJust $ Map.lookup loc statusIxs]) [] locations
+             in mkStatusPattern size reqIxs
 
 
-    takeMessage :: Rule -> ChanIx -> (RawMessage,Maybe (MVar RawMessage),Rule)
-    takeMessage rl ix = case fromMaybe 
-                               (error $ "takeMessage: chanIx: " ++ show ix ++ " has no message in "
-                                     ++ show (messages rl))
-                               $ lookup ix (messages rl) of
-        [] -> error "No message to take."
+    -- Given a single internal pattern clause (with associated TriggerF)
+    -- build a corresponding StoredPattern while with a rule:
+    -- - Adding appropriate subboxes to messageBoxes
+    -- - Mapping the subBox MessageLocations to StatusIxs
+    --
+    -- In addition, thread an 'Int' representing the next free StatusIx.
+    preparePatternClause :: ([(ChanId, (Maybe (Message -> Bool),Bool))],TriggerF Inert) -- ^ Single internal pattern clause.
+                         -> Rule -> Int -> (Rule,Int,StoredPattern)
+    preparePatternClause (idesc,trigger) rl nextStatusIx =
+      let (rl',nextStatusIx',reqMsgs) = foldr preparePatternClause' (rl,nextStatusIx,[]) idesc
+         in (rl',nextStatusIx',StoredPattern (reverse reqMsgs) trigger)
+      where
+        preparePatternClause' :: (ChanId, (Maybe (Message -> Bool), Bool)) -> (Rule,Int,RequiredMessages) -> (Rule,Int,RequiredMessages)
+        preparePatternClause' (chanId,(mpred,shouldPass)) (accRl, nextStatusIx,reqMsgs) =
+           let boxId  = fromJust $ Bimap.lookup chanId (_chanMapping accRl)
+               msgBox = fromJust $ Map.lookup boxId (_messageBoxes accRl)
+              in case mpred of
+                  Nothing   -> (accRl
+                               ,nextStatusIx
+                               ,reqMsgs ++ [(boxId,Nothing,shouldPass)]
+                               )
 
-        ((m,mr):ms)
-           -> (m, mr, rl{ messages = insert ix ms $ messages rl
-                        , status   = if null ms
-                                       then status rl `unset` unChanIx ix
-                                       else status rl
+                  Just pred -> let (msgBox',boxIx) = addSubBox pred msgBox
+                                  in (accRl{_messageBoxes = Map.insert boxId msgBox' (_messageBoxes accRl)
+                                           ,_statusIxs    = Map.insert (boxId,Just boxIx) nextStatusIx (_statusIxs accRl)
+                                           }
+                                     ,nextStatusIx+1
+                                     ,reqMsgs ++ [(boxId,Just boxIx,shouldPass)]
+                                     )
+
+    -- Convert an external 'MatchType' to a possible message predicate
+    -- which decides whether messages match, and a flag describing whether
+    -- matching messages should be passed.
+    mkMaybePredicate :: MatchType -> (Maybe (Message -> Bool),Bool)
+    mkMaybePredicate MatchAny        = (Nothing,True)
+    mkMaybePredicate (MatchEqual bs) = (Just $ \(rawMsg,_) -> rawMsg == bs,False)
+    mkMaybePredicate (MatchSignal)   = (Just $ \(rawMsg,_) -> rawMsg == encode (),False)
+
+-- | Add a message on a contained 'ChanId', returning a 'Process' and
+-- 'ReplyCtx' if triggered.
+--
+-- If the addition of the new Message causes a pattern to be matched then
+-- the matching messages are applied to the corresponding trigger function
+-- to produce a 'Process ()' to execute under the given 'ReplyCtx' (which
+-- describes the specific reply location(s) of the messages which caused
+-- the trigger).
+addMessage :: Message -> ChanId -> Rule -> (Rule,Maybe (Process (),ReplyCtx))
+addMessage msg cId rl
+
+
+    -- Either: No specific patterns are matched (not in subBoxes) and theres
+    -- at least one message on the channel.
+    -- Or: Some specific patterns are matched but they're all already
+    -- matched.
+    --
+    -- => status doesnt change => no new rules may fire so theres no need
+    -- to check.
+    {-| (inNoSubBoxes && alreadySomeMessages) || inNonEmptySubBoxesOnly = -}
+        {-(rl{_messageBoxes = Map.insert boxId msgBox (_messageBoxes rl)},Nothing)-}
+
+    -- New message doesnt match any specific patterns/ not in subBoxes
+    -- and there are no messages already kept on the channel.
+    -- => Update status & check for patterns waiting on this channel to
+    -- fire.
+    {-| inNoSubBovxes && noMessagesAlready =-}
+
+    | otherwise =
+        let -- Updated status with the index for each subBox the new msg is contained in set.
+            status' = setMany (status `set` cStatusIx) (Set.foldr (\boxIx acc -> acc ++ [getStatusIx (boxId,Just boxIx) rl]) [] (containedIn strdMsg))
+
+            -- Rule with new msg and status
+            rl'     = rl{_messageBoxes = Map.insert boxId msgBox (_messageBoxes rl)
+                        ,_status       = status'
                         }
+           in case identifyMatches (_patterns rl') status' of
+
+             -- No matching patterns
+             [] -> (rl',Nothing)
+
+             -- At least one match. Pick the first.
+             (storedPattern:_) -> trace ("matched:" ++ show storedPattern) $
+                let (rl'',procCtx) = applyMatch storedPattern rl'
+                   in (rl'',Just procCtx)
+
+  where
+    inSomeSubBoxes         = not inNoSubBoxes
+    inNoSubBoxes           = Set.null inBoxIxs
+    alreadySomeMessages    = status `index` cStatusIx
+    noMessagesAlready      = not alreadySomeMessages
+    subBoxStatusChange     = Set.foldr (\ix b -> status `index` ix || b) False inStatusIxs
+    noSubBoxStatusChange   = not subBoxStatusChange
+    inNonEmptySubBoxesOnly = inSomeSubBoxes && noSubBoxStatusChange
+
+    -- msgBox containing new strdMsg
+    (msgBox,strdMsg) = insertMessage' msg (getChanMessageBox cId rl)
+    boxId = getBoxId cId rl
+
+    -- subBoxes the message is contained within
+    inBoxIxs = containedIn strdMsg
+    inStatusIxs = Set.map (\boxIx -> getStatusIx (boxId,Just boxIx) rl) inBoxIxs
+
+    -- Status Bit-vector for rule BEFORE addition of this message
+    status = _status rl
+
+    -- StatusIx caching whether any messages are stored on the channel
+    cStatusIx = getChanAnyIx cId rl
+
+
+    -- | Identify all matching 'StatusPatterns' of a 'Status'.
+    identifyMatches :: [(StatusPattern,StoredPattern)] -> Status -> [StoredPattern]
+    identifyMatches ps status = trace "identifymatches" $ map snd $ filter (\(statusPattern,_) -> status `match` statusPattern) ps
+
+    -- | Given a pattern which is claimed to have been matched, collect the
+    -- matching messages apply them to the matching trigger function to
+    -- produce a 'Process ()' to be executed under the ReplyCtx.
+    applyMatch :: StoredPattern -> Rule -> (Rule,(Process(),ReplyCtx))
+    applyMatch (StoredPattern reqMsgs (TriggerF trigger)) rl =
+        let (rl',rawMsgs, replyCtx) = takeMessages reqMsgs rl
+           in (rl',(unsafeApply trigger rawMsgs,replyCtx))
+
+    -- Currently not unsetting sub-box indexes when removed
+    takeMessages :: RequiredMessages -> Rule -> (Rule,[RawMessage],ReplyCtx)
+    takeMessages reqMsgs rl = foldr f (rl,[],Map.empty) reqMsgs
+      where f :: RequiredMessage -> (Rule,[RawMessage],ReplyCtx) -> (Rule,[RawMessage],ReplyCtx)
+            f reqMsg@(boxId,_,_) (accRl,accRawMsgs,accReplyCtx) =
+              let (accRl',mRawMsg,mReplyChan) = takeMessage reqMsg accRl
+                 in (accRl'
+                    ,maybe accRawMsgs (\rm -> accRawMsgs ++ [rm]) mRawMsg
+                    ,maybe accReplyCtx (\replyChan -> Map.insert (getChanId boxId accRl') replyChan accReplyCtx) mReplyChan
+                    )
+
+    -- Given a RequiredMessage description (which is known will succeed)
+    -- , take the Message from a Rule.
+    takeMessage :: RequiredMessage -> Rule -> (Rule,Maybe RawMessage, Maybe ReplyChan)
+    takeMessage (boxId,mBoxIx,shouldPass) rl =
+        let msgBox          = getMessageBox boxId rl
+            (strdMsg,
+             newlyEmptySubBoxes,
+             msgBox'
+             )              = fromMaybe (error "No such StoredMessage") $ take mBoxIx msgBox
+            allMsgIx        = getStatusIx (boxId,Nothing) rl
+            status'         = if noStoredMessages msgBox' then unset (_status rl) allMsgIx else _status rl
+            newStatus       = Set.foldr (\ix st -> unset st $ getStatusIx (boxId,Just ix) rl) status' newlyEmptySubBoxes
+            newMessageBoxes = Map.insert boxId msgBox' (_messageBoxes rl)
+           in (rl{_messageBoxes = newMessageBoxes
+                 ,_status       = newStatus
+                 }
+              ,if shouldPass then Just $ fst $ message strdMsg else Nothing
+              ,snd $ message strdMsg
               )
+
+-- | Get the MessageBox associated with the ChanId
+getChanMessageBox :: ChanId -> Rule -> MessageBox
+getChanMessageBox cId rl =
+    let boxId = getBoxId cId rl
+       in getMessageBox boxId rl
+
+-- | Get the StatusIx associated with tracking whether there are any
+-- messages on a channel.
+getChanAnyIx :: ChanId -> Rule -> StatusIx
+getChanAnyIx cId rl =
+    let boxId     = getBoxId cId rl
+        mStatusIx = Map.lookup (boxId,Nothing) (_statusIxs rl)
+       in fromMaybe (error "BoxId has no StatusIx") mStatusIx
+
+-- | Get the BoxId associated with a ChanId
+getBoxId :: ChanId -> Rule -> BoxId
+getBoxId cId rl =
+    let mBoxId = Bimap.lookup cId (_chanMapping rl)
+       in fromMaybe (error "ChanId has no BoxId") mBoxId
+
+-- | Get the ChanId associated with a BoxId
+getChanId :: BoxId -> Rule -> ChanId
+getChanId boxId rl =
+    let mChanId = Bimap.lookupR boxId (_chanMapping rl)
+       in fromMaybe (error "BoxId has no ChanId") mChanId
+
+-- | Get the MessageBox associated with a BoxId
+getMessageBox :: BoxId -> Rule -> MessageBox
+getMessageBox boxId rl =
+    let mMsgBox = Map.lookup boxId (_messageBoxes rl)
+       in fromMaybe (error "BoxId has no MessageBox") mMsgBox
+
+-- | Get the StatusIx associated with a MessageLocation
+getStatusIx :: MessageLocation -> Rule -> StatusIx
+getStatusIx mLoc rl =
+    let mStIx = Map.lookup mLoc (_statusIxs rl)
+       in fromMaybe (error "MessageLocation has no StatusIx") mStIx
+
+-- | Format a human-readable representation of a 'Rule'.
+showRule :: Rule -> String
+showRule rl = "Rule " ++ showRuleId (_ruleId rl) ++ "{ \n"
+           ++ showChanMapping (_chanMapping rl)
+           ++ "Status:\n" ++ showStatus (_status rl)
+           ++ showStatusIxs (_statusIxs rl)
+           ++ showPatterns (_patterns rl)
+           ++ showMessageBoxes (_messageBoxes rl)
+           ++ "\n}\n"
+
+showRuleId :: RuleId -> String
+showRuleId (RuleId rId) = "rId"++show rId
+
+showChanMapping :: ChanMapping -> String
+showChanMapping cm = "ChanId <-> BoxId:\n"
+                  ++ concatMap showChanMap (Bimap.toList cm)
+                  ++ "\n"
+
+showChanMap :: (ChanId,BoxId) -> String
+showChanMap (ChanId cId,BoxId bId) = "cId"++ show cId ++ "  <->" ++ " bId"++ show bId ++ "\n"
+
+showStatusIxs :: StatusIxs -> String
+showStatusIxs ixs = "\n\nMessageLocation -> StatusIx:\n"
+                 ++ (intercalate "\n" $ map showStatusIx (Map.toList ixs))
+
+showStatusIx :: (MessageLocation,StatusIx) -> String
+showStatusIx ((BoxId bId,mBoxIx),statusIx) = show bId ++ "," ++ (maybe "_" (\(BoxIx ix) -> show ix) mBoxIx) ++ " -> " ++ show statusIx
+
+showPatterns :: [(StatusPattern,StoredPattern)] -> String
+showPatterns ps = "\n\nStatusPattern => StoredPattern\n"
+               ++ concatMap showPattern ps
+
+showPattern :: (StatusPattern,StoredPattern) -> String
+showPattern (statusPattern,storedPattern) = showStatusPattern statusPattern ++ " => " ++ showStoredPattern storedPattern ++ "\n"
+
+showStoredPattern :: StoredPattern -> String
+showStoredPattern (StoredPattern reqMsgs _) = intercalate " THEN " $ map showRequiredMessage reqMsgs
+
+showRequiredMessage :: RequiredMessage -> String
+showRequiredMessage (BoxId bId,mBoxIx,shouldPass) = (if shouldPass then "pass " else "keep ")
+                                             ++ show bId ++ "," ++ maybe "_" (\(BoxIx bIx) -> show bIx) mBoxIx
+
+showMessageBoxes :: MessageBoxes -> String
+showMessageBoxes msgBoxes = "\n\n" ++ (intercalate "\n\n" $ map (\(BoxId bId,msgBox) -> "bId"++show bId ++ " :\n" ++ showMessageBox msgBox) (Map.toList msgBoxes))
 

@@ -210,7 +210,6 @@ module Join.Language
     -- | 'Process' helper functions.
     , Inert
     , inert
-    , onReply
 
     -- * Implementer API
     -- | Below is the base instruction type, along with typeclasses and
@@ -244,11 +243,9 @@ import Data.Serialize
 data Instruction a where
 
     -- Join definition.
-    Def        -- Trigger can be applied,pattern is associated with trigger type.
-               :: Pattern pat Inert trigger
-               => pat                            -- Pattern matched on.
-               -> trigger                            -- Trigger function called on match.
-               -> Instruction ()
+    Def       :: JoinDefinition jdef Inert     -- Define a JoinDefinition with Inert triggers.
+              => jdef
+              -> Instruction ()
 
     -- Request a new typed Channel.
     NewChannel :: (InferSync s, Serialize a)   -- Synchronicity can be inferred, message type can be serialized.
@@ -282,22 +279,6 @@ data Instruction a where
                -> Instruction ()
 
 
--- | Infix, enter a Def instruction into Process.
---
--- I.E. allows:
---
--- @ def ci (\i -> reply ci (i+1)) @
---
--- To be written:
---
--- @ ci |> (\i -> reply ci (i+1)) @
-(|>) :: Pattern pat Inert trigger
-     => pat -> trigger -> Process ()
-infixr 6 |>
-p |> t = def p t
-
-
-
 -- | Process is a Monadic type that can be thought of as representing a
 -- sequence of Join 'Instructions'.
 type Process a = ProgramT Instruction IO a
@@ -313,9 +294,8 @@ type Process a = ProgramT Instruction IO a
 -- Says that when ci (which may be inferred to have type :: Channel S Int)
 -- receives a message, it is passed to the RHS function which increments it
 -- and passes it back.
-def :: Pattern pat Inert trigger
-    => pat -> trigger -> Process ()
-def c p = singleton $ Def c p
+def :: JoinDefinition jdef Inert => jdef -> Process ()
+def p = singleton $ Def p
 
 -- | Enter a single 'NewChannel' Instruction into Process.
 --
@@ -438,23 +418,6 @@ instance Monoid Inert where
 -- | Compose a list of 'Inert' 'Process's to be ran concurrently.
 withAll :: [Inert] -> Inert
 withAll = mconcat
-
--- | Helper for continuation style programming with Channels.
--- E.G., given:
--- 
--- @
--- do s <- newChannel
---    s |> (\x -> do liftIO $ print x
---                  reply s (x+1))
---    onReply s (liftIO . print)
--- @
--- 
---
--- sending an Int value on s will print it as well as it's successor.
-onReply :: Pattern pat Inert trigger
-        => pat -> trigger -> Process ()
-
-onReply = def
 
 -- | Type synonym for a Process which terminates without value.
 type Inert = Process ()

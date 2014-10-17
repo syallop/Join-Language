@@ -14,8 +14,8 @@ mkCounter = do
     inc   <- newChannel -- :: SyncChan () ()
     get   <- newChannel -- :: SyncChan () Int
 
-    inc & count |> \n -> acknowledge inc `with` send count (n+1)
-    get & count |> \n -> reply get n     `with` send count n
+    def $ (inc & count |> \n -> acknowledge inc `with` send count (n+1))
+       |$ get & count |> \n -> reply get n     `with` send count n
 
     send count 1
 
