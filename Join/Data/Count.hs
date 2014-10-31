@@ -7,7 +7,6 @@ module Join.Data.Count
 
 import Join
 
-
 newtype Count = Count (SyncSignal (), Signal)
 
 mkCount :: Int -> Process Count

@@ -155,14 +155,12 @@ module Join.Types.Pattern
 
 import Join.Types.Apply
 import Join.Types.Channel
-
-import Data.ByteString (ByteString)
-import Data.Serialize (Serialize,encode)
+import Join.Types.Message
 
 {- New pattern data types -}
 
 -- | Pattern type of matching 'Channel' messages when equal to some value.
-data ChannelEq a = forall s. Serialize a => ChannelEq (Channel s a) a
+data ChannelEq a = forall s. MessageType a => ChannelEq (Channel s a) a
 
 -- | Infix 'ChannelEq'.
 --
@@ -173,11 +171,11 @@ data ChannelEq a = forall s. Serialize a => ChannelEq (Channel s a) a
 -- Is equivalent to:
 --
 -- @ c1 & c2&=1 & c3 @
-(&=) :: Serialize a => Channel s a -> a -> ChannelEq a
+(&=) :: MessageType a => Channel s a -> a -> ChannelEq a
 infixr 8 &=
 (&=) = ChannelEq
 
-instance Show (ChannelEq a) where show (ChannelEq c a) = show c ++ "&=" ++ show (encode a)
+instance Show (ChannelEq a) where show (ChannelEq c a) = show c ++ "&=" ++ show (encodeMessage a)
 
 -- | Pattern type of matching on a conjunction of patterns.
 data patL :&: patR where
@@ -244,7 +242,7 @@ class Show pat
     rawPattern :: pat -> PatternDescription
 instance RawPattern (Channel s ())  where rawPattern c               = [(getId c, MatchSignal)]
 instance RawPattern (Channel s a)   where rawPattern c               = [(getId c, MatchAny)]
-instance RawPattern (ChannelEq a)   where rawPattern (ChannelEq c a) = [(getId c, MatchEqual $ encode a)]
+instance RawPattern (ChannelEq a)   where rawPattern (ChannelEq c a) = [(getId c, MatchEqual $ encodeMessage a)]
 instance RawPattern (patL :&: patR) where rawPattern (And p q)       = rawPattern p ++ rawPattern q
 
 

@@ -7,9 +7,8 @@ import Join
 
 import Control.Concurrent (threadDelay)
 import Control.Monad.IO.Class
-import Data.Serialize
 
-mkTimeout :: (Serialize r, MessagePassed r) => Int -> (a -> r) -> a -> Process (Maybe r)
+mkTimeout :: (MessageType r, MessagePassed r) => Int -> (a -> r) -> a -> Process (Maybe r)
 mkTimeout t f x = do
     wait     <- newChannel -- SyncSignal (Maybe fin)
     finished <- newChannel -- Chan fin
