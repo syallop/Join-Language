@@ -31,7 +31,6 @@ import           Control.Arrow
 import qualified Data.Bimap     as Bimap
 import           Data.List               (intercalate)
 import qualified Data.Map       as Map
-import           Data.Serialize
 import qualified Data.Set       as Set
 import           Data.Maybe
 
@@ -212,7 +211,7 @@ mkRule desc rId = rule
     mkMaybePredicate :: MatchType -> (Maybe (Message -> Bool),Bool)
     mkMaybePredicate MatchAny        = (Nothing,True)
     mkMaybePredicate (MatchEqual bs) = (Just $ \(rawMsg,_) -> rawMsg == bs,False)
-    mkMaybePredicate (MatchSignal)   = (Just $ \(rawMsg,_) -> rawMsg == encode (),False)
+    mkMaybePredicate (MatchSignal)   = (Just $ \(rawMsg,_) -> rawMsg == encodeMessage (),False)
 
 -- | Add a message on a contained 'ChanId', returning a 'Process' and
 -- 'ReplyCtx' if triggered.

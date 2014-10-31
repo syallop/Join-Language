@@ -9,22 +9,21 @@ module Join.Data.Pair
 import Join
 
 import Control.Applicative
-import Data.Serialize
 
 type Pair a b = SyncSignal (a,b)
-mkPair :: (Serialize a, Serialize b) => a -> b -> Process (Pair a b)
+mkPair :: (MessageType a, MessageType b) => a -> b -> Process (Pair a b)
 mkPair a b = do
     unPair <- newChannel
     def $ unPair |> reply unPair (a,b)
 
     return unPair
 
-getPair :: (Serialize a, Serialize b) => Pair a b -> Process (a,b)
+getPair :: (MessageType a, MessageType b) => Pair a b -> Process (a,b)
 getPair c = syncSignal' c
 
-getFst :: (Serialize a, Serialize b) => Pair a b -> Process a
+getFst :: (MessageType a, MessageType b) => Pair a b -> Process a
 getFst c = fst <$> getPair c
 
-getSnd :: (Serialize a, Serialize b) => Pair a b -> Process b
+getSnd :: (MessageType a, MessageType b) => Pair a b -> Process b
 getSnd c = snd <$> getPair c
 

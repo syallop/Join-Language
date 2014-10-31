@@ -8,8 +8,7 @@ module Join.Types.Apply
     , unsafeApply
     ) where
 
-import Data.ByteString (ByteString)
-import Data.Serialize (Serialize, decode)
+import Join.Types.Message
 
 -- | Encapsulates the result of some type of function application that may
 -- either succeed or fail in a limited number of ways.
@@ -34,10 +33,10 @@ instance Show (Application r) where
 class Apply f r where
     apply :: f -> [ByteString] -> Application r
 
-instance (Serialize a, Apply b r) => Apply (a -> b) r where
-    apply f (m:ms) = case decode m of
-        Left  _ -> Mistyped
-        Right v -> apply (f v) ms
+instance (MessageType a, Apply b r) => Apply (a -> b) r where
+    apply f (m:ms) = case decodeMessage m of
+        Nothing -> Mistyped
+        Just v -> apply (f v) ms
     apply _ [] = Shortage
 
 instance Apply r r where
@@ -51,7 +50,7 @@ instance Apply r r where
 -- - The number of list items is exactly equal to the number of arguments
 -- expected by 'f'.
 --
--- - Each argument Serializes to the corresponding expected type.
+-- - Each argument decodes to the corresponding expected type.
 unsafeApply :: Apply f r => f -> [ByteString] -> r
 unsafeApply f ms = case apply f ms of
     Result r -> r

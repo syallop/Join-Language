@@ -27,7 +27,6 @@ import qualified Data.Bimap                as Bimap
 import           Data.List                          (nub)
 import           Data.Map                           (Map,map,union,lookup,empty,delete)
 import           Data.Maybe                         (fromJust)
-import           Data.Serialize                     (Serialize,encode,decode)
 import           Data.Unique                        (hashUnique,newUnique)
 
 -- | Associate ChanId's to a reference to the containing Rule.
@@ -154,7 +153,7 @@ run p = mkState >>= (`runWith` p)
             -- executing any matching trigger that is returned.
             Send c m
                 :>>= k -> do traceIO "SEND"
-                             mProcCtx <- withRule' state (getId c) (\(rl,boxId) -> addMessage (encode m,Nothing) (getId c) rl)
+                             mProcCtx <- withRule' state (getId c) (\(rl,boxId) -> addMessage (encodeMessage m,Nothing) (getId c) rl)
                              case mProcCtx of
                                  Nothing
                                    -> do traceIO "/SEND"
@@ -185,7 +184,7 @@ run p = mkState >>= (`runWith` p)
                              replyChan <- newEmptyMVar
                              syncVal   <- new
                              forkIO $ waitOnReply replyChan syncVal
-                             mProcCtx <- withRule' state (getId s) (\(rl,boxId) -> addMessage (encode m,Just replyChan) (getId s) rl)
+                             mProcCtx <- withRule' state (getId s) (\(rl,boxId) -> addMessage (encodeMessage m,Just replyChan) (getId s) rl)
                              case mProcCtx of
                                  Nothing
                                    -> do traceIO "/SYNC"
@@ -203,7 +202,7 @@ run p = mkState >>= (`runWith` p)
             Reply s m
                 :>>= k -> do traceIO "REPLY"
                              let replyChan = lookupReplyChan state (getId s)
-                             putMVar replyChan (encode m)
+                             putMVar replyChan (encodeMessage m)
                              traceIO "/REPLY"
                              runWith state (k ())
 
@@ -230,12 +229,12 @@ run p = mkState >>= (`runWith` p)
     -- Wait for a message to be written into an internal 'ReplyChan' to be
     -- passed in turn to some external SyncVal which may be waiting for the
     -- reply.
-    waitOnReply :: Serialize a => ReplyChan -> SyncVal a -> IO ()
+    waitOnReply :: MessageType a => ReplyChan -> SyncVal a -> IO ()
     waitOnReply replyChan syncVal = do
         rawMsg <- takeMVar replyChan
-        case decode rawMsg of
-            Left  _ -> error "Mistyped value in reply."
-            Right a -> write syncVal a
+        case decodeMessage rawMsg of
+            Nothing -> error "Mistyped value in reply."
+            Just a -> write syncVal a
 
     -- Determine which rules are overlapping with a list of ChanId's.
     overlappingRules :: State -> [ChanId] -> IO [Rule]

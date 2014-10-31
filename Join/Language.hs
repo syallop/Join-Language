@@ -228,7 +228,6 @@ import Join.Types
 import Control.Monad.Operational (ProgramT,singleton)
 import Control.Monad             (replicateM)
 import Data.Monoid
-import Data.Serialize
 
 -- | Type of atomic Join instructions.
 --
@@ -248,11 +247,11 @@ data Instruction a where
               -> Instruction ()
 
     -- Request a new typed Channel.
-    NewChannel :: (InferSync s, Serialize a)   -- Synchronicity can be inferred, message type can be serialized.
+    NewChannel :: (InferSync s, MessageType a) -- Synchronicity can be inferred, 'a' is a 'MessageType'.
                => Instruction (Channel s a)    -- Infer the required type of a new synchronous/ asynchronous Channel.
 
     -- Sends a value on a Channel.
-    Send       :: Serialize a                  -- Message type can be serialized.
+    Send       :: MessageType a                -- Message type can be serialized.
                => Chan a                       -- Target Asynchronous Channel.
                -> a                            -- Value sent
                -> Instruction ()
@@ -262,13 +261,13 @@ data Instruction a where
                -> Instruction ()
 
     -- Send a value on a Synchronous Channel and wait for a result.
-    Sync       :: (Serialize a, Serialize r)   -- Message type can be serialized.
+    Sync       :: (MessageType a, MessageType r)   -- Message type can be serialized.
                => SyncChan a r                 -- Channel sent and waited upon.
                -> a                            -- Value sent.
                -> Instruction (SyncVal r)      -- SyncVal encapsulated reply value.
 
     -- Send a reply value on a Synchronous Channel.
-    Reply      :: Serialize r                  -- Message type can be serialized.
+    Reply      :: MessageType r                  -- Message type can be serialized.
                => SyncChan a r                 -- A Synchronous Channel to reply to.
                -> r                            -- Value to reply with.
                -> Instruction ()
@@ -302,24 +301,24 @@ def p = singleton $ Def p
 -- Request a new typed Channel be created. Whether the
 -- Channel is synchronous or asynchronous is determined by the calling
 -- context.
-newChannel :: (InferSync s,Serialize a) => Process (Channel s a)
+newChannel :: (InferSync s,MessageType a) => Process (Channel s a)
 newChannel = singleton NewChannel
 
 -- | Request a given number of new typed Channels be created.
 -- All Channels will have the same message type and synchronicity type.
 -- Whether the Channels are synchronous or asynchronous is determined by
 -- the calling context.
-newChannels :: (InferSync s,Serialize a) => Int -> Process [Channel s a]
+newChannels :: (InferSync s,MessageType a) => Int -> Process [Channel s a]
 newChannels i = replicateM i newChannel
 
 -- | Enter a single 'Send' Instruction into Process.
 --
 -- On a (regular) asynchronous 'Channel', send a message.
-send :: Serialize a => Chan a -> a -> Process ()
+send :: MessageType a => Chan a -> a -> Process ()
 send c a = singleton $ Send c a
 
 -- | Simultaneously send messages to (regular) asynchronous 'Channel's.
-sendAll :: Serialize a => [(Chan a,a)] -> Process ()
+sendAll :: MessageType a => [(Chan a,a)] -> Process ()
 sendAll = withAll . map (uncurry send)
 
 -- | Send an asynchronous signal.
@@ -342,13 +341,13 @@ spawn p = singleton $ Spawn p
 -- Send a message to a synchronous 'Channel', returning
 -- a 'SyncVal' - a handle to the reply message which may be 'wait'ed upon
 -- when needed.
-sync :: (Serialize a,Serialize r) => SyncChan a r -> a -> Process (SyncVal r)
+sync :: (MessageType a,MessageType r) => SyncChan a r -> a -> Process (SyncVal r)
 sync s a = singleton $ Sync s a
 
 -- | Send messages to synchronous 'Channel's, returning a list
 -- of 'SyncVal's - handles to the reply messages which may be 'wait'ed upon
 -- when needed.
-syncAll :: (Serialize a,Serialize r) => [(SyncChan a r,a)] -> Process [SyncVal r]
+syncAll :: (MessageType a,MessageType r) => [(SyncChan a r,a)] -> Process [SyncVal r]
 syncAll = mapM (uncurry sync)
 
 -- | In a Process, block on a 'SyncVal'.
@@ -360,41 +359,41 @@ waitAll :: [SyncVal a] -> Process [a]
 waitAll = mapM wait
 
 -- | Send a message to a synchronous 'Channel', blocking on a reply value.
-sync' :: (Serialize a,Serialize r) => SyncChan a r -> a -> Process r
+sync' :: (MessageType a,MessageType r) => SyncChan a r -> a -> Process r
 sync' s a = sync s a >>= wait
 
 -- | Send messages to synchronous 'Channel's, blocking on
 -- the reply values.
-syncAll' :: (Serialize a,Serialize r) => [(SyncChan a r,a)] -> Process [r]
+syncAll' :: (MessageType a,MessageType r) => [(SyncChan a r,a)] -> Process [r]
 syncAll' = mapM (uncurry sync')
 
 -- | Send a synchronous signal, returning a 'SyncVal' - a handle to the
 -- reply message which may be 'wait'ed upon when needed.
-syncSignal :: Serialize r => SyncSignal r -> Process (SyncVal r)
+syncSignal :: MessageType r => SyncSignal r -> Process (SyncVal r)
 syncSignal s = sync s ()
 
 -- | Send synchronous signals returning a list of 'SyncVal's - handles
 -- to the reply messages which may be 'wait'ed upon when needed.
-syncSignalAll :: Serialize r => [SyncSignal r] -> Process [SyncVal r]
+syncSignalAll :: MessageType r => [SyncSignal r] -> Process [SyncVal r]
 syncSignalAll = mapM syncSignal
 
 -- | Send a synchronous signal, blocking on a reply value.
-syncSignal' :: Serialize r => SyncSignal r -> Process r
+syncSignal' :: MessageType r => SyncSignal r -> Process r
 syncSignal' s = syncSignal s >>= wait
 
 -- | Send synchronous signals. blocking on the reply values.
-syncSignalAll' :: Serialize r => [SyncSignal r] -> Process [r]
+syncSignalAll' :: MessageType r => [SyncSignal r] -> Process [r]
 syncSignalAll' = mapM syncSignal'
 
 -- | Enter a single 'Reply' Instruction into Process.
 --
 -- On a synchronous 'Channel', respond with a message to the
 -- sender.
-reply :: Serialize r => SyncChan a r -> r -> Process ()
+reply :: MessageType r => SyncChan a r -> r -> Process ()
 reply s a = singleton $ Reply s a
 
 -- | Simultaneously, respond with messages to synchronous 'Channels.
-replyAll :: Serialize r => [(SyncChan a r,r)] -> Process ()
+replyAll :: MessageType r => [(SyncChan a r,r)] -> Process ()
 replyAll = withAll . map (uncurry reply)
 
 -- | Reply with a synchronous acknowledgment.

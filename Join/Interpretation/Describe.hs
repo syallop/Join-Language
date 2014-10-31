@@ -13,7 +13,6 @@ module Join.Interpretation.Describe where
 import Join
 
 import Control.Monad.Operational
-import Data.Serialize (encode)
 
 -- | Interpret a Process by describing each instruction on stdout.
 -- Does not describe triggered Process's on RHS of Def patterns.
@@ -34,7 +33,7 @@ describe = describe' (ChanId 0)
                              describe' (i+1) (k (inferSync i))
 
             Send c m
-                :>>= k -> do putStrLn $ "Send " ++ show c ++ show (encode m)
+                :>>= k -> do putStrLn $ "Send " ++ show c ++ show (encodeMessage m)
                              describe' i (k ())
 
             Spawn p
@@ -44,11 +43,11 @@ describe = describe' (ChanId 0)
                              describe' i (k ())
 
             Sync s m
-                :>>= k -> do putStrLn $ "Sync " ++ show s ++ show (encode m)
+                :>>= k -> do putStrLn $ "Sync " ++ show s ++ show (encodeMessage m)
                              describe' i (k undefined)
 
             Reply s m
-                :>>= k -> do putStrLn $ "Reply " ++ show s ++ show (encode m)
+                :>>= k -> do putStrLn $ "Reply " ++ show s ++ show (encodeMessage m)
                              describe' i (k ())
 
             With p q
