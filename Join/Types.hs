@@ -19,5 +19,4 @@ import Join.Types.Channel  as I
 import Join.Types.Message  as I
 import Join.Types.Pattern  as I
 import Join.Types.Response as I
-{-import Join.Types.SyncVal     as I-}
 
