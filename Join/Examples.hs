@@ -49,7 +49,7 @@ fibonacci i = do
     def $ fib |> \n -> if n <= 1 then reply fib 1
                                  else do i <- sync fib (n-1)
                                          j <- sync fib (n-2)
-                                         reply fib (read i + read j)
+                                         reply fib (readResponse i + readResponse j)
     sync' fib i
 
 {- 'Count' example: -}
@@ -108,7 +108,7 @@ bufferExample = do
     i <- take b
     j <- take b
 
-    return $ read i + read j
+    return $ readResponse i + readResponse j
 
 -- | Only one subprocess may hold the lock at a time.
 -- =>"One" "Two" or "Two" "One". No intermingling.

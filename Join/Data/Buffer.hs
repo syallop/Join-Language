@@ -26,6 +26,6 @@ put :: MessageType a => Buffer a -> a -> Process ()
 put (Buffer (p,_)) = send p
 
 -- | Synchronously take a message on the buffer.
-take :: MessageType a => Buffer a -> Process (SyncVal a)
+take :: MessageType a => Buffer a -> Process (Response a)
 take (Buffer (_,t)) = syncSignal t
 

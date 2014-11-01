@@ -16,5 +16,5 @@ class Serialize m => MessageType m where
   decodeMessage :: ByteString -> Maybe m
   decodeMessage bs = case decode bs of
     Left _ -> Nothing
-    Right msg -> msg
+    Right msg -> Just msg
 instance Serialize m => MessageType m

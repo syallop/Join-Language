@@ -174,25 +174,25 @@ run p = mkState >>= (`runWith` p)
             -- To a channel, send a synchronous message.
             --
             -- - Create an internal replyChan for a response to be written to
-            --   and an encapsulating syncVal to return.
+            --   and an encapsulating response to return.
             -- - Concurrently wait on a value being written into the
-            --   replyChan to be passed into the external syncVal.
+            --   replyChan to be passed into the external response.
             -- - Add the message to the corresponding rule, concurrently
             --   executing any matching trigger that is returned.
             Sync s m
                 :>>= k -> do traceIO "SYNC"
                              replyChan <- newEmptyMVar
-                             syncVal   <- new
-                             forkIO $ waitOnReply replyChan syncVal
+                             response <- emptyResponse
+                             forkIO $ waitOnReply replyChan response
                              mProcCtx <- withRule' state (getId s) (\(rl,boxId) -> addMessage (encodeMessage m,Just replyChan) (getId s) rl)
                              case mProcCtx of
                                  Nothing
                                    -> do traceIO "/SYNC"
-                                         runWith state (k syncVal)
+                                         runWith state (k response)
                                  Just (p,replyCtx)
                                    -> do forkIO $ runWith (state{replyContext = replyCtx}) p
                                          traceIO "/SYNC triggered"
-                                         runWith state (k syncVal)
+                                         runWith state (k response)
 
             -- To a channel, reply with a synchronous message.
             --
@@ -227,14 +227,14 @@ run p = mkState >>= (`runWith` p)
     newRuleId = RuleId <$> newId
 
     -- Wait for a message to be written into an internal 'ReplyChan' to be
-    -- passed in turn to some external SyncVal which may be waiting for the
+    -- passed in turn to some external response which may be waiting for the
     -- reply.
-    waitOnReply :: MessageType a => ReplyChan -> SyncVal a -> IO ()
-    waitOnReply replyChan syncVal = do
+    waitOnReply :: MessageType r => ReplyChan -> Response r -> IO ()
+    waitOnReply replyChan response = do
         rawMsg <- takeMVar replyChan
         case decodeMessage rawMsg of
             Nothing -> error "Mistyped value in reply."
-            Just a -> write syncVal a
+            Just r -> writeResponse response r
 
     -- Determine which rules are overlapping with a list of ChanId's.
     overlappingRules :: State -> [ChanId] -> IO [Rule]

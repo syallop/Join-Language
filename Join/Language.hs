@@ -107,7 +107,7 @@ module Join.Language
     --   value to a 'Signal' channel ('Chan A ()').
     --
     -- - 'sync' is used to send a value to a synchronous Channel, returning
-    -- immediately with a 'SyncVal'. A reference to a reply value which can
+    -- immediately with a 'Response'. A reference to a reply value which can
     -- be 'wait'ed upon when the value is required.
     --
     -- - 'sync\'' is a variant of 'sync' which immediately blocks on a reply
@@ -227,6 +227,7 @@ import Join.Types
 
 import Control.Monad.Operational (ProgramT,singleton)
 import Control.Monad             (replicateM)
+import Control.Monad.IO.Class    (liftIO)
 import Data.Monoid
 
 -- | Type of atomic Join instructions.
@@ -261,10 +262,10 @@ data Instruction a where
                -> Instruction ()
 
     -- Send a value on a Synchronous Channel and wait for a result.
-    Sync       :: (MessageType a, MessageType r)   -- Message type can be serialized.
-               => SyncChan a r                 -- Channel sent and waited upon.
-               -> a                            -- Value sent.
-               -> Instruction (SyncVal r)      -- SyncVal encapsulated reply value.
+    Sync       :: (MessageType a, MessageType r) -- Message type can be serialized.
+               => SyncChan a r                   -- Channel sent and waited upon.
+               -> a                              -- Value sent.
+               -> Instruction (Response r)      -- Reply channel.
 
     -- Send a reply value on a Synchronous Channel.
     Reply      :: MessageType r                  -- Message type can be serialized.
@@ -339,23 +340,23 @@ spawn p = singleton $ Spawn p
 -- | Enter a single 'Sync' Instruction into Process.
 
 -- Send a message to a synchronous 'Channel', returning
--- a 'SyncVal' - a handle to the reply message which may be 'wait'ed upon
+-- a 'Response' - a handle to the reply message which may be 'wait'ed upon
 -- when needed.
-sync :: (MessageType a,MessageType r) => SyncChan a r -> a -> Process (SyncVal r)
+sync :: (MessageType a,MessageType r) => SyncChan a r -> a -> Process (Response r)
 sync s a = singleton $ Sync s a
 
 -- | Send messages to synchronous 'Channel's, returning a list
--- of 'SyncVal's - handles to the reply messages which may be 'wait'ed upon
+-- of 'Response's - handles to the reply messages which may be 'wait'ed upon
 -- when needed.
-syncAll :: (MessageType a,MessageType r) => [(SyncChan a r,a)] -> Process [SyncVal r]
+syncAll :: (MessageType a,MessageType r) => [(SyncChan a r,a)] -> Process [Response r]
 syncAll = mapM (uncurry sync)
 
--- | In a Process, block on a 'SyncVal'.
-wait :: SyncVal a -> Process a
-wait sv = return $! read sv
+-- | In a Process, block on a 'Response'.
+wait :: Response r -> Process r
+wait sv = return $! readResponse sv
 
--- | Block on many 'SyncVal's.
-waitAll :: [SyncVal a] -> Process [a]
+-- | Block on many 'Response's.
+waitAll :: [Response r] -> Process [r]
 waitAll = mapM wait
 
 -- | Send a message to a synchronous 'Channel', blocking on a reply value.
@@ -367,14 +368,14 @@ sync' s a = sync s a >>= wait
 syncAll' :: (MessageType a,MessageType r) => [(SyncChan a r,a)] -> Process [r]
 syncAll' = mapM (uncurry sync')
 
--- | Send a synchronous signal, returning a 'SyncVal' - a handle to the
+-- | Send a synchronous signal, returning a 'Response' - a handle to the
 -- reply message which may be 'wait'ed upon when needed.
-syncSignal :: MessageType r => SyncSignal r -> Process (SyncVal r)
+syncSignal :: MessageType r => SyncSignal r -> Process (Response r)
 syncSignal s = sync s ()
 
--- | Send synchronous signals returning a list of 'SyncVal's - handles
+-- | Send synchronous signals returning a list of 'Response's - handles
 -- to the reply messages which may be 'wait'ed upon when needed.
-syncSignalAll :: MessageType r => [SyncSignal r] -> Process [SyncVal r]
+syncSignalAll :: MessageType r => [SyncSignal r] -> Process [Response r]
 syncSignalAll = mapM syncSignal
 
 -- | Send a synchronous signal, blocking on a reply value.

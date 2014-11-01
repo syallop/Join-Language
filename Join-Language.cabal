@@ -55,7 +55,7 @@ library
                     , Join.Types.Channel
                     , Join.Types.Message
                     , Join.Types.Pattern
-                    , Join.Types.SyncVal
+                    , Join.Types.Response
 
                     , Join.Interpretation.Basic
 
@@ -106,7 +106,6 @@ library
                     , containers   >=0.5  && <0.6
                     , bytestring   >=0.10 && <0.11
                     , vector       >=0.10 && <0.11
-                    , ivar-simple  >=0.3  && <0.4
                     , random
                     , bimap
   
