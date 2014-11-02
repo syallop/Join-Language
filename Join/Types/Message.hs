@@ -2,14 +2,20 @@
             ,UndecidableInstances
   #-}
 module Join.Types.Message
-  (MessageType(encodeMessage,decodeMessage)
+  (MessageType(encodeMessage
+              ,decodeMessage
+              ,forgetMessageType
+              ,recallMessageType
+              )
   ,ByteString
   ) where
 
 import Data.ByteString
+import Data.Dynamic
 import Data.Serialize
 
-class Serialize m => MessageType m where
+class (Serialize m,Typeable m)
+   => MessageType m where
   encodeMessage :: m -> ByteString
   encodeMessage = encode
 
@@ -17,4 +23,12 @@ class Serialize m => MessageType m where
   decodeMessage bs = case decode bs of
     Left _ -> Nothing
     Right msg -> Just msg
-instance Serialize m => MessageType m
+
+  forgetMessageType :: m -> Dynamic
+  forgetMessageType = toDyn
+
+  recallMessageType :: Dynamic -> Maybe m
+  recallMessageType = fromDynamic
+
+instance (Serialize m,Typeable m) => MessageType m
+
