@@ -8,6 +8,7 @@ module Join.Types.Message
               ,recallMessageType
               )
   ,ByteString
+  ,Dynamic
   ) where
 
 import Data.ByteString
