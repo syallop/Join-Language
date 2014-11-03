@@ -160,7 +160,7 @@ import Join.Types.Message
 {- New pattern data types -}
 
 -- | Pattern type of matching 'Channel' messages when equal to some value.
-data ChannelEq a = forall s. MessageType a => ChannelEq (Channel s a) a
+data ChannelEq a = forall s. (Eq a,MessageType a) => ChannelEq (Channel s a) a
 
 -- | Infix 'ChannelEq'.
 --
@@ -171,7 +171,7 @@ data ChannelEq a = forall s. MessageType a => ChannelEq (Channel s a) a
 -- Is equivalent to:
 --
 -- @ c1 & c2&=1 & c3 @
-(&=) :: MessageType a => Channel s a -> a -> ChannelEq a
+(&=) :: (Eq a,MessageType a) => Channel s a -> a -> ChannelEq a
 infixr 8 &=
 (&=) = ChannelEq
 
@@ -206,11 +206,20 @@ instance Show (patL :&: patR) where show (And p q) = show p ++ " & " ++ show q
 
 {- Definition of runtime semantics -}
 
--- | How a message should be matched on a channel.
-data MatchType
-    = MatchAny              -- ^ Match any message
-    | MatchEqual ByteString -- ^ Match only equal messages
-    | MatchSignal           -- ^ Match signals - ()
+-- | How messages should be matched on a channel.
+data MatchType where
+
+  -- ^ Match messages which satisfy a predicate, 'ShouldPass' declaring
+  -- whether a matching message is passed into trigger functions or not.
+  MatchWhen :: MessageType m => (m -> Bool) -> ShouldPass -> MatchType
+
+  -- ^ Match any message with 'ShouldPass' declaring whether a matching message
+  -- is passed into trigger functions or not.
+  MatchAll  :: ShouldPass -> MatchType
+
+type ShouldPass = Bool
+pass = True
+keep = False
 
 -- | A 'PatternDescription' describes the runtime semantics of a pattern.
 --
@@ -218,17 +227,6 @@ data MatchType
 -- a message is waiting on each listed channel, as identified by the
 -- 'ChanId'. Each 'Channel' must in turn be matched according to it's
 -- 'MatchType'.
---
--- 'MatchType':
---
--- - MatchAny              => No restriction. Any available message
---                            counts as a match.
---
--- - MatchEqual ByteString => Only messages equal to the string should
---                            match.
---
--- - MatchSignal           => Special case of MatchAny when the underlying
---                            message-type has the shape of the unit type ().
 type PatternDescription = [(ChanId,MatchType)]
 
 -- | Class of pattern types 'pat' which can produce a description of their
@@ -240,9 +238,9 @@ type PatternDescription = [(ChanId,MatchType)]
 class Show pat
    => RawPattern pat where
     rawPattern :: pat -> PatternDescription
-instance RawPattern (Channel s ())  where rawPattern c               = [(getId c, MatchSignal)]
-instance RawPattern (Channel s a)   where rawPattern c               = [(getId c, MatchAny)]
-instance RawPattern (ChannelEq a)   where rawPattern (ChannelEq c a) = [(getId c, MatchEqual $ encodeMessage a)]
+instance RawPattern (Channel s ())  where rawPattern c               = [(getId c, MatchAll keep)]
+instance RawPattern (Channel s a)   where rawPattern c               = [(getId c, MatchAll pass)]
+instance RawPattern (ChannelEq a)   where rawPattern (ChannelEq c a) = [(getId c, MatchWhen (== a) keep)]
 instance RawPattern (patL :&: patR) where rawPattern (And p q)       = rawPattern p ++ rawPattern q
 
 

@@ -113,14 +113,6 @@ mkRule desc rId = rule
     uninitialisedMessageBoxes :: MessageBoxes
     uninitialisedMessageBoxes = Map.fromList $ zip (Bimap.keysR chanMapping) (repeat emptyMessageBox)
 
-    -- Transform the input description, replacing the MatchTypes in the PatternDescription by
-    -- a (Maybe (Message -> Bool), Bool) which describes:
-    -- - Whether the matched channel has a messagepredicate which must
-    --   succeed to trigger a match
-    -- - whether matched values should be passed into the trigger function.
-    internalDesc :: [([(ChanId, (Maybe (Message -> Bool), Bool))],TriggerF Inert)]
-    internalDesc = map (first $ map $ second mkMaybePredicate) desc
-
     -- Complete built rule
     rule :: Rule
     rule = let uninitialisedRule = Rule
@@ -153,7 +145,7 @@ mkRule desc rId = rule
                                                                 in (accRl',nextStatusIx',storedPatterns ++ [storedPattern])
                                                         )
                                                         (uninitialisedRule,Set.size cIds,[])
-                                                        internalDesc
+                                                        desc
                status                           = mkStatus (nextStatusIx) -- -1
                patterns                         = buildStatusPatterns storedPatterns (_statusIxs rl) (nextStatusIx) -- -1
              in rl{_status   = status
@@ -181,37 +173,29 @@ mkRule desc rId = rule
     -- - Mapping the subBox MessageLocations to StatusIxs
     --
     -- In addition, thread an 'Int' representing the next free StatusIx.
-    preparePatternClause :: ([(ChanId, (Maybe (Message -> Bool),Bool))],TriggerF Inert) -- ^ Single internal pattern clause.
+    preparePatternClause :: ([(ChanId, MatchType)],TriggerF Inert) -- ^ Single internal pattern clause.
                          -> Rule -> Int -> (Rule,Int,StoredPattern)
     preparePatternClause (idesc,trigger) rl nextStatusIx =
       let (rl',nextStatusIx',reqMsgs) = foldr preparePatternClause' (rl,nextStatusIx,[]) idesc
          in (rl',nextStatusIx',StoredPattern (reverse reqMsgs) trigger)
       where
-        preparePatternClause' :: (ChanId, (Maybe (Message -> Bool), Bool)) -> (Rule,Int,RequiredMessages) -> (Rule,Int,RequiredMessages)
-        preparePatternClause' (chanId,(mpred,shouldPass)) (accRl, nextStatusIx,reqMsgs) =
+        preparePatternClause' :: (ChanId, MatchType) -> (Rule,Int,RequiredMessages) -> (Rule,Int,RequiredMessages)
+        preparePatternClause' (chanId,matchType) (accRl, nextStatusIx,reqMsgs) =
            let boxId  = fromJust $ Bimap.lookup chanId (_chanMapping accRl)
                msgBox = fromJust $ Map.lookup boxId (_messageBoxes accRl)
-              in case mpred of
-                  Nothing   -> (accRl
-                               ,nextStatusIx
-                               ,reqMsgs ++ [(boxId,Nothing,shouldPass)]
-                               )
+              in case matchType of
+                  MatchAll shouldPass -> (accRl
+                                         ,nextStatusIx
+                                         ,reqMsgs ++ [(boxId,Nothing,shouldPass)]
+                                         )
 
-                  Just pred -> let (msgBox',boxIx) = addSubBox pred msgBox
-                                  in (accRl{_messageBoxes = Map.insert boxId msgBox' (_messageBoxes accRl)
-                                           ,_statusIxs    = Map.insert (boxId,Just boxIx) nextStatusIx (_statusIxs accRl)
-                                           }
-                                     ,nextStatusIx+1
-                                     ,reqMsgs ++ [(boxId,Just boxIx,shouldPass)]
-                                     )
-
-    -- Convert an external 'MatchType' to a possible message predicate
-    -- which decides whether messages match, and a flag describing whether
-    -- matching messages should be passed.
-    mkMaybePredicate :: MatchType -> (Maybe (Message -> Bool),Bool)
-    mkMaybePredicate MatchAny        = (Nothing,True)
-    mkMaybePredicate (MatchEqual bs) = (Just $ \(rawMsg,_) -> rawMsg == bs,False)
-    mkMaybePredicate (MatchSignal)   = (Just $ \(rawMsg,_) -> rawMsg == encodeMessage (),False)
+                  MatchWhen pred shouldPass -> let (msgBox',boxIx) = addSubBox (\(m,_) -> pred (fromJust $ decodeMessage m)) msgBox
+                                                  in (accRl{_messageBoxes = Map.insert boxId msgBox' (_messageBoxes accRl)
+                                                           ,_statusIxs    = Map.insert (boxId,Just boxIx) nextStatusIx (_statusIxs accRl)
+                                                           }
+                                                     ,nextStatusIx+1
+                                                     ,reqMsgs ++ [(boxId,Just boxIx,shouldPass)]
+                                                     )
 
 -- | Add a message on a contained 'ChanId', returning a 'Process' and
 -- 'ReplyCtx' if triggered.
