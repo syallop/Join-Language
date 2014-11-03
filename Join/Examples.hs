@@ -21,6 +21,8 @@ import Control.Concurrent (threadDelay)
 import Control.Monad (liftM,replicateM_,replicateM)
 import Control.Monad.IO.Class
 
+
+
 -- | Countdown all values to 0.
 countDown :: Int -> Process ()
 countDown n = do
@@ -136,4 +138,17 @@ barrierExample = do
         liftIO $ putStrLn "r"
         signalRight b
 
+-- | Use '&~' patterns to filter 5..15 on <10 / >=10
+predExample :: Process ()
+predExample = do
+  intChannel <- newChannel :: Process (Chan Int)
+  printLock  <- mkLock
+
+  def $ (intChannel        |> \i -> withLock printLock $
+                                      liftIO $ putStrLn $ show i ++ " is greater than or equal to 10")
+     |$ (intChannel&~(<10) |> \i -> withLock printLock $
+                                      liftIO $ putStrLn $ show i ++ " is less than 10")
+
+  liftIO $ putStrLn "Sending numbers 5..15"
+  sendAll [(intChannel,i) | i <- [5..15]]
 
