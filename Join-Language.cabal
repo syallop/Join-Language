@@ -76,6 +76,7 @@ library
                     , Join.Interpretation.Basic.MessageBox
                     , Join.Interpretation.Basic.Rule
                     , Join.Interpretation.Basic.Status
+                    , Join.Interpretation.Basic.TypedMessageBox
   
   -- LANGUAGE extensions used by modules in this package.
   other-extensions:   DataKinds

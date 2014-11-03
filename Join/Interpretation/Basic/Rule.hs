@@ -189,7 +189,7 @@ mkRule desc rId = rule
                                          ,reqMsgs ++ [(boxId,Nothing,shouldPass)]
                                          )
 
-                  MatchWhen pred shouldPass -> let (msgBox',boxIx) = addSubBox (\(m,_) -> pred (fromJust $ decodeMessage m)) msgBox
+                  MatchWhen pred shouldPass -> let (msgBox',boxIx) = addSubBox (\m -> pred (fromJust $ decodeMessage m)) msgBox
                                                   in (accRl{_messageBoxes = Map.insert boxId msgBox' (_messageBoxes accRl)
                                                            ,_statusIxs    = Map.insert (boxId,Just boxIx) nextStatusIx (_statusIxs accRl)
                                                            }
@@ -280,9 +280,9 @@ addMessage msg cId rl
            in (rl',(unsafeApply trigger rawMsgs,replyCtx))
 
     -- Currently not unsetting sub-box indexes when removed
-    takeMessages :: RequiredMessages -> Rule -> (Rule,[RawMessage],ReplyCtx)
+    takeMessages :: RequiredMessages -> Rule -> (Rule,[ByteString],ReplyCtx)
     takeMessages reqMsgs rl = foldr f (rl,[],Map.empty) reqMsgs
-      where f :: RequiredMessage -> (Rule,[RawMessage],ReplyCtx) -> (Rule,[RawMessage],ReplyCtx)
+      where f :: RequiredMessage -> (Rule,[ByteString],ReplyCtx) -> (Rule,[ByteString],ReplyCtx)
             f reqMsg@(boxId,_,_) (accRl,accRawMsgs,accReplyCtx) =
               let (accRl',mRawMsg,mReplyChan) = takeMessage reqMsg accRl
                  in (accRl'
@@ -292,7 +292,7 @@ addMessage msg cId rl
 
     -- Given a RequiredMessage description (which is known will succeed)
     -- , take the Message from a Rule.
-    takeMessage :: RequiredMessage -> Rule -> (Rule,Maybe RawMessage, Maybe ReplyChan)
+    takeMessage :: RequiredMessage -> Rule -> (Rule,Maybe ByteString, Maybe ReplyChan)
     takeMessage (boxId,mBoxIx,shouldPass) rl =
         let msgBox          = getMessageBox boxId rl
             (strdMsg,
