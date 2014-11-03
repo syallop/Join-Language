@@ -90,6 +90,11 @@ module Join.Types.Pattern
     -- I.E. @ boolChan&=False |> (trigger :: return) @
     -- NOT  @ boolChan&=False |> (trigger :: Bool -> return) @
     --
+    -- *** Matching arbitrary predicates on a channel
+    -- | A ChannelPred pattern is declared infix via '&~'. This declares a pattern
+    -- that matches messages sent on the channel ONLY when they satisfy some predicate.
+    --
+    -- E.G. @ intChan&~(<10) |> (trigger :: Int -> return) @
     --
     -- *** Matching multiple patterns in a clause
     -- | Multiple patterns can be composed with an '&' pattern, declared
@@ -144,6 +149,7 @@ module Join.Types.Pattern
     , rawPattern, PatternDescription, MatchType(..)
     , (&)
     , (&=)
+    , (&~)
 
     , MessageDropped
     , MessagePassed
@@ -176,6 +182,25 @@ infixr 8 &=
 (&=) = ChannelEq
 
 instance Show (ChannelEq a) where show (ChannelEq c a) = show c ++ "&=" ++ show (encodeMessage a)
+
+-- | Pattern type of matching 'Channel' messages when they satisfy some predicate.
+data ChannelPred a = forall s. (MessageType a) => ChannelPred (Channel s a) (a -> Bool)
+
+-- | Infix 'ChannelPred'.
+--
+-- Right associative and with greater precedence than '&' means:
+--
+-- @ c1 & (c2&~(<10) & c3) @
+--
+-- Is equivalent to:
+--
+-- @ c1 7 c2&~(<10) & c3 @
+(&~) :: (MessageType a) => Channel s a -> (a -> Bool) -> ChannelPred a
+infixr 8 &~
+(&~) = ChannelPred
+
+instance Show (ChannelPred a) where show (ChannelPred c p) = show c ++ "&~" ++ "SOMEPRED"
+
 
 -- | Pattern type of matching on a conjunction of patterns.
 data patL :&: patR where
@@ -238,10 +263,11 @@ type PatternDescription = [(ChanId,MatchType)]
 class Show pat
    => RawPattern pat where
     rawPattern :: pat -> PatternDescription
-instance RawPattern (Channel s ())  where rawPattern c               = [(getId c, MatchAll keep)]
-instance RawPattern (Channel s a)   where rawPattern c               = [(getId c, MatchAll pass)]
-instance RawPattern (ChannelEq a)   where rawPattern (ChannelEq c a) = [(getId c, MatchWhen (== a) keep)]
-instance RawPattern (patL :&: patR) where rawPattern (And p q)       = rawPattern p ++ rawPattern q
+instance RawPattern (Channel s ())  where rawPattern c                 = [(getId c, MatchAll keep)]
+instance RawPattern (Channel s a)   where rawPattern c                 = [(getId c, MatchAll pass)]
+instance RawPattern (ChannelEq a)   where rawPattern (ChannelEq c a)   = [(getId c, MatchWhen (== a) keep)]
+instance RawPattern (ChannelPred a) where rawPattern (ChannelPred c p) = [(getId c, MatchWhen p pass)]
+instance RawPattern (patL :&: patR) where rawPattern (And p q)         = rawPattern p ++ rawPattern q
 
 
 
@@ -252,6 +278,7 @@ instance RawPattern (patL :&: patR) where rawPattern (And p q)       = rawPatter
 type family PatternTrigger pat r :: * where
     PatternTrigger (Channel s a)   r = ChannelTrigger a (ShouldPassMessage a) r
     PatternTrigger (ChannelEq a)   r = r
+    PatternTrigger (ChannelPred a) r = a -> r
     PatternTrigger (patL :&: patR) r = PatternTrigger patL (PatternTrigger patR r)
 
 -- | Type function. Given a 'Channel' message type 'a', and a return type
