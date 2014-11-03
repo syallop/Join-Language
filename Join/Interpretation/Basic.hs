@@ -153,7 +153,7 @@ run p = mkState >>= (`runWith` p)
             -- executing any matching trigger that is returned.
             Send c m
                 :>>= k -> do traceIO "SEND"
-                             mProcCtx <- withRule' state (getId c) (\(rl,boxId) -> addMessage (encodeMessage m,Nothing) (getId c) rl)
+                             mProcCtx <- withRule' state (getId c) (\(rl,boxId) -> addMessage (forgetMessageType m,Nothing) (getId c) rl)
                              case mProcCtx of
                                  Nothing
                                    -> do traceIO "/SEND"
@@ -184,7 +184,7 @@ run p = mkState >>= (`runWith` p)
                              replyChan <- newEmptyMVar
                              response <- emptyResponse
                              forkIO $ waitOnReply replyChan response
-                             mProcCtx <- withRule' state (getId s) (\(rl,boxId) -> addMessage (encodeMessage m,Just replyChan) (getId s) rl)
+                             mProcCtx <- withRule' state (getId s) (\(rl,boxId) -> addMessage (forgetMessageType m,Just replyChan) (getId s) rl)
                              case mProcCtx of
                                  Nothing
                                    -> do traceIO "/SYNC"
@@ -202,7 +202,7 @@ run p = mkState >>= (`runWith` p)
             Reply s m
                 :>>= k -> do traceIO "REPLY"
                              let replyChan = lookupReplyChan state (getId s)
-                             putMVar replyChan (encodeMessage m)
+                             putMVar replyChan (forgetMessageType m)
                              traceIO "/REPLY"
                              runWith state (k ())
 
@@ -232,7 +232,7 @@ run p = mkState >>= (`runWith` p)
     waitOnReply :: MessageType r => ReplyChan -> Response r -> IO ()
     waitOnReply replyChan response = do
         rawMsg <- takeMVar replyChan
-        case decodeMessage rawMsg of
+        case recallMessageType rawMsg of
             Nothing -> error "Mistyped value in reply."
             Just r -> writeResponse response r
 

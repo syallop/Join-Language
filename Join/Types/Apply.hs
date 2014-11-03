@@ -24,17 +24,17 @@ instance Show (Application r) where
     show Shortage = "Too few arguments."
     show Mistyped = "Mistyped arguments."
 
--- | Class of types 'f' which may be applied to a sequence of ByteString
+-- | Class of types 'f' which may be applied to a sequence of Dynamic
 -- parameters, resulting in a value of type 'r'.
 --
 -- 'apply' may be used in interpreters to run Join-Definition trigger
 -- function on messages that have been deemed to match the corresponding
 -- pattern.
 class Apply f r where
-    apply :: f -> [ByteString] -> Application r
+    apply :: f -> [Dynamic] -> Application r
 
 instance (MessageType a, Apply b r) => Apply (a -> b) r where
-    apply f (m:ms) = case decodeMessage m of
+    apply f (m:ms) = case recallMessageType m of
         Nothing -> Mistyped
         Just v -> apply (f v) ms
     apply _ [] = Shortage
@@ -51,7 +51,7 @@ instance Apply r r where
 -- expected by 'f'.
 --
 -- - Each argument decodes to the corresponding expected type.
-unsafeApply :: Apply f r => f -> [ByteString] -> r
+unsafeApply :: Apply f r => f -> [Dynamic] -> r
 unsafeApply f ms = case apply f ms of
     Result r -> r
     failure  -> error $ show failure

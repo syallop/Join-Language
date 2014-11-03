@@ -1,4 +1,4 @@
-module Join.Interpretation.Basic.MessageBox
+module Join.Interpretation.Basic.DynamicMessageBox
   (
   -- * Types
    Message
@@ -46,24 +46,24 @@ import Join.Interpretation.Basic.TypedMessageBox (BoxId(..)
                                                  ,SubBoxes
                                                  )
 
-type Message = T.Message ByteString ByteString
+type Message = T.Message Dynamic Dynamic
 
-type ReplyChan = T.ReplyChan ByteString
+type ReplyChan = T.ReplyChan Dynamic
 
-type MessagePredicate = T.MessagePredicate ByteString
+type MessagePredicate = T.MessagePredicate Dynamic
 
-type MessagePredicates = T.MessagePredicates ByteString
+type MessagePredicates = T.MessagePredicates Dynamic
 
-type MessageBox = T.MessageBox ByteString ByteString
+type MessageBox = T.MessageBox Dynamic Dynamic
 
-type StoredMessages = T.StoredMessages ByteString ByteString
+type StoredMessages = T.StoredMessages Dynamic Dynamic
 
-type StoredMessage = T.StoredMessage ByteString ByteString
+type StoredMessage = T.StoredMessage Dynamic Dynamic
 
 emptyMessageBox :: MessageBox
 emptyMessageBox = T.emptyMessageBox
 
-addSubBox :: (ByteString -> Bool) -> MessageBox -> (MessageBox,BoxIx)
+addSubBox :: (Dynamic -> Bool) -> MessageBox -> (MessageBox,BoxIx)
 addSubBox = T.addSubBox
 
 insertMessage :: Message -> MessageBox -> MessageBox
@@ -87,7 +87,7 @@ message = T.message
 allStoredMessages :: MessageBox -> Set.Set StoredMessage
 allStoredMessages = T.allStoredMessages
 
-matches :: (ByteString -> Bool) ->  StoredMessage -> Bool
+matches :: (Dynamic -> Bool) ->  StoredMessage -> Bool
 matches = T.matches
 
 noStoredMessages :: MessageBox -> Bool

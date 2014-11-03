@@ -73,7 +73,7 @@ library
 
   -- Modules included in this library but not exported.
   other-modules:      Join.Interpretation.Basic.Debug
-                    , Join.Interpretation.Basic.MessageBox
+                    , Join.Interpretation.Basic.DynamicMessageBox
                     , Join.Interpretation.Basic.Rule
                     , Join.Interpretation.Basic.Status
                     , Join.Interpretation.Basic.TypedMessageBox
