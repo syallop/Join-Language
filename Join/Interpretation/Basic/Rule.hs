@@ -22,6 +22,7 @@ module Join.Interpretation.Basic.Rule
     ) where
 
 import Join
+import Join.Types.Pattern.Rep.Simple
 
 import Join.Interpretation.Basic.Debug
 import Join.Interpretation.Basic.DynamicMessageBox
@@ -44,7 +45,6 @@ newtype RuleId = RuleId {unRuleId :: Int} deriving Show
 -- the clause to match alongside a 'TriggerF' - the trigger function
 -- the matching messages should be passed to.
 data StoredPattern = StoredPattern RequiredMessages (TriggerF Inert) deriving Show
-instance Show (TriggerF r) where show _ = "TRIGGERF"
 
 -- | Ordered list of 'RequiredMessage's
 type RequiredMessages = [RequiredMessage]

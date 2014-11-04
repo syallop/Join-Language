@@ -54,7 +54,15 @@ library
                     , Join.Types.Apply
                     , Join.Types.Channel
                     , Join.Types.Message
-                    , Join.Types.Pattern
+
+                    , Join.Types.Pattern.Clause
+                    , Join.Types.Pattern.Clauses
+                    , Join.Types.Pattern.Channel
+                    , Join.Types.Pattern.Eq
+                    , Join.Types.Pattern.Patterns
+                    , Join.Types.Pattern.Pred
+                    , Join.Types.Pattern.Rep
+                    , Join.Types.Pattern.Rep.Simple
                     , Join.Types.Response
 
                     , Join.Interpretation.Basic
@@ -72,7 +80,9 @@ library
                     , Join.Data.Timeout
 
   -- Modules included in this library but not exported.
-  other-modules:      Join.Interpretation.Basic.Debug
+  other-modules:      Join.Types.Pattern.Rep.Definition
+                    , Join.Types.Pattern.Rep.Pattern
+                    , Join.Interpretation.Basic.Debug
                     , Join.Interpretation.Basic.DynamicMessageBox
                     , Join.Interpretation.Basic.Rule
                     , Join.Interpretation.Basic.Status

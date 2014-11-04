@@ -14,6 +14,7 @@ module Join.Interpretation.Basic
 import Prelude hiding (lookup)
 
 import Join
+import Join.Types.Pattern.Rep.Simple
 import Join.Interpretation.Basic.Debug
 import Join.Interpretation.Basic.Rule
 

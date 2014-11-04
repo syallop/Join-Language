@@ -9,6 +9,7 @@
             ,TypeSynonymInstances
  #-}
 
+
 {-# OPTIONS_HADDOCK prune #-}
 {-|
 Module      : Join.Language
@@ -100,7 +101,7 @@ module Join.Language
     -- After a Channel has been defined, it may be sent messages is
     -- a number of distinct ways:
     --
-    -- - 'send' is used to value on an asynchronous Channel, returning
+    -- - 'send' is used to send a value on an asynchronous Channel, returning
     -- immediately with no return value.
     --
     -- - 'signal' is a convenience for 'send c ()' "signaling" the unit
@@ -216,7 +217,7 @@ module Join.Language
     -- functions which should only be required directly in the
     -- implementation of interpreters.
     , Instruction(..)
-    , Pattern(..)
+    , Definitions
     , Apply
     , apply
     ) where
@@ -224,6 +225,7 @@ module Join.Language
 import Prelude hiding (read)
 
 import Join.Types
+import Join.Types.Pattern.Rep
 
 import Control.Monad.Operational (ProgramT,singleton)
 import Control.Monad             (replicateM)
@@ -243,9 +245,9 @@ import Data.Monoid
 data Instruction a where
 
     -- Join definition.
-    Def       :: JoinDefinition jdef Inert     -- Define a JoinDefinition with Inert triggers.
-              => jdef
-              -> Instruction ()
+    Def :: Definitions t tss Inert
+        => t
+        -> Instruction ()
 
     -- Request a new typed Channel.
     NewChannel :: (InferSync s, MessageType a) -- Synchronicity can be inferred, 'a' is a 'MessageType'.
@@ -294,7 +296,7 @@ type Process a = ProgramT Instruction IO a
 -- Says that when ci (which may be inferred to have type :: Channel S Int)
 -- receives a message, it is passed to the RHS function which increments it
 -- and passes it back.
-def :: JoinDefinition jdef Inert => jdef -> Process ()
+def :: Definitions t tss Inert => t -> Process ()
 def p = singleton $ Def p
 
 -- | Enter a single 'NewChannel' Instruction into Process.

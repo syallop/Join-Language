@@ -6,9 +6,15 @@ Stability   : experimental
 
 This module re-exports the core underlying types used to implement the Join Language:
 
-"Join.Types.Channel"
+- "Join.Types.Apply"
 
-"Join.Types.SyncVal"
+- "Join.Types.Channel"
+
+- "Join.Types.Message"
+
+- "Join.Types.Response"
+
+- "Join.Types.Pattern"
 -}
 module Join.Types
     ( module I
