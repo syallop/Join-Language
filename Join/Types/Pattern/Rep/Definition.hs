@@ -47,7 +47,7 @@ instance Show (Trigger f r) where show _ = "TRIGGER"
 -- | Represent a single definition item.
 data DefinitionRep ts tr r where
   Definition :: (HasTriggerType ts tr r,Apply tr r)
-             => PatternsRep s m p ts -- ^ Pattern(s) to match upon.
+             => PatternsRep ts       -- ^ Pattern(s) to match upon.
              -> Trigger tr r         -- ^ A corresponding trigger function to fire upon match.
              -> DefinitionRep ts tr r
 

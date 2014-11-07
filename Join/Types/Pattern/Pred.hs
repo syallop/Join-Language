@@ -31,6 +31,6 @@ infixr 8 &~
 instance Pattern (ChannelPred s a) s a Pass
   where toPatternRep (ChannelPred c p) = Pattern c (MatchWhen p) DoPass
 
-instance Patterns (ChannelPred s a) s a Pass '[PatternRep s a Pass]
+instance Patterns (ChannelPred s a) '[PatternRep s a Pass]
   where toPatternsRep (ChannelPred c p) = OnePattern $ Pattern c (MatchWhen p) DoPass
 

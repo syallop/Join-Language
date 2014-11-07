@@ -36,20 +36,20 @@ import Join.Types.Pattern.Rep
 -- - @ intChan & boolEq @ => @ trigger :: Int -> return @
 --
 -- - @ intChan & boolEq & charChan @ => @ trigger :: Int -> Char -> return @
-data And s m p (ts :: [*]) where
-  And :: (Pattern t s m p,Patterns t' s' m' p' ts)
+data And (ts :: [*]) where
+  And :: (Pattern t s m p,Patterns t' ts)
       => t
       -> t'
-      -> And s m p ((PatternRep s m p) ': ts)
+      -> And ((PatternRep s m p) ': ts)
 
 -- | Infix 'And'.
-(&) :: (Pattern t s m p,Patterns t' s' m' p' ts)
+(&) :: (Pattern t s m p,Patterns t' ts)
       => t
       -> t'
-      -> And s m p ((PatternRep s m p) ': ts)
+      -> And ((PatternRep s m p) ': ts)
 infixr 7 &
 (&) = And
 
-instance Patterns (And s m p ts) s m p ts
+instance Patterns (And ts) ts
   where toPatternsRep (And p p') = AndPattern (toPatternRep p) (toPatternsRep p')
 

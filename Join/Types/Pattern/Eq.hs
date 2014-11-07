@@ -39,6 +39,6 @@ instance Show (ChannelEq s a)
 instance Pattern (ChannelEq s a) s a Keep
   where toPatternRep (ChannelEq c a) = Pattern c (MatchWhen (== a)) DontPass
 
-instance Patterns (ChannelEq s a) s a Keep '[PatternRep s a Keep]
+instance Patterns (ChannelEq s a) '[PatternRep s a Keep]
   where toPatternsRep (ChannelEq c a) = OnePattern $ Pattern c (MatchWhen (== a)) DontPass
 

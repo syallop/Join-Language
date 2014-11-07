@@ -16,13 +16,13 @@ import Join.Types.Pattern.Rep
 --
 -- Declared infix via '|>'.
 data DefinitionClause ts tr r where
-  DefinitionClause :: (Patterns pat s a p ts,HasTriggerType ts tr r,Apply tr r)
+  DefinitionClause :: (Patterns pat ts,HasTriggerType ts tr r,Apply tr r)
                 => pat
                 -> tr
                 -> DefinitionClause ts tr r
 
 -- | Infix 'DefinitionClause'.
-(|>) :: (Patterns pat s a p ts,HasTriggerType ts tr r,Apply tr r)
+(|>) :: (Patterns pat ts,HasTriggerType ts tr r,Apply tr r)
                 => pat
                 -> tr
                 -> DefinitionClause ts tr r

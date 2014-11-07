@@ -25,7 +25,7 @@ type ChannelPattern s a = Channel s a
 instance (MessageType a,DecideChannelShouldPass a p,ShouldPassValue p) => Pattern (Channel s a) s a p
   where toPatternRep c = Pattern c MatchAll (shouldPassValue (undefined :: p))
 
-instance (MessageType a,DecideChannelShouldPass a p,ShouldPassValue p) => Patterns (Channel s a) s a p '[PatternRep s a p]
+instance (MessageType a,DecideChannelShouldPass a p,ShouldPassValue p) => Patterns (Channel s a) '[PatternRep s a p]
   where toPatternsRep c = OnePattern $ Pattern c MatchAll (shouldPassValue (undefined :: p))
 
 class ShouldPassValue p

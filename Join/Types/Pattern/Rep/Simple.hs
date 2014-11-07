@@ -59,7 +59,7 @@ simplifyDefinitionsRep (AndDefinition dr dsr) = simplifyDefinitionRep dr : simpl
 simplifyDefinitionRep :: DefinitionRep ts tr r -> (PatternDescription,TriggerF r)
 simplifyDefinitionRep (Definition pr tr) = (simplifyPatternsRep pr,simplifyTrigger tr)
 
-simplifyPatternsRep :: PatternsRep s m p tr -> PatternDescription
+simplifyPatternsRep :: PatternsRep tr -> PatternDescription
 simplifyPatternsRep (OnePattern pr)     = [simplifyPatternRep pr]
 simplifyPatternsRep (AndPattern pr psr) = simplifyPatternRep pr : simplifyPatternsRep psr
 

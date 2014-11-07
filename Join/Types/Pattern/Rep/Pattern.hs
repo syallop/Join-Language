@@ -108,17 +108,17 @@ data PatternRep s m p where
 --
 -- Note: There is purposefully no notion of an 'empty pattern'
 -- so a 'PatternsRep' contains 1..n but never 0 'PatternRep's.
-data PatternsRep s m p (ts :: [*]) where
+data PatternsRep (ts :: [*]) where
 
   -- ^ A single 'PatternRep'
   OnePattern :: PatternRep s m p
-             -> PatternsRep s m p '[PatternRep s m p]
+             -> PatternsRep '[PatternRep s m p]
 
   -- ^ A composite pattern where all contained 'PatternRep's
   -- must match for the whole to be considered matched.
   AndPattern :: PatternRep s m p
-             -> PatternsRep s' m' p' ts
-             -> PatternsRep s m p ((PatternRep s m p) ': ts)
+             -> PatternsRep ts
+             -> PatternsRep ((PatternRep s m p) ': ts)
 
 -- | Class of types which can be converted to a single pattern.
 class Pattern t s m p | t -> s m p
@@ -129,6 +129,6 @@ instance Pattern (PatternRep s m p) s m p
   where toPatternRep t = t
 
 -- | Class of types which can be converted to one or many patterns.
-class Patterns t s m p ts | t -> s m p ts
-  where toPatternsRep :: t -> PatternsRep s m p ts
+class Patterns t ts | t -> ts
+  where toPatternsRep :: t -> PatternsRep ts
 
