@@ -13,6 +13,8 @@ import Join.Types.Pattern.Rep
 import Join.Types.Channel
 import Join.Types.Message
 
+import Data.Typeable
+
 -- | Pattern type of matching messages sent on a 'Channel' ONLY when they satisfy
 -- some predicate.
 --
@@ -28,9 +30,9 @@ data ChannelPred s a = MessageType a => ChannelPred (Channel s a) (a -> Bool)
 infixr 8 &~
 (&~) = ChannelPred
 
-instance Pattern (ChannelPred s a) s a Pass
+instance Typeable s => Pattern (ChannelPred s a) s a Pass
   where toPatternRep (ChannelPred c p) = Pattern c (MatchWhen p) DoPass
 
-instance Patterns (ChannelPred s a) '[PatternRep s a Pass]
+instance Typeable s => Patterns (ChannelPred s a) '[PatternRep s a Pass]
   where toPatternsRep (ChannelPred c p) = OnePattern $ Pattern c (MatchWhen p) DoPass
 

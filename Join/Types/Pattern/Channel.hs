@@ -13,6 +13,8 @@ import Join.Types.Pattern.Rep
 import Join.Types.Channel
 import Join.Types.Message
 
+import Data.Typeable
+
 -- | The simplest pattern is a 'Channel s a' type.
 -- This declares a pattern that matches all messages sent on the 'Channel'.
 --
@@ -22,10 +24,16 @@ import Join.Types.Message
 -- The corresponding trigger type therefore does not accept a value.
 type ChannelPattern s a = Channel s a
 
-instance (MessageType a,DecideChannelShouldPass a p,ShouldPassValue p) => Pattern (Channel s a) s a p
+instance (MessageType a
+         ,Typeable s
+         ,DecideChannelShouldPass a p
+         ,ShouldPassValue p) => Pattern (Channel s a) s a p
   where toPatternRep c = Pattern c MatchAll (shouldPassValue (undefined :: p))
 
-instance (MessageType a,DecideChannelShouldPass a p,ShouldPassValue p) => Patterns (Channel s a) '[PatternRep s a p]
+instance (MessageType a
+         ,Typeable s
+         ,DecideChannelShouldPass a p
+         ,ShouldPassValue p) => Patterns (Channel s a) '[PatternRep s a p]
   where toPatternsRep c = OnePattern $ Pattern c MatchAll (shouldPassValue (undefined :: p))
 
 class ShouldPassValue p

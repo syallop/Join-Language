@@ -6,6 +6,8 @@
             ,KindSignatures
             ,MultiParamTypeClasses
             ,PolyKinds
+            ,RankNTypes
+            ,ScopedTypeVariables
             ,TypeFamilies
             ,TypeOperators
             ,UndecidableInstances
@@ -35,10 +37,17 @@ module Join.Types.Pattern.Rep.Definition
   -- * Definition Syntax extensibility
   ,Definition(..)
   ,Definitions(..)
+
+  ,foldDefinitionsRep
+
+  ,uniqueIds
   ) where
 
 import Join.Types.Apply
+import Join.Types.Channel
 import Join.Types.Pattern.Rep.Pattern
+
+import qualified Data.Set as Set
 
 -- | A 'Trigger f r' is a function 'f' with an 'Apply f r' constraint.
 data Trigger f r = Apply f r => Trigger f
@@ -98,4 +107,20 @@ class Definition t ts tr r | t -> ts tr r
 -- | Class of types which can be converted to one or many definitions.
 class Definitions t tss r | t -> tss r
   where toDefinitionsRep :: t -> DefinitionsRep tss r
+
+foldDefinitionsRep :: (forall ts tr r. DefinitionRep ts tr r -> acc -> acc)
+                   -> acc
+                   -> DefinitionsRep tss r
+                   -> acc
+foldDefinitionsRep f acc (OneDefinition dr)     = f dr acc
+foldDefinitionsRep f acc (AndDefinition dr drs) = foldDefinitionsRep f (f dr acc) drs
+
+uniqueIds :: DefinitionsRep tss r -> Set.Set ChanId
+uniqueIds dr = foldDefinitionsRep uniqueIds' Set.empty dr
+  where
+    uniqueIds' :: DefinitionRep ts tr r -> Set.Set ChanId -> Set.Set ChanId
+    uniqueIds' (Definition pr _) acc = foldPatternsRep uniqueIds'' acc pr
+
+    uniqueIds'' :: PatternRep s m p -> Set.Set ChanId -> Set.Set ChanId
+    uniqueIds'' (Pattern c _ _) acc = Set.insert (getId c) acc
 

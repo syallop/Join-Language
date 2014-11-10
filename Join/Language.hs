@@ -229,7 +229,6 @@ import Join.Types.Pattern.Rep
 
 import Control.Monad.Operational (ProgramT,singleton)
 import Control.Monad             (replicateM)
-import Control.Monad.IO.Class    (liftIO)
 import Data.Monoid
 
 -- | Type of atomic Join instructions.

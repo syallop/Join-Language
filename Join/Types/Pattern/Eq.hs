@@ -13,6 +13,8 @@ import Join.Types.Pattern.Rep
 import Join.Types.Channel
 import Join.Types.Message
 
+import Data.Typeable
+
 -- | Pattern type of matching messages sent on a 'Channel' ONLY when they
 -- are equal ('==') to some given value.
 --
@@ -36,9 +38,9 @@ infixr 8 &=
 instance Show (ChannelEq s a)
   where show (ChannelEq c a) = show c ++ "&=" ++ show (encodeMessage a)
 
-instance Pattern (ChannelEq s a) s a Keep
+instance Typeable s => Pattern (ChannelEq s a) s a Keep
   where toPatternRep (ChannelEq c a) = Pattern c (MatchWhen (== a)) DontPass
 
-instance Patterns (ChannelEq s a) '[PatternRep s a Keep]
+instance Typeable s => Patterns (ChannelEq s a) '[PatternRep s a Keep]
   where toPatternsRep (ChannelEq c a) = OnePattern $ Pattern c (MatchWhen (== a)) DontPass
 

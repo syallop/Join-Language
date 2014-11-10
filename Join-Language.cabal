@@ -83,11 +83,11 @@ library
   other-modules:      Join.Types.Pattern.Rep.Definition
                     , Join.Types.Pattern.Rep.Pattern
                     , Join.Interpretation.Basic.Debug
-                    , Join.Interpretation.Basic.DynamicMessageBox
-                    , Join.Interpretation.Basic.Rule
                     , Join.Interpretation.Basic.Status
-                    , Join.Interpretation.Basic.TypedMessageBox
-  
+                    , Join.Interpretation.Basic.StoredDefinitions
+                    , Join.Interpretation.Basic.MessageBox
+                    , Join.Interpretation.Basic.Rule
+
   -- LANGUAGE extensions used by modules in this package.
   other-extensions:   DataKinds
                     , MultiWayIf

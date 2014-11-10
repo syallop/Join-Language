@@ -1,7 +1,11 @@
 {-# LANGUAGE DataKinds
+            ,DeriveDataTypeable
             ,GADTs
             ,GeneralizedNewtypeDeriving
+            ,KindSignatures
             ,MultiParamTypeClasses
+            ,PolyKinds
+            ,StandaloneDeriving
  #-}
 {-|
 Module      : Join.Types.Channel
@@ -41,18 +45,24 @@ module Join.Types.Channel
     ,InferSync()
     ,inferSync
 
-    , SignalChannel
-    , Signal
-    , SyncSignal
+    ,SignalChannel
+    ,Signal
+    ,SyncSignal
     ) where
+
+import Data.Typeable
 
 -- | System-wide unique channel id.
 newtype ChanId = ChanId {unChanId :: Int} deriving (Show,Eq,Ord,Enum,Num)
 
 -- | Synchronicity tag Type & Kind.
-data Synchronicity r
+data Synchronicity (r :: *)
     = A   -- ^ Asynchronous.
     | S r -- ^ Synchronous, with return type.
+  deriving Typeable
+
+deriving instance Typeable A
+deriving instance Typeable S
 
 -- | A Channel uniquely identifies a port of communication.
 --
@@ -64,15 +74,15 @@ data Synchronicity r
 --
 -- Channels are constructed with an ChanId parameter which serves as it's
 -- unique ID. Interpreters should ensure these are unique.
-data Channel s a where
+data Channel (s :: Synchronicity *) (a :: *) where
     Channel  :: ChanId -> Channel A     a
     SChannel :: ChanId -> Channel (S r) a
 
 -- | Synonym for asynchronous 'Channel's.
-type Chan      a   = Channel A a
+type Chan (a :: *) = Channel A a
 
 -- | Synonym for synchronous 'Channel's.
-type SyncChan  a r = Channel (S r) a
+type SyncChan a r = Channel (S r) a
 
 instance Show (Channel s a) where
     show (Channel  (ChanId i)) = "Channel-"  ++ show i

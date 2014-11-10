@@ -6,6 +6,8 @@
             ,KindSignatures
             ,MultiParamTypeClasses
             ,PolyKinds
+            ,RankNTypes
+            ,ScopedTypeVariables
             ,TypeFamilies
             ,TypeOperators
             ,UndecidableInstances
@@ -37,11 +39,15 @@ module Join.Types.Pattern.Rep.Pattern
   -- * Pattern Syntax extensibility
   ,Pattern(..)
   ,Patterns(..)
+
+  ,foldPatternsRep
   ) where
 
 import Join.Types.Apply
 import Join.Types.Channel
 import Join.Types.Message
+
+import Data.Typeable
 
 -- | Represent a predicate which may be applied to messages within a
 -- pattern.
@@ -82,7 +88,7 @@ data MatchRep m where
 
 -- | Represent a single item of a pattern.
 data PatternRep s m p where
-  Pattern :: MessageType m
+  Pattern :: (MessageType m,Typeable s)
           => Channel (s :: Synchronicity *) m -- ^ Channel matched upon
           -> MatchRep m                       -- ^ Type of matching to perform
           -> ShouldPass p                     -- ^ Whether a successful match should be passed
@@ -131,4 +137,12 @@ instance Pattern (PatternRep s m p) s m p
 -- | Class of types which can be converted to one or many patterns.
 class Patterns t ts | t -> ts
   where toPatternsRep :: t -> PatternsRep ts
+
+foldPatternsRep :: (forall s m p. PatternRep s m p -> acc -> acc)
+                -> acc
+                -> PatternsRep ts
+                -> acc
+foldPatternsRep f acc prs = case prs of
+  OnePattern pr -> f pr acc
+  AndPattern pr prs -> foldPatternsRep f (f pr acc) prs
 

@@ -1,4 +1,9 @@
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE DataKinds
+            ,GADTs
+            ,KindSignatures
+            ,PolyKinds
+            ,RankNTypes
+  #-}
 {-|
 Module      : Join.Interpretation.Basic
 Copyright   : (C) Samuel A. Yallop, 2014
@@ -14,8 +19,10 @@ module Join.Interpretation.Basic
 import Prelude hiding (lookup)
 
 import Join
-import Join.Types.Pattern.Rep.Simple
+import Join.Types.Pattern.Rep
 import Join.Interpretation.Basic.Debug
+import Join.Interpretation.Basic.Status
+import Join.Interpretation.Basic.MessageBox
 import Join.Interpretation.Basic.Rule
 
 import           Control.Applicative                ((<$>),(<*>),pure)
@@ -26,225 +33,141 @@ import           Control.Monad.IO.Class             (liftIO)
 import           Control.Monad.Operational
 import qualified Data.Bimap                as Bimap
 import           Data.List                          (nub)
-import           Data.Map                           (Map,map,union,lookup,empty,delete)
-import           Data.Maybe                         (fromJust)
+import qualified Data.Map                  as Map
+import           Data.Maybe                         (fromJust,fromMaybe)
+import           Data.Typeable
 import           Data.Unique                        (hashUnique,newUnique)
 
--- | Associate ChanId's to a reference to the containing Rule.
--- Caching the corresponding BoxId.
-type Rules = Map ChanId (RuleRef,BoxId)
-type RulesRef = MVar Rules
+-- | Some 'Rule tss StatusPattern' with any 'tss'.
+data SomeRule = forall tss. SomeRule (Rule tss StatusPattern)
 
--- | Concurrent reference to a 'Rule'.
-type RuleRef = MVar Rule
+-- | A MVar reference to SomeRule
+type RuleRef = MVar SomeRule
 
--- | The state of an interpretation pass.
-data State = State
-    { rules        :: RulesRef -- ^ All defined rules in scope.
-    , replyContext :: ReplyCtx -- ^ Where 'Reply' messages should be written/ where the sender is waiting
-                               -- within the calling context.
-    }
+-- | Associate ChanId's to the RuleRef which is responsible for it.
+newtype RuleMap = RuleMap{_ruleMap :: Map.Map ChanId RuleRef}
 
--- | The initial empty 'State'. No defined rules, no replyContext.
-mkState :: IO State
-mkState = State <$> newMVar empty <*> pure empty
+-- | A MVar reference to a RuleMap.
+type RuleMapRef = MVar RuleMap
 
--- | Lookup a 'ChanId's associated 'ReplyChan' within the 'State's
--- replyContext.
-lookupReplyChan :: State -> ChanId -> ReplyChan
-lookupReplyChan st cId = fromJust $ lookup cId $ replyContext st
-
--- | Take the 'Rules' mapping from the 'State'.
-takeRules :: State -> IO Rules
-takeRules = takeMVar . rules
-
--- | Place a 'Rules' mapping in the 'State'.
-putRules :: State -> Rules -> IO ()
-putRules st = putMVar (rules st)
-
--- | On the given 'State's pass the 'Rules' to a function 'f'
--- which returns an updated 'Rules' (which is replaced in the 'State') and
--- a value 'a', which is returned.
-withRules :: State -> (Rules -> IO (Rules,a)) -> IO a
-withRules st f = takeRules st >>= f >>= (\(rs,a) -> putRules st rs >> return a)
-
--- | 'withRules' but the given update function is pure.
-withRules' :: State -> (Rules -> (Rules,a)) -> IO a
-withRules' st f = withRules st (return . f)
-
--- | Apply a transformation function to a 'State's 'Rules'.
-onRules :: State -> (Rules -> IO Rules) -> IO ()
-onRules st f = takeRules st >>= f >>= putRules st
-
--- | Apply a pure transformation function to a 'State's 'Rules'.
-onRules' :: State -> (Rules -> Rules) -> IO ()
-onRules' st f = onRules st (return . f)
-
--- | Look up the 'Rule' and 'BoxId' associated with a 'ChanId' within the
--- 'State' which is passed to the function 'f' which returns an updated
--- 'Rule' (which is replaced in the 'State') and a value 'a' which is
--- returned.
-withRule :: State -> ChanId -> ((Rule,BoxId) -> IO (Rule,a)) -> IO a
-withRule st cId f = do
-    rs <- takeRules st
-    putRules st rs
-
-    let (ruleRef,boxId) = fromJust $ lookup cId rs
-
-    rl <- takeMVar ruleRef
-    traceIO ("withRule.before: " ++ showRule rl)
-
-    (rl',a) <- f (rl,boxId)
-    traceIO ("withRule.after: " ++ showRule rl')
-
-    putMVar ruleRef rl'
-
-    return a
-
--- | 'withRule' but the given update function is pure.
-withRule' :: State -> ChanId -> ((Rule,BoxId) -> (Rule,a)) -> IO a
-withRule' st cId f = do
-    r <- withRule st cId (return . f)
-    return r
-
-
+-- | Create a new empty RuleMapRef
+newRuleMapRef :: IO RuleMapRef
+newRuleMapRef = newMVar (RuleMap Map.empty)
 
 -- | Run a 'Process a' computation in IO.
 run :: Process a -> IO a
-run p = mkState >>= (`runWith` p)
+run p = do
+  ruleMapRef<- newRuleMapRef
+  let replyCtx = Map.empty
+  runWith ruleMapRef replyCtx p
+
+-- | Run a 'Process a' computation in IO under the calling context of a
+-- 'RuleMapRef' (mapping ChanId's to responsible Rules)
+-- and a 'ReplyCtx' (mapping replied to ChanId's to the locations waiting for a response.)
+runWith :: RuleMapRef -> ReplyCtx -> Process a -> IO a
+runWith ruleMapRef replyCtx p = do
+  instr <- viewT p
+  case instr of
+
+    Return a -> return a
+
+    Def definition
+      :>>= k -> do registerDefinition (toDefinitionsRep definition) ruleMapRef
+                   runWith ruleMapRef replyCtx (k ())
+
+    NewChannel
+      :>>= k -> do cId <- newChanId
+                   runWith ruleMapRef replyCtx (k $ inferSync cId)
+
+    Send c m
+      :>>= k -> do registerMessage c m ruleMapRef
+                   runWith ruleMapRef replyCtx (k ())
+
+    Spawn p
+      :>>= k -> do forkIO $ runWith ruleMapRef replyCtx p
+                   runWith ruleMapRef replyCtx (k ())
+
+    Sync sc sm
+      :>>= k -> do syncVal <- registerSyncMessage sc sm ruleMapRef
+                   runWith ruleMapRef replyCtx (k syncVal)
+
+    Reply sc m
+      :>>= k -> do putMVar (lookupReplyChan replyCtx (getId sc)) m
+                   runWith ruleMapRef replyCtx (k ())
+
+    With p q 
+      :>>= k -> do mapM_ (forkIO . runWith ruleMapRef replyCtx) [p,q]
+                   runWith ruleMapRef replyCtx (k ())
+
+-- | Lookup a ChanId's associated ReplyChan 'r' within a ReplyCtx.
+-- The ChanId must have an associated ReplyChan and it must
+-- have the expected type.
+lookupReplyChan :: MessageType r => ReplyCtx -> ChanId -> ReplyChan r
+lookupReplyChan replyCtx cId = case Map.lookup cId replyCtx of
+  Nothing -> error "ChanId has no associated ReplyChan in this context."
+  Just (SomeReplyChan replyChan) -> case cast replyChan of
+    Nothing -> error "ReplyChan does not have the assumed type."
+    Just replyChan' -> replyChan'
+
+-- | On an Asynchronous Channel, register a message 'a'.
+registerMessage :: MessageType a => Channel A (a :: *) -> a -> RuleMapRef -> IO ()
+registerMessage chan msg ruleMapRef = do
+  (RuleMap ruleMap) <- readMVar ruleMapRef
+  let cId     = getId chan
+      ruleRef = fromMaybe (error "registerMessage: ChanId has no RuleRef") $ Map.lookup cId ruleMap
+
+  (SomeRule rule) <- takeMVar ruleRef
+  let (rule',mProcCtx) = addMessage (Message msg) cId rule
+  putMVar ruleRef (SomeRule rule')
+
+  case mProcCtx of
+    Nothing -> return ()
+    Just (p,replyCtx) -> (forkIO $ runWith ruleMapRef replyCtx p) >> return ()
+
+-- | On a Synchronous Channel, register a message 'a' and return a 'Response r' on which a response can
+-- be waited.
+registerSyncMessage :: (MessageType a,MessageType r) => Channel (S r) a -> a -> RuleMapRef -> IO (Response r)
+registerSyncMessage chan msg ruleMapRef = do
+  (RuleMap ruleMap) <- readMVar ruleMapRef
+  let cId = getId chan
+      ruleRef = fromMaybe (error "registerSyncMessage: ChanId has no RuleRef") $ Map.lookup cId ruleMap
+
+  (SomeRule rule) <- takeMVar ruleRef
+  replyChan <- newEmptyMVar
+  response <- emptyResponse
+  forkIO $ waitOnReply replyChan response
+  let (rule',mProcCtx) = addMessage (SyncMessage msg replyChan) cId rule
+  putMVar ruleRef (SomeRule rule')
+
+  case mProcCtx of
+    Nothing -> return response
+    Just (p,replyCtx) -> (forkIO $ runWith ruleMapRef replyCtx p) >> return response
   where
-    -- | Run a 'Process a' computation under some interpretation 'State' in
-    -- IO.
-    runWith :: State -> Process a -> IO a
-    runWith state p = do
-        instr <- viewT p
-        case instr of
+    waitOnReply :: MessageType r => ReplyChan r -> Response r -> IO ()
+    waitOnReply replyChan response = takeMVar replyChan >>= writeResponse response
 
-            -- End of Process
-            Return a -> return a
+-- | Register a new Join Definition, associating all contained Channels
+-- with the stored RuleRef.
+registerDefinition :: DefinitionsRep tss Inert -> RuleMapRef -> IO ()
+registerDefinition definition ruleMapRef = do
+  (RuleMap ruleMap) <- takeMVar ruleMapRef
+  rId <- newRuleId
+  let someRule = SomeRule $ mkRule definition rId
+      cIds     = uniqueIds definition
+  rlRef <- newMVar someRule
+  let additionalMappings = Map.fromSet (const rlRef) cIds
+      ruleMap'           = additionalMappings `Map.union` ruleMap :: Map.Map ChanId RuleRef
+  putMVar ruleMapRef (RuleMap ruleMap')
 
-            -- New Join definition.
-            --
-            -- Build and store a corresponding rule, indexed in the State by each ChanId
-            -- it mentions.
-            Def jp
-                :>>= k -> do traceIO "DEF"
-                             rId <- newRuleId
-                             let joinPattern = describe jp
-                                 rule        = mkRule joinPattern rId
-                             traceIO $ showRule rule
+-- | New unique ChanId.
+newChanId :: IO ChanId
+newChanId = ChanId <$> newId
 
-                             rlRef <- newMVar rule
-                             let additionalMappings =  (\boxId -> (rlRef,boxId)) <$> (Bimap.toMap $ _chanMapping rule)
-                             onRules' state (additionalMappings `union`)
+-- | New unique RuleId.
+newRuleId :: IO RuleId
+newRuleId = RuleId <$> newId
 
-                             traceIO "/DEF"
-                             runWith state (k ())
-
-            -- Create a New Channel with inferred type and synchronicity.
-            NewChannel
-                :>>= k -> do traceIO "NEWCHANNEL"
-                             id <- newChanId
-                             traceIO "/NEWCHANNEL"
-                             runWith state (k $ inferSync id)
-
-            -- To a channel, send a message.
-            --
-            -- Add the message to the corresponding rule, concurrently
-            -- executing any matching trigger that is returned.
-            Send c m
-                :>>= k -> do traceIO "SEND"
-                             mProcCtx <- withRule' state (getId c) (\(rl,boxId) -> addMessage (forgetMessageType m,Nothing) (getId c) rl)
-                             case mProcCtx of
-                                 Nothing
-                                   -> do traceIO "/SEND"
-                                         runWith state (k ())
-                                 Just (p,replyCtx)
-                                   -> do forkIO $ runWith (state{replyContext = replyCtx}) p
-                                         traceIO "/SEND"
-                                         runWith state (k ())
-
-            -- Spawn a Process to be executed concurrently to the remaining
-            -- computation.
-            Spawn p
-                :>>= k -> do traceIO "SPAWN"
-                             forkIO (runWith state p)
-                             traceIO "/SPAWN"
-                             runWith state (k ())
-
-            -- To a channel, send a synchronous message.
-            --
-            -- - Create an internal replyChan for a response to be written to
-            --   and an encapsulating response to return.
-            -- - Concurrently wait on a value being written into the
-            --   replyChan to be passed into the external response.
-            -- - Add the message to the corresponding rule, concurrently
-            --   executing any matching trigger that is returned.
-            Sync s m
-                :>>= k -> do traceIO "SYNC"
-                             replyChan <- newEmptyMVar
-                             response <- emptyResponse
-                             forkIO $ waitOnReply replyChan response
-                             mProcCtx <- withRule' state (getId s) (\(rl,boxId) -> addMessage (forgetMessageType m,Just replyChan) (getId s) rl)
-                             case mProcCtx of
-                                 Nothing
-                                   -> do traceIO "/SYNC"
-                                         runWith state (k response)
-                                 Just (p,replyCtx)
-                                   -> do forkIO $ runWith (state{replyContext = replyCtx}) p
-                                         traceIO "/SYNC triggered"
-                                         runWith state (k response)
-
-            -- To a channel, reply with a synchronous message.
-            --
-            -- - Lookup the replyChan associated with the channel message
-            --   which caused this Process to trigger and write the reply
-            --   message to it.
-            Reply s m
-                :>>= k -> do traceIO "REPLY"
-                             let replyChan = lookupReplyChan state (getId s)
-                             putMVar replyChan (forgetMessageType m)
-                             traceIO "/REPLY"
-                             runWith state (k ())
-
-            -- Concurrently execute two Process's.
-            With p q
-                :>>= k -> do traceIO "WITH"
-                             forkIO (runWith state p)
-                             forkIO (runWith state q)
-                             traceIO "/WITH"
-                             runWith state (k ())
-
-    -- Return a unique Int Id each call.
-    newId :: IO Int
-    newId = hashUnique <$> newUnique
-
-    -- Return a unique ChanId each call.
-    newChanId :: IO ChanId
-    newChanId = ChanId <$> newId
-
-    -- Return a unique RuleId each call.
-    newRuleId :: IO RuleId
-    newRuleId = RuleId <$> newId
-
-    -- Wait for a message to be written into an internal 'ReplyChan' to be
-    -- passed in turn to some external response which may be waiting for the
-    -- reply.
-    waitOnReply :: MessageType r => ReplyChan -> Response r -> IO ()
-    waitOnReply replyChan response = do
-        rawMsg <- takeMVar replyChan
-        case recallMessageType rawMsg of
-            Nothing -> error "Mistyped value in reply."
-            Just r -> writeResponse response r
-
-    -- Determine which rules are overlapping with a list of ChanId's.
-    overlappingRules :: State -> [ChanId] -> IO [Rule]
-    overlappingRules state cIds = withRules state (collectOverlaps' cIds)
-      where
-        collectOverlaps' :: [ChanId] -> Rules -> IO (Rules,[Rule])
-        collectOverlaps' cIds rs = do
-            let (rs',overlapRefs) = foldr (\cId (rs,acc) -> maybe (rs,acc) (\(mr,_) -> (delete cId rs, mr:acc)) $ lookup cId rs) (rs,[]) cIds
-                overlapRefs'      = nub overlapRefs
-            overlapRules <- mapM takeMVar overlapRefs'
-            return (rs',overlapRules)
+-- | New unique Int id.
+newId :: IO Int
+newId = hashUnique <$> newUnique
 
