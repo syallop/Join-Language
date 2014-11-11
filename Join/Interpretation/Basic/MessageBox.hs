@@ -78,12 +78,12 @@ import Prelude hiding (take)
 -- Message A     a: Regular message typed 'a'.
 -- Message (S r) a: Synchronous message typed 'a', with some 'ReplyChan r'
 --  - the location a 'Reply' Instruction returns a reply to.
-data Message a (s :: Synchronicity *) where
-  Message     :: MessageType a => a -> Message a A
-  SyncMessage :: (MessageType a,MessageType r) => a -> ReplyChan r -> Message a (S r)
+data Message (s :: Synchronicity *) a where
+  Message     :: MessageType a => a -> Message A a
+  SyncMessage :: (MessageType a,MessageType r) => a -> ReplyChan r -> Message (S r) a
 
 -- | Extract the typed message 'a' from a 'Message'.
-unMessage :: Message a s -> a
+unMessage :: Message s a -> a
 unMessage (Message a) = a
 unMessage (SyncMessage a _) = a
 
@@ -124,8 +124,8 @@ newtype MessagePredicates a = MessagePredicates { unMessagePredicates :: (Set.Se
 --
 -- 'takeAny'         - attempt to take any held message
 -- 'takeFrom'        - attempt to take a message stored in a given subBox
-data MessageBox a (s :: Synchronicity *) = MessageBox
-    { _storedMessages   :: StoredMessages a s   -- ^ Associate all 'MsgIx's to their 'StoredMessage'
+data MessageBox (s :: Synchronicity *) a = MessageBox
+    { _storedMessages   :: StoredMessages s a  -- ^ Associate all 'MsgIx's to their 'StoredMessage'
     , _subBoxes         :: SubBoxes            -- ^ Associate sub' BoxIx's to sets of 'MsgIx's they contain.
     , _subBoxPredicates :: MessagePredicates a -- ^ List of predicates which decide a Messages membership
                                                --   within SubBox's.
@@ -135,26 +135,26 @@ data MessageBox a (s :: Synchronicity *) = MessageBox
     }
     deriving Typeable
 
-instance MessageType a => Show (MessageBox a s) where
+instance MessageType a => Show (MessageBox s a) where
     show = showMessageBox
 
 -- | A Message as stored within some 'MessageBox' with meta-data.
-data StoredMessage a s = StoredMessage
+data StoredMessage s a = StoredMessage
     { _msgIx         :: MsgIx       -- ^ Index, unique within a 'MessageBox' used to refer to this 'StoredMessage'
     , _containedIn   :: BoxIxs      -- ^ 'Set' of 'BoxIx's the message is contained within.
-    , _message       :: Message a s -- ^ The encapsulated 'Message' itself.
+    , _message       :: Message s a -- ^ The encapsulated 'Message' itself.
     }
-instance Ord (StoredMessage a s) where compare (StoredMessage ix0 _ _) (StoredMessage ix1 _ _) = compare ix0 ix1
-instance Eq  (StoredMessage a s) where (StoredMessage ix0 _ _) == (StoredMessage ix1 _ _) = ix0 == ix1
+instance Ord (StoredMessage s a) where compare (StoredMessage ix0 _ _) (StoredMessage ix1 _ _) = compare ix0 ix1
+instance Eq  (StoredMessage s a) where (StoredMessage ix0 _ _) == (StoredMessage ix1 _ _) = ix0 == ix1
 
-type StoredMessages a s = Map.Map MsgIx (StoredMessage a s) -- ^ A Collection of 'StoredMessage's is indexed
+type StoredMessages s a = Map.Map MsgIx (StoredMessage s a) -- ^ A Collection of 'StoredMessage's is indexed
                                                   -- by their 'MsgIx'.
 type SubBoxes       = Map.Map BoxIx MsgIxs        -- ^ A Collection of sub 'BoxIx's is a 'Map' of 'BoxIx's
                                                   -- to the 'MsgIxs' they contain.
 
 -- | The initial empty 'MessageBox' containing no messages and with no
 -- declared subBoxes.
-emptyMessageBox :: MessageBox a s
+emptyMessageBox :: MessageBox s a
 emptyMessageBox = MessageBox
     {_storedMessages   = Map.empty
     ,_subBoxes         = Map.empty
@@ -170,7 +170,7 @@ emptyMessageBox = MessageBox
 -- given predicate. Return the updated 'MessageBox' (with existing stored
 -- messages sorted into the new subBox if matching) with the 'BoxIx' used to
 -- reference to the subBox.
-addSubBox :: (a -> Bool) -> MessageBox a s -> (MessageBox a s,BoxIx)
+addSubBox :: (a -> Bool) -> MessageBox s a -> (MessageBox s a,BoxIx)
 addSubBox pred msgBox =
     (msgBox {_storedMessages   = newStoredMessages
             ,_subBoxes         = newSubBoxes
@@ -192,7 +192,7 @@ addSubBox pred msgBox =
     -- , update matching 'StoredMessages' to cache their new membership as well as
     -- returning the 'MsgIx's which were changed because they match
     -- the new predicate.
-    updateStoredMessages :: StoredMessages a s -> (a -> Bool) -> BoxIx -> (MsgIxs,StoredMessages a s)
+    updateStoredMessages :: StoredMessages s a -> (a -> Bool) -> BoxIx -> (MsgIxs,StoredMessages s a)
     updateStoredMessages strdMsgs pred subBoxIx = Map.mapAccumWithKey
         (\acc msgIx strdMsg -> if matches pred strdMsg
             then let newAcc     = Set.insert msgIx acc
@@ -210,14 +210,14 @@ addSubBox pred msgBox =
 
 -- | Store the given message in the 'MessageBox', internally sorting the message
 -- into any existing subBoxes by their corresponding predicate.
-insertMessage :: Message a s -> MessageBox a s -> MessageBox a s
+insertMessage :: Message s a -> MessageBox s a -> MessageBox s a
 insertMessage msg msgBox = fst $ insertMessage' msg msgBox
 
 -- | Store the given message in the 'MessageBox', internally sorting the
 -- message into any existing subBoxes by their corresponding predicate.
 --
 -- Return the new MessageBox and StoredMessage.
-insertMessage' :: Message a s -> MessageBox a s -> (MessageBox a s,StoredMessage a s)
+insertMessage' :: Message s a -> MessageBox s a -> (MessageBox s a,StoredMessage s a)
 insertMessage' msg msgBox =
     let msgIx       = _freshMsgIx msgBox                           -- New 'MsgIx'
         withinBoxes = whichSubBoxes msg (_subBoxPredicates msgBox) -- Set of 'BoxIx's message should be contained in
@@ -227,7 +227,7 @@ insertMessage' msg msgBox =
     -- Register a (correct) 'StoredMessage' within a 'MessageBox',
     -- adding it to the global storedMessages and within the subBoxes it
     -- claims membership of.
-    registerStoredMessage :: StoredMessage a s -> MessageBox a s -> MessageBox a s
+    registerStoredMessage :: StoredMessage s a -> MessageBox s a -> MessageBox s a
     registerStoredMessage sm msgBox =
         msgBox{_storedMessages = Map.insert (_msgIx sm) sm (_storedMessages msgBox)
               ,_subBoxes       = Map.unionWith Set.union
@@ -247,7 +247,7 @@ insertMessage' msg msgBox =
 -- - The removed message
 -- - The subBoxes which are now empty as a result of the removal
 -- - The updated 'MessageBox'
-take :: Maybe BoxIx -> MessageBox a s -> Maybe (StoredMessage a s,BoxIxs,MessageBox a s)
+take :: Maybe BoxIx -> MessageBox s a -> Maybe (StoredMessage s a,BoxIxs,MessageBox s a)
 take Nothing      = takeAny
 take (Just boxIx) = takeFrom boxIx
 
@@ -256,7 +256,7 @@ take (Just boxIx) = takeFrom boxIx
 -- - The removed message
 -- - The subBoxes which are now empty as a result of the removal
 -- - The updated 'MessageBox'
-takeAny :: MessageBox a s -> Maybe (StoredMessage a s,BoxIxs,MessageBox a s)
+takeAny :: MessageBox s a -> Maybe (StoredMessage s a,BoxIxs,MessageBox s a)
 takeAny msgBox = do
     (sm@(StoredMessage msgIx inSBs msg),newStoredMessages) <- Map.minView (_storedMessages msgBox)
     let (newSubBoxes,newlyEmptySubBoxes) = removeFromSubBoxes' inSBs msgIx (_subBoxes msgBox)
@@ -271,7 +271,7 @@ takeAny msgBox = do
 -- - The removed message
 -- - The subBoxes which are now empty as a result of the removal
 -- - The updated 'MessageBox'.
-takeFrom :: BoxIx -> MessageBox a s -> Maybe (StoredMessage a s,BoxIxs,MessageBox a s)
+takeFrom :: BoxIx -> MessageBox s a -> Maybe (StoredMessage s a,BoxIxs,MessageBox s a)
 takeFrom boxIx msgBox = do
     sm@(StoredMessage msgIx inSBs msg) <- anyStoredMessageInBox boxIx msgBox
     let (newSubBoxes,newlyEmptySubBoxes) = removeFromSubBoxes' inSBs msgIx (_subBoxes msgBox)
@@ -285,14 +285,14 @@ takeFrom boxIx msgBox = do
            )
   where
     -- Lookup any 'StoredMessage' contained within the 'BoxIx'.
-    anyStoredMessageInBox :: BoxIx -> MessageBox a s -> Maybe (StoredMessage a s)
+    anyStoredMessageInBox :: BoxIx -> MessageBox s a -> Maybe (StoredMessage s a)
     anyStoredMessageInBox boxIx msgBox = anyMsgIxInBox boxIx msgBox >>= (`lookupStoredMessage` msgBox)
 
     -- Lookup any 'MsgIx' contained within the 'BoxIx'
-    anyMsgIxInBox :: BoxIx -> MessageBox a s -> Maybe MsgIx
+    anyMsgIxInBox :: BoxIx -> MessageBox s a -> Maybe MsgIx
     anyMsgIxInBox boxIx msgBox = Map.lookup boxIx (_subBoxes msgBox) >>= fmap fst . Set.minView
 
-    lookupStoredMessage' :: MsgIx -> MessageBox a s -> StoredMessage a s
+    lookupStoredMessage' :: MsgIx -> MessageBox s a -> StoredMessage s a
     lookupStoredMessage' msgIx msgBox = fromMaybe (error "MsgIx is not stored in this MessageBox") $ lookupStoredMessage msgIx msgBox
 
 
@@ -301,7 +301,7 @@ takeFrom boxIx msgBox = do
 {- Misc Operations -}
 
 -- | Extract the 'Message' from a 'StoredMessage'.
-message :: StoredMessage a s -> Message a s
+message :: StoredMessage s a -> Message s a
 message = _message
 
 -- | Test whether the 'MessageBox's internal structure is valid
@@ -325,7 +325,7 @@ message = _message
 -- 3.) The cached 'freshMsgIx' is greater than all used 'MsgIx's
 --
 -- 4.) The cached 'freshBoxIx' is greater than all used 'BoxIx's
-valid :: forall a s. MessageBox a s -> Bool
+valid :: forall s a. MessageBox s a -> Bool
 valid msgBox = and [validMsgIxs
                    ,validSubBoxCaches
                    ,validSubBoxesContents
@@ -344,7 +344,7 @@ valid msgBox = and [validMsgIxs
         storedMessages = Map.elems (_storedMessages msgBox) -- :: [StoredMessage a r]
 
         -- Test 2.*
-    validSubBoxCache :: StoredMessage a s -> Bool
+    validSubBoxCache :: StoredMessage s a -> Bool
     validSubBoxCache strdMsg = (_containedIn strdMsg) == (whichSubBoxes (_message strdMsg) (_subBoxPredicates msgBox))
 
     -- Test 3
@@ -363,7 +363,7 @@ valid msgBox = and [validMsgIxs
 
     -- The given 'StoredMessage' is cached as being contained within the
     -- given subBoxIx.
-    cachedInSubBox :: StoredMessage a s -> BoxIx -> Bool
+    cachedInSubBox :: StoredMessage s a -> BoxIx -> Bool
     cachedInSubBox strdMsg boxIx = Set.member boxIx (_containedIn strdMsg)
 
     -- Test 4
@@ -373,23 +373,23 @@ valid msgBox = and [validMsgIxs
     validFreshBoxIx = all (< (_freshBoxIx msgBox)) (Map.keys $ _subBoxes msgBox)
 
 -- | View all 'StoredMessages'
-allStoredMessages :: MessageBox a s -> Set.Set (StoredMessage a s)
+allStoredMessages :: MessageBox s a -> Set.Set (StoredMessage s a)
 allStoredMessages msgBox = Set.fromList $ Map.elems $ _storedMessages msgBox
 
 -- | Does a 'StoredMessage' match a given predicate?
-matches :: (a -> Bool) ->  StoredMessage a s -> Bool
+matches :: (a -> Bool) ->  StoredMessage s a -> Bool
 matches pred = pred . unMessage . _message
 
 -- | Is a 'MessageBox' empty of 'StoredMessages'?
-noStoredMessages :: MessageBox a s -> Bool
+noStoredMessages :: MessageBox s a -> Bool
 noStoredMessages = Map.null . _storedMessages
 
 -- | Which sub 'BoxIxs' is a 'StoredMessage' contained in?
-containedIn :: StoredMessage a s -> BoxIxs
+containedIn :: StoredMessage s a -> BoxIxs
 containedIn = _containedIn
 
 -- | Format a human-readable representation of a 'MessageBox'.
-showMessageBox :: MessageType a => MessageBox a s -> String
+showMessageBox :: MessageType a => MessageBox s a -> String
 showMessageBox msgBox =
     "MessageBox { "
     ++ "\n MSGS{ " ++ (showStoredMessages $ _storedMessages msgBox) ++ "\n     }"
@@ -399,16 +399,16 @@ showMessageBox msgBox =
     showBoxes :: SubBoxes -> String
     showBoxes mp = intercalate "\n      , " $ map (\(BoxIx ix,msgIxs) -> (show ix) ++ ":" ++ (show $ map unMsgIx $ Set.toList msgIxs)) $ Map.toList mp
 
-    showStoredMessages :: MessageType a => StoredMessages a s -> String
+    showStoredMessages :: MessageType a => StoredMessages s a -> String
     showStoredMessages sm = intercalate "\n     , " $ map showStoredMessage (Map.elems sm)
 
-    showStoredMessage :: MessageType a => StoredMessage a s -> String
+    showStoredMessage :: MessageType a => StoredMessage s a -> String
     showStoredMessage sm =
       (show $ unMsgIx $ _msgIx sm) ++ ":" ++
       (showMessage $ _message sm) ++ " ∈ " ++
       (show $ Set.toList $ Set.map unBoxIx $ _containedIn sm)
 
-    showMessage :: MessageType a => Message a s -> String
+    showMessage :: MessageType a => Message s a -> String
     showMessage (Message a) = show $ encodeMessage a
     showMessage (SyncMessage a r) = "#" ++ (show $ encodeMessage a)
 
@@ -416,7 +416,7 @@ showMessageBox msgBox =
 {- Internal -}
 
 -- | Lookup the 'MessagePredicate' that corresponds to the given 'BoxIx'.
-lookupBoxIxsPredicate :: BoxIx -> MessageBox a s -> Maybe (MessagePredicate a)
+lookupBoxIxsPredicate :: BoxIx -> MessageBox s a -> Maybe (MessagePredicate a)
 lookupBoxIxsPredicate boxIx msgBox = case Set.toList $ Set.filter (\(MessagePredicate (pred,boxIx')) -> boxIx == boxIx') $ unMessagePredicates (_subBoxPredicates msgBox) of
     []        -> Nothing
     (x:x':[]) -> error "More than one MessagePredicate mapsto this BoxIx"
@@ -437,11 +437,11 @@ removeFromSubBoxes' sbs msgIx mp =
 
 -- Lookup a 'MsgIx's corresponding 'StoredMessage' data, provided the index
 -- is valid.
-lookupStoredMessage :: MsgIx -> MessageBox a s -> Maybe (StoredMessage a s)
+lookupStoredMessage :: MsgIx -> MessageBox s a -> Maybe (StoredMessage s a)
 lookupStoredMessage msgIx msgBox = Map.lookup msgIx (_storedMessages msgBox)
 
 -- Which subBoxes does a 'Message' belong in?
-whichSubBoxes :: Message a s -> MessagePredicates a -> BoxIxs
+whichSubBoxes :: Message s a -> MessagePredicates a -> BoxIxs
 whichSubBoxes msg (MessagePredicates mps) = setMapMaybe (\(MessagePredicate (pred,boxIx)) -> if pred (unMessage msg) then Just boxIx else Nothing) mps
 
 setMapMaybe :: Ord b => (a -> Maybe b) -> Set.Set a -> Set.Set b

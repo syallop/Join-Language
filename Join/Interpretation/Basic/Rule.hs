@@ -69,7 +69,7 @@ type ChanMapping = Bimap.Bimap ChanId BoxId
 
 -- | Associate 'BoxId's to 'MessageBox's.
 type MessageBoxes = Map.Map BoxId SomeMessageBox
-data SomeMessageBox = forall a r. (MessageType a,Typeable (MessageBox a r)) => SomeMessageBox (MessageBox a r)
+data SomeMessageBox = forall s a. (MessageType a,Typeable (MessageBox s a)) => SomeMessageBox (MessageBox s a)
 
 -- | Describes a location where messages may be retrieved.
 -- Nothing => Any message from the corresponding MessageBox.
@@ -155,10 +155,10 @@ mkRule definitions rId =
                     -> ((ChanMapping,MessageBoxes,StatusIxs,Int), Maybe BoxIx)
         assignBoxIx chan matchRep (chanMapping,messageBoxes,statusIxs,nextStatusIx) =
           let boxId           = fromJust $ Bimap.lookup (getId chan) chanMapping
-              msgBox          = takeMessageBox' boxId messageBoxes :: MessageBox m s --tospecialise
+              msgBox          = takeMessageBox' boxId messageBoxes :: MessageBox s m --tospecialise
              in case matchRep of
                 MatchAll -> ((chanMapping
-                             ,Map.insert boxId (SomeMessageBox (msgBox :: MessageBox m s)) messageBoxes
+                             ,Map.insert boxId (SomeMessageBox (msgBox :: MessageBox s m)) messageBoxes
                              ,statusIxs
                              ,nextStatusIx
                              )
@@ -198,9 +198,9 @@ mkRule definitions rId =
 -- to produce a 'Process ()' to execute under the given 'ReplyCtx' (which
 -- describes the specific reply location(s) of the messages which caused
 -- the trigger).
-addMessage :: forall a s tss
+addMessage :: forall s a tss
             . (MessageType a,Typeable s)
-           => Message a s -> ChanId -> Rule tss StatusPattern -> (Rule tss StatusPattern,Maybe (Process (),ReplyCtx))
+           => Message s a -> ChanId -> Rule tss StatusPattern -> (Rule tss StatusPattern,Maybe (Process (),ReplyCtx))
 addMessage msg cId rl
 
     | otherwise =
@@ -278,7 +278,7 @@ takeMessage :: forall m s p. (MessageType m,Typeable s)
             -> (ChanMapping,StatusIxs,Status,Map.Map BoxId SomeMessageBox,[Dynamic],ReplyCtx)
 takeMessage chan mBoxIx shouldPass (chanMapping,statusIxs,status,msgBoxes,msgs,replyCtx) =
   let boxId    = fromJust $ Bimap.lookup (getId chan) chanMapping -- todo
-      msgBox   = takeMessageBoxAs boxId msgBoxes :: MessageBox m s
+      msgBox   = takeMessageBoxAs boxId msgBoxes :: MessageBox s m
       (strdMsg,
        newlyEmptySubBoxes,
        msgBox'
@@ -310,7 +310,7 @@ takeChanId boxId chanMapping =
     let mChanId = Bimap.lookupR boxId chanMapping
        in fromMaybe (error "BoxId has no ChanId") mChanId
 
-takeMessageBoxAs :: Typeable (MessageBox a s) => BoxId -> MessageBoxes -> MessageBox a s
+takeMessageBoxAs :: Typeable (MessageBox s a) => BoxId -> MessageBoxes -> MessageBox s a
 takeMessageBoxAs boxId msgBoxes = case Map.lookup boxId msgBoxes of
   Nothing -> error $ "takeMessageBoxAs: " ++ show boxId ++ " not contained in messagebox collection"
   Just (SomeMessageBox msgBox) -> case cast msgBox of
@@ -318,7 +318,7 @@ takeMessageBoxAs boxId msgBoxes = case Map.lookup boxId msgBoxes of
     Just msgBox' -> msgBox'
 
 -- | Get the MessageBox associated with the ChanId
-takeChanMessageBox :: Typeable (MessageBox a r) => ChanId -> ChanMapping -> MessageBoxes -> MessageBox a r
+takeChanMessageBox :: Typeable (MessageBox s a) => ChanId -> ChanMapping -> MessageBoxes -> MessageBox s a
 takeChanMessageBox cId chanMapping messageBoxes =
     let boxId = takeBoxId cId chanMapping
        in takeMessageBoxAs boxId messageBoxes
@@ -337,7 +337,7 @@ takeBoxId cId chanMapping =
     let mBoxId = Bimap.lookup cId chanMapping
        in fromMaybe (error "ChanId has no BoxId") mBoxId
 
-takeMessageBox' :: Typeable (MessageBox a r) => BoxId -> MessageBoxes -> MessageBox a r
+takeMessageBox' :: Typeable (MessageBox s a) => BoxId -> MessageBoxes -> MessageBox s a
 takeMessageBox' boxId messageBoxes = case Map.lookup boxId messageBoxes of
   Nothing -> emptyMessageBox
   Just (SomeMessageBox msgBox) -> case cast msgBox of
@@ -384,14 +384,6 @@ showStoredPatterns spsr = foldStoredPatterns showStoredPattern "" spsr
 
 showStoredPattern :: (MessageType m,Typeable s) => Channel (s :: Synchronicity *) m -> Maybe BoxIx -> ShouldPass p -> String -> String
 showStoredPattern chan mBoxIx sp acc = acc ++ show chan ++ show mBoxIx
-
-{-showPatterns :: [(StatusPattern,StoredPattern)] -> String-}
-{-showPatterns ps = "\n\nStatusPattern => StoredPattern\n"-}
-               {-++ concatMap showPattern ps-}
-{-showPattern :: (StatusPattern,StoredPattern) -> String-}
-{-showPattern (statusPattern,storedPattern) = showStatusPattern statusPattern ++ " => " ++ showStoredPattern storedPattern ++ "\n"-}
-{-showStoredPattern :: StoredPattern -> String-}
-{-showStoredPattern (StoredPattern reqMsgs _) = intercalate " THEN " $ map showRequiredMessage reqMsgs-}
 
 showRequiredMessage :: RequiredMessage -> String
 showRequiredMessage (BoxId bId,mBoxIx,shouldPass) = (if shouldPass then "pass " else "keep ")
