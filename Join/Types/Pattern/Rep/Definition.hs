@@ -41,10 +41,13 @@ module Join.Types.Pattern.Rep.Definition
   ,foldDefinitionsRep
 
   ,uniqueIds
+
+  ,appendDefinitionsRep
   ) where
 
 import Join.Types.Apply
 import Join.Types.Channel
+import Join.Types.Pattern.Rep.List
 import Join.Types.Pattern.Rep.Pattern
 
 import qualified Data.Set as Set
@@ -104,9 +107,21 @@ data DefinitionsRep tss r where
 class Definition t ts tr r | t -> ts tr r
   where toDefinitionRep :: t -> DefinitionRep ts tr r
 
+-- Definition is itself
+instance Definition (DefinitionRep ts tr r) ts tr r
+  where toDefinitionRep = id
+
 -- | Class of types which can be converted to one or many definitions.
 class Definitions t tss r | t -> tss r
   where toDefinitionsRep :: t -> DefinitionsRep tss r
+
+-- DefinitionsRep is itself.
+instance Definitions (DefinitionsRep tss r) tss r
+  where toDefinitionsRep = id
+
+-- DefinitionRep is One DefinitionsRep.
+instance Definitions (DefinitionRep ts tr r) '[DefinitionRep ts tr r] r
+  where toDefinitionsRep dr = OneDefinition dr
 
 foldDefinitionsRep :: (forall ts tr r. DefinitionRep ts tr r -> acc -> acc)
                    -> acc
@@ -114,6 +129,10 @@ foldDefinitionsRep :: (forall ts tr r. DefinitionRep ts tr r -> acc -> acc)
                    -> acc
 foldDefinitionsRep f acc (OneDefinition dr)     = f dr acc
 foldDefinitionsRep f acc (AndDefinition dr drs) = foldDefinitionsRep f (f dr acc) drs
+
+appendDefinitionsRep :: DefinitionsRep tss r -> DefinitionsRep tss' r -> DefinitionsRep (tss :++ tss') r
+appendDefinitionsRep (OneDefinition dr)     drs' = AndDefinition dr drs'
+appendDefinitionsRep (AndDefinition dr drs) drs' = AndDefinition dr (appendDefinitionsRep drs drs')
 
 uniqueIds :: DefinitionsRep tss r -> Set.Set ChanId
 uniqueIds dr = foldDefinitionsRep uniqueIds' Set.empty dr

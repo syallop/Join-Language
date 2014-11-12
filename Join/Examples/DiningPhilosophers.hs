@@ -3,13 +3,19 @@ module Join.Examples.DiningPhilosophers
     , diningPhilosophers
     ) where
 
+import Prelude hiding (append,zip,head,tail)
+
 import Join
 import Join.Interpretation.Basic
+import Join.Types.Pattern.Rep
+import Join.Types.Pattern.Builder
 
+import Control.Applicative    ((<$>),(<*>),pure)
 import Control.Concurrent     (threadDelay)
 import Control.Monad          (forM)
 import Control.Monad.IO.Class (liftIO)
 import System.Random          (randomRIO)
+
 
 {- Utilities -}
 -- | The named philosopher eats, then waits 0-3 seconds.
@@ -64,51 +70,76 @@ diningPhilosophersExplicit = do
               ,tA,tB,tC,tD,tE
               ]
 
+
+{- DiningPhilosophers, abstracted over the number of philosophers -}
+
+type Name      = String      -- ^ Philosophers name,used in printing
+
+type Fork      = Signal      -- ^ A signal on a Fork declares the fork available.
+type ForkPair  = (Fork,Fork) -- ^ Pair of left and right hand Fork's
+
+-- | A single Philosopher encapsulates several signals.
+data Philosopher = Philosopher
+  { name      :: String
+  , leftFork  :: Signal -- ^ Left fork availability.
+  , rightFork :: Signal -- ^ Right fork availability.
+  , thinking  :: Signal -- ^ Should begin/resume thinking?
+  , hungry    :: Signal -- ^ Should try to begin/resume eating?
+  }
+
+-- | Create a new philosopher given a name and left,right fork pair.
+mkPhilosopher :: (Name,ForkPair) -> Process Philosopher
+mkPhilosopher (n,(lFork,rFork)) =
+  Philosopher <$> pure n
+              <*> pure lFork
+              <*> pure rFork
+              <*> newChannel -- thinking
+              <*> newChannel -- hungry
+
+-- | Create 'n' philosophers.
+mkPhilosophers :: Vector n (Name,ForkPair) -> Process (Vector n Philosopher)
+mkPhilosophers = mapMVector mkPhilosopher
+
+-- Create a cycle of 'n' ForkPairs such that:
+-- - The rightFork at 'i' is the leftFork of 'i+1'
+-- - / The leftFork at 'i' is the rightFork of 'i-1'
+-- - 0-1 = n
+-- - n+1 = 0
+-- - n > 1
+--
+-- E.G. (a,b) : (b,c) : (c,d) : (d,a)
+mkForkPairs :: Natural (Suc n) -> Process (Vector (Suc n) ForkPair)
+mkForkPairs n = do
+  leftForks <- replicateM n newChannel
+  let t          = tail leftForks
+      h          = head leftForks
+      rightForks = t `snoc` h
+  return $ zip leftForks rightForks
+
 -- | Simulate the dining philosophers problem for i > 1 philosophers.
-diningPhilosophers :: Int -> Process ()
-diningPhilosophers i =
-    if i < 2
-    then liftIO $ putStrLn "Require at least two philosophers"
-    else do
-    -- Name philosophers by an index
-    -- An arrangement pairs each philosopher with 
-    let names = take i $ map show [1..i]
+diningPhilosophers :: Natural (Suc n) -> Process ()
+diningPhilosophers n = do
 
-    -- Create 'i' pairs of forks
-    forkPairs <- mkForkPairs i
+    let names = fromNatural show n -- Name philosophers by an index
+    forkPairs <- mkForkPairs n     -- create 'n' pairs of forks.
 
-    -- The seating arrangement pairs each philosophers with their left and right
-    -- fork.
+    -- Create a number of philosophers with a seating arrangement.
     let arrangement = zip names forkPairs
+    philosophers <- mkPhilosophers arrangement
 
-    -- For each seating arrangement (a philosopher between two forks):
+    -- For each philosopher:
     -- - When the philosopher is thinking => think for a random amount of
     --   time before becoming hungry.
     -- - When the philosopher is hungry and both forks are free =>
     --   eat for a random amount of time before replacing the forks and
     --   resuming thinking.
-    philosophers <- forM arrangement $ \(name,(leftFork,rightFork)) -> do
-        [thinking,hungry]                   <- newChannels 2
-        def $ thinking                      |> do thinkRandom name; signal hungry
-           |$ leftFork & hungry & rightFork |> do eatRandom name; signalAll [leftFork,thinking,rightFork]
-        return thinking
+    def $ buildWith
+            (\(Philosopher name leftFork rightFork thinking hungry) -> toDefinitionsRep
+              $ thinking                      |> do thinkRandom name; signal hungry
+             |$ leftFork & hungry & rightFork |> do eatRandom name; signalAll [leftFork,thinking,rightFork]
+            )
+            philosophers
 
-    -- All begin thinking and lay all forks.
-    signalAll $ philosophers ++ forks forkPairs
-
-type Fork      = Signal      -- ^ A signal on a Fork declares the fork available.
-type Forks     = [Fork]      -- ^ List of Fork's
-type ForkPair  = (Fork,Fork) -- ^ Pair of left and right hand Fork's
-type ForkPairs = [ForkPair]  -- ^ List of left and right hand Fork's
-
--- | Pair a cycle of forks ofsize 'i'.
-mkForkPairs :: Int -> Process ForkPairs
-mkForkPairs i = do
-    leftForks@(f:fs) <- newChannels i :: Process [Signal]
-    let rightForks = fs ++ [f]
-    return $ zip leftForks rightForks
-
--- | List the unique forks from a given fork pairs list.
-forks :: ForkPairs -> Forks
-forks = map fst
+    signalAll . map fst . toList $ forkPairs         -- Lay all forks
+    signalAll . map thinking . toList $ philosophers -- Begin thinking
 

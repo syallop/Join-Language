@@ -55,6 +55,9 @@ library
                     , Join.Types.Channel
                     , Join.Types.Message
 
+                    , Join.Types.Pattern.Builder
+                    , Join.Types.Pattern.Builder.Natural
+                    , Join.Types.Pattern.Builder.Vector
                     , Join.Types.Pattern.Clause
                     , Join.Types.Pattern.Clauses
                     , Join.Types.Pattern.Channel
@@ -80,7 +83,9 @@ library
                     , Join.Data.Timeout
 
   -- Modules included in this library but not exported.
-  other-modules:      Join.Types.Pattern.Rep.Definition
+  other-modules:      Join.Types.Pattern.Builder.Nat
+                    , Join.Types.Pattern.Rep.Definition
+                    , Join.Types.Pattern.Rep.List
                     , Join.Types.Pattern.Rep.Pattern
                     , Join.Interpretation.Basic.Debug
                     , Join.Interpretation.Basic.Status
@@ -97,6 +102,7 @@ library
                     , GADTs
                     , MultiParamTypeClasses
                     , RankNTypes
+                    , TemplateHaskell
                     , TypeOperators
                     , TypeSynonymInstances
                     , GeneralizedNewtypeDeriving
@@ -119,6 +125,7 @@ library
                     , vector       >=0.10 && <0.11
                     , random
                     , bimap
+                    , template-haskell
   
   -- Directories containing source files.
   -- hs-source-dirs:      
