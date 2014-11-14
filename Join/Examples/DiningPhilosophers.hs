@@ -1,3 +1,17 @@
+{-|
+Module      : Join.Examples.DiningPhilosophers
+Copyright   : (c) Samuel A. Yallop, 2014
+Maintainer  : syallop@gmail.com
+Stability   : experimental
+
+This module provides two simulations of the dining philosophers concurrency problem.
+
+- 'diningPhilosophersExplicit' : Explicitly defines a simulation for 5 philosophers.
+- 'diningPhilosophers' : Uses "Join.Pattern.Builder" to define a simulation for n>1 philosophers using
+   pseudo-dependant-type tricks.
+
+For a description of the problem, see "http://en.wikipedia.org/wiki/Dining_philosophers_problem".
+-}
 module Join.Examples.DiningPhilosophers
     ( diningPhilosophersExplicit
     , diningPhilosophers

@@ -1,3 +1,15 @@
+{-|
+Module      : Join.Data.Lock
+Copyright   : (c) Samuel A. Yallop, 2014
+Maintainer  : syallop@gmail.com
+Stability   : experimental
+
+A 'Lock' allows processes to coordinate exclusive access to a resource.
+
+'lock' waits for a 'Lock' to be available while 'unlock' releases a held lock.
+
+The 'withLock' convenience function ensures locks are released at the end of an operation.
+-}
 module Join.Data.Lock
     ( Lock()
     , mkLock
@@ -8,8 +20,9 @@ module Join.Data.Lock
 
 import Join
 
-{- Primitive Lock example -}
+-- | A Lock allows Process's to coordinate access of a resource
 newtype Lock = Lock (SyncSignal (),SyncSignal ())
+
 mkLock :: Process Lock
 mkLock = do
     free   <- newChannel -- Enforce mutex      :: Chan ()
