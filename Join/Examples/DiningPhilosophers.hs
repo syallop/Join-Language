@@ -6,9 +6,9 @@ module Join.Examples.DiningPhilosophers
 import Prelude hiding (append,zip,head,tail)
 
 import Join
+import Join.Pattern.Rep
+import Join.Pattern.Builder
 import Join.Interpretation.Basic
-import Join.Types.Pattern.Rep
-import Join.Types.Pattern.Builder
 
 import Control.Applicative    ((<$>),(<*>),pure)
 import Control.Concurrent     (threadDelay)

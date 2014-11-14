@@ -2,14 +2,14 @@
             ,TypeOperators
   #-}
 {-|
-Module      : Join.Types.Pattern.Builder.Vector
+Module      : Join.Pattern.Builder.Vector
 Copyright   : (c) Samuel A. Yallop, 2014
 Maintainer  : syallop@gmail.com
 Stability   : experimental
 
 Non-empty Vectors, indexed by their length.
 -}
-module Join.Types.Pattern.Builder.Vector
+module Join.Pattern.Builder.Vector
   (Vector(VOne,VAnd)
   ,head
   ,tail
@@ -26,8 +26,8 @@ module Join.Types.Pattern.Builder.Vector
 
 import Prelude hiding (replicate,zip,tail,head)
 
-import Join.Types.Pattern.Builder.Natural
-import Join.Types.Pattern.Rep
+import Join.Pattern.Builder.Natural
+import Join.Pattern.Rep
 
 -- | A Vector which contains One or many elements, indexed in 'n::Nat'.
 data Vector n a where

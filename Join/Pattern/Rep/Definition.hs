@@ -14,7 +14,7 @@
             ,IncoherentInstances
   #-}
 {-|
-Module      : Join.Types.Pattern.Rep.Definition
+Module      : Join.Pattern.Rep.Definition
 Copyright   : (c) Samuel A. Yallop, 2014
 Maintainer  : syallop@gmail.com
 Stability   : experimental
@@ -24,7 +24,7 @@ This module gives a strongly typed representation of join definitions as concret
 The 'root' types exported are 'DefinitionRep' (holding the data of a single definition)
 and 'DefinitionsRep' (holding data of one or many definitions).
 -}
-module Join.Types.Pattern.Rep.Definition
+module Join.Pattern.Rep.Definition
   (-- * Types used in definition(s)
    Trigger(..)
   ,HasTriggerType(..)
@@ -45,10 +45,10 @@ module Join.Types.Pattern.Rep.Definition
   ,appendDefinitionsRep
   ) where
 
-import Join.Types.Apply
-import Join.Types.Channel
-import Join.Types.Pattern.Rep.List
-import Join.Types.Pattern.Rep.Pattern
+import Join.Apply
+import Join.Channel
+import Join.Pattern.Rep.List
+import Join.Pattern.Rep.Pattern
 
 import qualified Data.Set as Set
 

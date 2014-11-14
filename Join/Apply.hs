@@ -2,13 +2,13 @@
             ,IncoherentInstances
             ,MultiParamTypeClasses
  #-}
-module Join.Types.Apply
+module Join.Apply
     ( Application(..)
     , Apply(..)
     , unsafeApply
     ) where
 
-import Join.Types.Message
+import Join.Message
 
 -- | Encapsulates the result of some type of function application that may
 -- either succeed or fail in a limited number of ways.

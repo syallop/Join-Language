@@ -3,15 +3,14 @@
             ,TypeOperators
   #-}
 {-|
-Module      : Join.Types.Pattern.Rep.List
+Module      : Join.Pattern.Rep.List
 Copyright   : (c) Samuel A. Yallop, 2014
 Maintainer  : syallop@gmail.com
 Stability   : experimental
 
 Export type functions used under Pattern.
 -}
-
-module Join.Types.Pattern.Rep.List
+module Join.Pattern.Rep.List
   (Append
   ,(:++)
   ) where

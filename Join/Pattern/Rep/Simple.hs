@@ -11,18 +11,18 @@
             ,UndecidableInstances
  #-}
 {-|
-Module      : Join.Types.DefinitionRep.Simple
+Module      : Join.DefinitionRep.Simple
 Copyright   : (c) Samuel A. Yallop, 2014
 Maintainer  : syallop@gmail.com
 Stability   : experimental
 -}
-module Join.Types.Pattern.Rep.Simple where
+module Join.Pattern.Rep.Simple where
 
-import           Join.Types.Apply
-import           Join.Types.Channel
-import qualified Join.Types.Pattern.Rep as PR
-import           Join.Types.Pattern.Rep       hiding (MatchWhen,MatchAll)
-import           Join.Types.Message
+import           Join.Apply
+import           Join.Channel
+import qualified Join.Pattern.Rep as PR
+import           Join.Pattern.Rep       hiding (MatchWhen,MatchAll)
+import           Join.Message
 
 -- | How messages should be matched on a channel.
 data MatchType where

@@ -5,7 +5,7 @@
            , TypeOperators
   #-}
 {-|
-Module      : Join.Types.Pattern.Builder.Nat
+Module      : Join.Pattern.Builder.Nat
 Copyright   : (c) Samuel A. Yallop, 2014
 Maintainer  : syallop@gmail.com
 Stability   : experimental
@@ -22,7 +22,7 @@ data kind Nat
   = One
   | Suc Nat
 -}
-module Join.Types.Pattern.Builder.Nat
+module Join.Pattern.Builder.Nat
   (Nat -- Type/Kind
   ,One -- Type :: Nat
   ,Suc -- Type :: Nat

@@ -4,9 +4,9 @@
             ,MultiParamTypeClasses
             ,TypeOperators
   #-}
-module Join.Types.Pattern.Clauses where
+module Join.Pattern.Clauses where
 
-import Join.Types.Pattern.Rep.Definition
+import Join.Pattern.Rep.Definition
 
 -- | Many related definitions.
 --

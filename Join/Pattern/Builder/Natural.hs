@@ -2,7 +2,7 @@
             ,TemplateHaskell
   #-}
 {-|
-Module      : Join.Types.Pattern.Builder.Natural
+Module      : Join.Pattern.Builder.Natural
 Copyright   : (c) Samuel A. Yallop, 2014
 Maintainer  : syallop@gmail.com
 Stability   : experimental
@@ -10,7 +10,7 @@ Stability   : experimental
 Represent non-zero natural numbers whose term corresponds exactly
 to their type.
 -}
-module Join.Types.Pattern.Builder.Natural
+module Join.Pattern.Builder.Natural
   (Nat
   ,One
   ,Suc
@@ -20,7 +20,7 @@ module Join.Types.Pattern.Builder.Natural
   ,toNatural
   ) where
 
-import Join.Types.Pattern.Builder.Nat
+import Join.Pattern.Builder.Nat
 
 import Language.Haskell.TH
 

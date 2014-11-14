@@ -14,7 +14,7 @@
             ,IncoherentInstances
   #-}
 {-|
-Module      : Join.Types.Pattern.Rep.Pattern
+Module      : Join.Pattern.Rep.Pattern
 Copyright   : (c) Samuel A. Yallop, 2014
 Maintainer  : syallop@gmail.com
 Stability   : experimental
@@ -24,7 +24,7 @@ This module gives a strongly typed representation of join patterns as concrete A
 The 'root' types exported are 'PatternRep' (holding the data of a single pattern)
 and 'PatternsRep' (holding data of one or many patterns).
 -}
-module Join.Types.Pattern.Rep.Pattern
+module Join.Pattern.Rep.Pattern
   (-- * Types used within pattern(s)
    MsgPredRep
   ,ShouldPass(..)
@@ -43,9 +43,9 @@ module Join.Types.Pattern.Rep.Pattern
   ,foldPatternsRep
   ) where
 
-import Join.Types.Apply
-import Join.Types.Channel
-import Join.Types.Message
+import Join.Apply
+import Join.Channel
+import Join.Message
 
 import Data.Typeable
 

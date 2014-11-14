@@ -56,8 +56,8 @@ module Join.Interpretation.Basic.MessageBox
 
 import Join.Interpretation.Basic.Status
 
-import Join.Types.Channel
-import Join.Types.Message
+import Join.Channel
+import Join.Message
 
 import           Control.Concurrent.MVar
 import qualified Data.ByteString         as BS

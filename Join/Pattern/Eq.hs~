@@ -3,7 +3,7 @@
             ,GADTs
             ,MultiParamTypeClasses
   #-}
-module Join.Types.Pattern.Eq
+module Join.Pattern.Eq
   ( ChannelEq(..)
   , (&=)
   ) where

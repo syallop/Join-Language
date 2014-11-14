@@ -50,23 +50,22 @@ library
   -- Modules exported by the library.
   exposed-modules:    Join
                     , Join.Language
-                    , Join.Types
-                    , Join.Types.Apply
-                    , Join.Types.Channel
-                    , Join.Types.Message
+                    , Join.Apply
+                    , Join.Channel
+                    , Join.Message
 
-                    , Join.Types.Pattern.Builder
-                    , Join.Types.Pattern.Builder.Natural
-                    , Join.Types.Pattern.Builder.Vector
-                    , Join.Types.Pattern.Clause
-                    , Join.Types.Pattern.Clauses
-                    , Join.Types.Pattern.Channel
-                    , Join.Types.Pattern.Eq
-                    , Join.Types.Pattern.Patterns
-                    , Join.Types.Pattern.Pred
-                    , Join.Types.Pattern.Rep
-                    , Join.Types.Pattern.Rep.Simple
-                    , Join.Types.Response
+                    , Join.Pattern.Builder
+                    , Join.Pattern.Builder.Natural
+                    , Join.Pattern.Builder.Vector
+                    , Join.Pattern.Clause
+                    , Join.Pattern.Clauses
+                    , Join.Pattern.Channel
+                    , Join.Pattern.Eq
+                    , Join.Pattern.Patterns
+                    , Join.Pattern.Pred
+                    , Join.Pattern.Rep
+                    , Join.Pattern.Rep.Simple
+                    , Join.Response
 
                     , Join.Interpretation.Basic
 
@@ -83,10 +82,10 @@ library
                     , Join.Data.Timeout
 
   -- Modules included in this library but not exported.
-  other-modules:      Join.Types.Pattern.Builder.Nat
-                    , Join.Types.Pattern.Rep.Definition
-                    , Join.Types.Pattern.Rep.List
-                    , Join.Types.Pattern.Rep.Pattern
+  other-modules:      Join.Pattern.Builder.Nat
+                    , Join.Pattern.Rep.Definition
+                    , Join.Pattern.Rep.List
+                    , Join.Pattern.Rep.Pattern
                     , Join.Interpretation.Basic.Debug
                     , Join.Interpretation.Basic.Status
                     , Join.Interpretation.Basic.StoredDefinitions

@@ -27,7 +27,7 @@ module Join.Interpretation.Basic.Rule
     ) where
 
 import Join
-import Join.Types.Pattern.Rep
+import Join.Pattern.Rep
 
 import Join.Interpretation.Basic.Debug
 import Join.Interpretation.Basic.StoredDefinitions

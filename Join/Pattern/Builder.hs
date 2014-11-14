@@ -5,7 +5,7 @@
             ,UndecidableInstances
   #-}
 {-|
-Module      : Join.Types.Pattern.Builder
+Module      : Join.Pattern.Builder
 Copyright   : (c) Samuel A. Yallop, 2014
 Maintainer  : syallop@gmail.com
 Stability   : experimental
@@ -14,21 +14,21 @@ Build larger Definitions from smaller abstracted components
 in a stongly typed manner.
 
 -}
-module Join.Types.Pattern.Builder
+module Join.Pattern.Builder
   (type Repeat
   ,buildWith
   ,build
 
-  ,module Join.Types.Pattern.Builder.Natural
-  ,module Join.Types.Pattern.Builder.Vector
+  ,module Join.Pattern.Builder.Natural
+  ,module Join.Pattern.Builder.Vector
   ) where
 
 import Prelude hiding (head,tail,zip,append,snoc,replicate)
 
-import Join.Types.Pattern.Builder.Natural
-import Join.Types.Pattern.Builder.Vector
-import Join.Types.Pattern.Rep
-import Join.Types.Pattern.Rep
+import Join.Pattern.Builder.Natural
+import Join.Pattern.Builder.Vector
+import Join.Pattern.Rep
+import Join.Pattern.Rep
 
 -- | Map the elements of a Vector to a single concatenated DefinitionsRep's.
 buildWith :: (a -> DefinitionsRep tss r) -> Vector n a -> DefinitionsRep (n:*tss) r

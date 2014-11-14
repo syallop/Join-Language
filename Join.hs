@@ -11,6 +11,10 @@ module Join
     ( module J
     ) where
 
+import Join.Apply    as J
+import Join.Channel  as J
 import Join.Language as J
-import Join.Types    as J
+import Join.Message  as J
+import Join.Pattern  as J
+import Join.Response as J
 
