@@ -1,7 +1,16 @@
 {-# LANGUAGE DataKinds
             ,MultiWayIf
   #-}
+{-|
+Module      : Join.Examples
+Copyright   : (c) Samuel A. Yallop, 2014
+Maintainer  : syallop@gmail.com
+Stability   : experimental
 
+This module gives several small example programs, most testing the data structures
+defined in "Join.Data".
+
+-}
 module Join.Examples where
 
 import Prelude hiding (take, read)

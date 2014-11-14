@@ -1,3 +1,15 @@
+{-|
+Module      : Join.Data.Barrier
+Copyright   : (c) Samuel A. Yallop, 2014
+Maintainer  : syallop@gmail.com
+Stability   : experimental
+
+The 'Barrier' structure can be used to ensure two concurrent processes
+move in step.
+
+Calling 'signalLeft' in one process will cause it to wait until 'signalRight' is called
+in the other, and vice-versa.
+-}
 module Join.Data.Barrier
     ( Barrier()
     , mkBarrier

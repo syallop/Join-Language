@@ -1,4 +1,15 @@
 {-# LANGUAGE DataKinds, GADTs #-}
+{-|
+Module      : Join.Data.Buffer
+Copyright   : (c) Samuel A. Yallop, 2014
+Maintainer  : syallop@gmail.com
+Stability   : experimental
+
+A 'Buffer' structure behaves like a pi-calculus channel.
+
+Messages are asynchronously placed into the 'Buffer' with 'put',
+they may then be synchronously waited upon with 'take'.
+-}
 module Join.Data.Buffer
     ( Buffer()
     , mkBuffer
