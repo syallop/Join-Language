@@ -78,8 +78,6 @@ library
                     , Join.Data.Counter
                     , Join.Data.Lock
                     , Join.Data.Loop
-                    , Join.Data.Pair
-                    , Join.Data.Timeout
 
   -- Modules included in this library but not exported.
   other-modules:      Join.Pattern.Builder.Nat
