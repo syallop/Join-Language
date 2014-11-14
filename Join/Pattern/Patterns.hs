@@ -5,12 +5,12 @@
             ,MultiParamTypeClasses
             ,TypeOperators
   #-}
-module Join.Types.Pattern.Patterns
+module Join.Pattern.Patterns
   (And(..)
   ,(&)
   ) where
 
-import Join.Types.Pattern.Rep
+import Join.Pattern.Rep
 
 -- | Pattern type of matching a conjunction of patterns.
 --

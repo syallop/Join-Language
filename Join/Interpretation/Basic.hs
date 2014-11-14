@@ -19,7 +19,7 @@ module Join.Interpretation.Basic
 import Prelude hiding (lookup)
 
 import Join
-import Join.Types.Pattern.Rep
+import Join.Pattern.Rep
 import Join.Interpretation.Basic.Debug
 import Join.Interpretation.Basic.Status
 import Join.Interpretation.Basic.MessageBox

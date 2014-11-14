@@ -224,8 +224,12 @@ module Join.Language
 
 import Prelude hiding (read)
 
-import Join.Types
-import Join.Types.Pattern.Rep
+import Join.Apply
+import Join.Channel
+import Join.Message
+import Join.Pattern
+import Join.Pattern.Rep
+import Join.Response
 
 import Control.Monad.Operational (ProgramT,singleton)
 import Control.Monad             (replicateM)

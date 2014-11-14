@@ -4,13 +4,13 @@
             ,TypeOperators
             ,MultiParamTypeClasses
   #-}
-module Join.Types.Pattern.Clause
+module Join.Pattern.Clause
   (DefinitionClause(..)
   ,(|>)
   ) where
 
-import Join.Types.Apply
-import Join.Types.Pattern.Rep
+import Join.Apply
+import Join.Pattern.Rep
 
 -- | A DefinitionClause is a pattern type and an associated trigger function.
 --

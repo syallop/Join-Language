@@ -8,7 +8,7 @@
             ,StandaloneDeriving
  #-}
 {-|
-Module      : Join.Types.Channel
+Module      : Join.Channel
 Copyright   : (c) Samuel A. Yallop, 2014
 Maintainer  : syallop@gmail.com
 Stability   : experimental
@@ -35,7 +35,7 @@ and the user can omit type signatures. By constraining the synchronicity type va
 implementation sufficiently, type annotations may be able to be avoided entirely.
 -}
 
-module Join.Types.Channel
+module Join.Channel
     (ChanId(..)
     ,Channel()
     ,Chan

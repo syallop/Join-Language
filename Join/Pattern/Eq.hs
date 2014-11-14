@@ -3,15 +3,15 @@
             ,GADTs
             ,MultiParamTypeClasses
   #-}
-module Join.Types.Pattern.Eq
+module Join.Pattern.Eq
   ( ChannelEq(..)
   , (&=)
   ) where
 
-import Join.Types.Pattern.Rep
+import Join.Pattern.Rep
 
-import Join.Types.Channel
-import Join.Types.Message
+import Join.Channel
+import Join.Message
 
 import Data.Typeable
 

@@ -2,7 +2,7 @@
             ,UndecidableInstances
             ,KindSignatures
   #-}
-module Join.Types.Message
+module Join.Message
   (MessageType(encodeMessage
               ,decodeMessage
               ,forgetMessageType

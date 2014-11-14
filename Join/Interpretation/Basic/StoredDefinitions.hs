@@ -26,7 +26,7 @@ modified to hold slightly different information for the purpose of efficient run
 The types and functions are named by the structure they adapt, prefixed by 'Stored'.
 
 Note: Due to the similar structure and near code duplication, it is possible that
-Join.Types.Pattern.Rep.* will later be abstracted to cover this module.
+Join.Pattern.Rep.* will later be abstracted to cover this module.
 -}
 
 module Join.Interpretation.Basic.StoredDefinitions
@@ -45,10 +45,7 @@ module Join.Interpretation.Basic.StoredDefinitions
 import Data.Typeable
 
 import Join
-import Join.Types.Apply
-import Join.Types.Channel
-import Join.Types.Message
-import Join.Types.Pattern.Rep
+import Join.Pattern.Rep
 
 import Join.Interpretation.Basic.MessageBox
 
