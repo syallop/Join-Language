@@ -30,13 +30,13 @@ Join.Pattern.Rep.* will later be abstracted to cover this module.
 -}
 
 module Join.Interpretation.Basic.StoredDefinitions
-  (StoredPatternRep(..)
-  ,StoredPatternsRep(..)
-  ,StoredDefinitionRep(..)
-  ,StoredDefinitionsRep(..)
+  (StoredPattern(..)
+  ,StoredPatterns(..)
+  ,StoredDefinition(..)
+  ,StoredDefinitions(..)
 
   ,foldStoredPatterns
-  ,foldStoredDefinitionsRep
+  ,foldStoredDefinitions
 
   ,storeDefinitionsWith
   ,mapStoredDefinitions
@@ -49,70 +49,70 @@ import Join.Pattern.Rep
 
 import Join.Interpretation.Basic.MessageBox
 
--- | Stored analogy to 'PatternRep' with 'MatchRep' replaced
+-- | Stored analogy to 'Pattern' with 'Match' replaced
 -- by a possible 'BoxIx' referencing the subbox where messages which
 -- would match a 'MatchWhen pred' predicate are kept.
-data StoredPatternRep s m p where
+data StoredPattern s m p where
   StoredPattern :: (MessageType m,Typeable s)
                 => Channel (s :: Synchronicity *) m
                 -> Maybe BoxIx
                 -> ShouldPass p
-                -> StoredPatternRep s m p
+                -> StoredPattern s m p
 
--- | Stored analogy to 'PatternsRep'.
-data StoredPatternsRep (ts :: [*]) where
-  OneStoredPattern :: StoredPatternRep s m p
-                   -> StoredPatternsRep '[PatternRep s m p]
+-- | Stored analogy to 'Patterns'.
+data StoredPatterns (ts :: [*]) where
+  OneStoredPattern :: StoredPattern s m p
+                   -> StoredPatterns '[Pattern s m p]
 
-  AndStoredPattern :: StoredPatternRep s m p
-                   -> StoredPatternsRep ts
-                   -> StoredPatternsRep ((PatternRep s m p) ': ts)
+  AndStoredPattern :: StoredPattern s m p
+                   -> StoredPatterns ts
+                   -> StoredPatterns ((Pattern s m p) ': ts)
 
--- | Stored analogy to 'DefinitionRep', with differences:
--- - StoredPatternsRep instead of PatternRep
+-- | Stored analogy to 'Definition', with differences:
+-- - StoredPatterns instead of Pattern
 -- - Concrete return type Inert.
 -- - additional 'refine' type allowing definitions to be tagged with a value.
-data StoredDefinitionRep ts tr refine where
+data StoredDefinition ts tr refine where
   StoredDefinition :: (HasTriggerType ts tr Inert,Apply tr Inert)
-                   => StoredPatternsRep ts
+                   => StoredPatterns ts
                    -> Trigger tr Inert
                    -> refine
-                   -> StoredDefinitionRep ts tr refine
+                   -> StoredDefinition ts tr refine
 
--- | Stored analogy to 'DefinitionsRep'.
-data StoredDefinitionsRep tss refine where
-  OneStoredDefinition :: StoredDefinitionRep ts tr refine
-                      -> StoredDefinitionsRep '[DefinitionRep ts tr Inert] refine
+-- | Stored analogy to 'Definitions'.
+data StoredDefinitions tss refine where
+  OneStoredDefinition :: StoredDefinition ts tr refine
+                      -> StoredDefinitions '[Definition ts tr Inert] refine
 
-  AndStoredDefinition :: StoredDefinitionRep ts tr refine
-                      -> StoredDefinitionsRep tss refine
-                      -> StoredDefinitionsRep ((DefinitionRep ts tr Inert) ': tss) refine
+  AndStoredDefinition :: StoredDefinition ts tr refine
+                      -> StoredDefinitions tss refine
+                      -> StoredDefinitions ((Definition ts tr Inert) ': tss) refine
 
--- | Fold a function over the StoredPatternRep contained within a StoredPatternsRep.
+-- | Fold a function over the StoredPattern contained within a StoredPatterns.
 foldStoredPatterns :: (forall m s p. (MessageType m,Typeable s) => Channel (s::Synchronicity *) m -> Maybe BoxIx -> ShouldPass p -> acc -> acc)
                    -> acc
-                   -> StoredPatternsRep ts
+                   -> StoredPatterns ts
                    -> acc
 foldStoredPatterns f acc (OneStoredPattern (StoredPattern c mb sp)) = f c mb sp acc
 foldStoredPatterns f acc (AndStoredPattern (StoredPattern c mb sp) sps) = foldStoredPatterns f (f c mb sp acc) sps
 
--- | Fold a function over the StoredDefinitionRep contained within a StoredDefinitionsRep.
-foldStoredDefinitionsRep :: (forall ts tr. StoredDefinitionRep ts tr refine -> acc -> acc)
+-- | Fold a function over the StoredDefinition contained within a StoredDefinitions.
+foldStoredDefinitions :: (forall ts tr. StoredDefinition ts tr refine -> acc -> acc)
                          -> acc
-                         -> StoredDefinitionsRep tss refine
+                         -> StoredDefinitions tss refine
                          -> acc
-foldStoredDefinitionsRep f acc (OneStoredDefinition sdr)      = f sdr acc
-foldStoredDefinitionsRep f acc (AndStoredDefinition sdr sdrs) = foldStoredDefinitionsRep f (f sdr acc) sdrs
+foldStoredDefinitions f acc (OneStoredDefinition sdr)      = f sdr acc
+foldStoredDefinitions f acc (AndStoredDefinition sdr sdrs) = foldStoredDefinitions f (f sdr acc) sdrs
 
 
 
 
--- | Store all contained PatternRep by using a function to map 'MatchWhen pred's and an accumulator
+-- | Store all contained Pattern by using a function to map 'MatchWhen pred's and an accumulator
 -- to a BoxIx and an updated accumulator.
-storeDefinitionsWith :: (forall s m. (MessageType m,Typeable s) => Channel (s :: Synchronicity *) m -> MatchRep m -> acc -> (acc,Maybe BoxIx))
+storeDefinitionsWith :: (forall s m. (MessageType m,Typeable s) => Channel (s :: Synchronicity *) m -> Match m -> acc -> (acc,Maybe BoxIx))
                      -> acc
-                     -> DefinitionsRep tss Inert
-                     -> (acc,StoredDefinitionsRep tss ())
+                     -> Definitions tss Inert
+                     -> (acc,StoredDefinitions tss ())
 storeDefinitionsWith f acc (OneDefinition dr) =
   let (acc',dr') = storeDefinitionWith f acc dr
      in (acc',OneStoredDefinition dr')
@@ -121,16 +121,16 @@ storeDefinitionsWith f acc (AndDefinition dr drs) =
       (acc'',drs') = storeDefinitionsWith f acc' drs
      in (acc'',AndStoredDefinition dr' drs')
 
-storeDefinitionWith :: (forall s m. (MessageType m,Typeable s) => Channel (s :: Synchronicity *) m -> MatchRep m -> acc -> (acc,Maybe BoxIx))
+storeDefinitionWith :: (forall s m. (MessageType m,Typeable s) => Channel (s :: Synchronicity *) m -> Match m -> acc -> (acc,Maybe BoxIx))
                     -> acc
-                    -> DefinitionRep ts tr Inert
-                    -> (acc,StoredDefinitionRep ts tr ())
+                    -> Definition ts tr Inert
+                    -> (acc,StoredDefinition ts tr ())
 storeDefinitionWith f acc (Definition pr tr) = let (acc',pr') = storePatternsWith f acc pr
                                                   in (acc',StoredDefinition pr' tr ())
-storePatternsWith :: (forall s m. (MessageType m,Typeable s) => Channel (s :: Synchronicity *) m -> MatchRep m -> acc -> (acc,Maybe BoxIx))
+storePatternsWith :: (forall s m. (MessageType m,Typeable s) => Channel (s :: Synchronicity *) m -> Match m -> acc -> (acc,Maybe BoxIx))
                   -> acc
-                  -> PatternsRep ts
-                  -> (acc,StoredPatternsRep ts)
+                  -> Patterns ts
+                  -> (acc,StoredPatterns ts)
 storePatternsWith f acc (OnePattern spr) =
   let (acc',spr') = storePatternWith f acc spr
      in (acc',OneStoredPattern spr')
@@ -139,25 +139,25 @@ storePatternsWith f acc (AndPattern spr spsr) =
       (acc'',spsr') = storePatternsWith f acc' spsr
      in (acc'',AndStoredPattern spr' spsr')
 
-storePatternWith :: ((MessageType m,Typeable s) => Channel (s :: Synchronicity *) m -> MatchRep m -> acc -> (acc,Maybe BoxIx))
+storePatternWith :: ((MessageType m,Typeable s) => Channel (s :: Synchronicity *) m -> Match m -> acc -> (acc,Maybe BoxIx))
                  -> acc
-                 -> PatternRep s m p
-                 -> (acc,StoredPatternRep s m p)
+                 -> Pattern s m p
+                 -> (acc,StoredPattern s m p)
 storePatternWith f acc (Pattern c mr sp) = let (acc',mBoxIx) = f c mr acc
                                               in (acc',StoredPattern c mBoxIx sp)
 
 
--- | Transform the contained 'refine' value of a StoredDefinitionRep by some function
+-- | Transform the contained 'refine' value of a StoredDefinition by some function
 -- which has access to the StoredDefinition's StoredPatterns to decide this new refine' value.
-mapStoredDefinitions :: (forall ts. StoredPatternsRep ts -> refine')
-                     -> StoredDefinitionsRep tss ()
-                     -> StoredDefinitionsRep tss refine'
+mapStoredDefinitions :: (forall ts. StoredPatterns ts -> refine')
+                     -> StoredDefinitions tss ()
+                     -> StoredDefinitions tss refine'
 mapStoredDefinitions f (OneStoredDefinition sdr) = OneStoredDefinition (mapStoredDefinition f sdr)
 mapStoredDefinitions f (AndStoredDefinition sdr sdsr) = AndStoredDefinition (mapStoredDefinition f sdr)
                                                                                  (mapStoredDefinitions f sdsr)
 
-mapStoredDefinition :: (StoredPatternsRep ts -> refine')
-                    -> StoredDefinitionRep ts tr ()
-                    -> StoredDefinitionRep ts tr refine'
+mapStoredDefinition :: (StoredPatterns ts -> refine')
+                    -> StoredDefinition ts tr ()
+                    -> StoredDefinition ts tr refine'
 mapStoredDefinition f (StoredDefinition sp tr ()) = let r = f sp in StoredDefinition sp tr r
 

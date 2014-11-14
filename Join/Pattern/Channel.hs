@@ -27,14 +27,14 @@ type ChannelPattern s a = Channel s a
 instance (MessageType a
          ,Typeable s
          ,DecideChannelShouldPass a p
-         ,ShouldPassValue p) => Pattern (Channel s a) s a p
-  where toPatternRep c = Pattern c MatchAll (shouldPassValue (undefined :: p))
+         ,ShouldPassValue p) => ToPattern (Channel s a) s a p
+  where toPattern c = Pattern c MatchAll (shouldPassValue (undefined :: p))
 
 instance (MessageType a
          ,Typeable s
          ,DecideChannelShouldPass a p
-         ,ShouldPassValue p) => Patterns (Channel s a) '[PatternRep s a p]
-  where toPatternsRep c = OnePattern $ Pattern c MatchAll (shouldPassValue (undefined :: p))
+         ,ShouldPassValue p) => ToPatterns (Channel s a) '[Pattern s a p]
+  where toPatterns c = OnePattern $ Pattern c MatchAll (shouldPassValue (undefined :: p))
 
 class ShouldPassValue p
   where shouldPassValue :: p -> ShouldPass p

@@ -134,7 +134,7 @@ diningPhilosophers n = do
     --   eat for a random amount of time before replacing the forks and
     --   resuming thinking.
     def $ buildWith
-            (\(Philosopher name leftFork rightFork thinking hungry) -> toDefinitionsRep
+            (\(Philosopher name leftFork rightFork thinking hungry) -> toDefinitions
               $ thinking                      |> do thinkRandom name; signal hungry
              |$ leftFork & hungry & rightFork |> do eatRandom name; signalAll [leftFork,thinking,rightFork]
             )

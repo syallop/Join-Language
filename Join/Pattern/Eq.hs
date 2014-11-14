@@ -38,9 +38,9 @@ infixr 8 &=
 instance Show (ChannelEq s a)
   where show (ChannelEq c a) = show c ++ "&=" ++ show (encodeMessage a)
 
-instance Typeable s => Pattern (ChannelEq s a) s a Keep
-  where toPatternRep (ChannelEq c a) = Pattern c (MatchWhen (== a)) DontPass
+instance Typeable s => ToPattern (ChannelEq s a) s a Keep
+  where toPattern (ChannelEq c a) = Pattern c (MatchWhen (== a)) DontPass
 
-instance Typeable s => Patterns (ChannelEq s a) '[PatternRep s a Keep]
-  where toPatternsRep (ChannelEq c a) = OnePattern $ Pattern c (MatchWhen (== a)) DontPass
+instance Typeable s => ToPatterns (ChannelEq s a) '[Pattern s a Keep]
+  where toPatterns (ChannelEq c a) = OnePattern $ Pattern c (MatchWhen (== a)) DontPass
 

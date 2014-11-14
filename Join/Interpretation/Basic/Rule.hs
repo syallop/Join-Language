@@ -96,7 +96,7 @@ data Rule tss refine = Rule
     , _messageBoxes :: MessageBoxes                    -- ^ Map each contained BoxId to a MessageBox
     , _statusIxs    :: StatusIxs                       -- ^ Associate 'MessageLocation's to StatusIx's (in the Status) caching their emptyness.
     , _status       :: Status                          -- ^ Cache the emptyness of all known MessageLocations used by the rule.
-    , _patterns     :: StoredDefinitionsRep tss refine
+    , _patterns     :: StoredDefinitions tss refine
                                                        -- ^ Collection of StatusPatterns and corresponding StoredPatterns.
                                                        --   each StatusPattern can be quickly compared against the Status to determine whether a pattern
                                                        --   has been matched. If so, the associated StoredPattern describes how to perform the match.
@@ -106,7 +106,7 @@ data Rule tss refine = Rule
 
 -- | From a list of 'PatternDescription's and associated 'TriggerF'
 -- functions, build a corresponding 'Rule'.
-mkRule :: forall tss. DefinitionsRep tss Inert -> RuleId -> Rule tss StatusPattern
+mkRule :: forall tss. Definitions tss Inert -> RuleId -> Rule tss StatusPattern
 mkRule definitions rId =
   let -- Every unique channelId passed in desc.
       cIds :: Set.Set ChanId
@@ -132,31 +132,31 @@ mkRule definitions rId =
         statusIxs',
         lastStatusIx
        ),
-       storedDefinitionsRep
+       storedDefinitions
        ) = initialiseDefinitions definitions (chanMapping,messageBoxes,statusIxs,firstStatusIx)
      in Rule{_ruleId       = rId
             ,_chanMapping  = chanMapping'
             ,_messageBoxes = messageBoxes'
             ,_statusIxs    = statusIxs'
             ,_status       = mkStatus lastStatusIx
-            ,_patterns     = tagStatusPatterns storedDefinitionsRep chanMapping' statusIxs' lastStatusIx
+            ,_patterns     = tagStatusPatterns storedDefinitions chanMapping' statusIxs' lastStatusIx
             }
   where
 
-    initialiseDefinitions :: DefinitionsRep tss Inert
+    initialiseDefinitions :: Definitions tss Inert
                           -> (ChanMapping,MessageBoxes,StatusIxs,Int)
-                          -> ((ChanMapping,MessageBoxes,StatusIxs,Int),StoredDefinitionsRep tss ())
+                          -> ((ChanMapping,MessageBoxes,StatusIxs,Int),StoredDefinitions tss ())
     initialiseDefinitions definitions acc = storeDefinitionsWith assignBoxIx acc definitions
       where
         assignBoxIx :: forall (s :: Synchronicity *) m tss. (MessageType m,Typeable s)
                     => Channel s m
-                    -> MatchRep m
+                    -> Match m
                     -> (ChanMapping,MessageBoxes,StatusIxs,Int)
                     -> ((ChanMapping,MessageBoxes,StatusIxs,Int), Maybe BoxIx)
-        assignBoxIx chan matchRep (chanMapping,messageBoxes,statusIxs,nextStatusIx) =
+        assignBoxIx chan match (chanMapping,messageBoxes,statusIxs,nextStatusIx) =
           let boxId           = fromJust $ Bimap.lookup (getId chan) chanMapping
               msgBox          = takeMessageBox' boxId messageBoxes :: MessageBox s m --tospecialise
-             in case matchRep of
+             in case match of
                 MatchAll -> ((chanMapping
                              ,Map.insert boxId (SomeMessageBox (msgBox :: MessageBox s m)) messageBoxes
                              ,statusIxs
@@ -174,10 +174,10 @@ mkRule definitions rId =
                                         )
 
     -- Tag prepared definitions with StatusPattern's which decide when they trigger.
-    tagStatusPatterns :: StoredDefinitionsRep tss () -> ChanMapping -> StatusIxs -> Int -> StoredDefinitionsRep tss StatusPattern
+    tagStatusPatterns :: StoredDefinitions tss () -> ChanMapping -> StatusIxs -> Int -> StoredDefinitions tss StatusPattern
     tagStatusPatterns sdr cM statusIxs size = mapStoredDefinitions (assignStatusPattern (statusIxs,size)) sdr
       where
-        assignStatusPattern :: (StatusIxs,Int) -> StoredPatternsRep ts -> StatusPattern
+        assignStatusPattern :: (StatusIxs,Int) -> StoredPatterns ts -> StatusPattern
         assignStatusPattern (statusIxs,size) spsr
           = let locations = foldStoredPatterns extractLocations [] spsr
                in buildStatusPattern locations statusIxs size
@@ -237,7 +237,7 @@ addMessage msg cId rl
     cStatusIx = takeChanCatchAll cId (_chanMapping rl) (_statusIxs rl)
 
     -- | Identify all matching 'StatusPatterns' of a 'Status'.
-    identifyMatches :: forall tss'. StoredDefinitionsRep tss' StatusPattern
+    identifyMatches :: forall tss'. StoredDefinitions tss' StatusPattern
                     -> Rule tss StatusPattern
                     -> (Rule tss StatusPattern,Maybe (Process (),ReplyCtx))
     identifyMatches (OneStoredDefinition sdr)      rl = identifyMatches' sdr rl
@@ -246,7 +246,7 @@ addMessage msg cId rl
       (rl',Just r ) -> (rl',Just r)
 
     identifyMatches' :: forall ts tr tss
-                      .StoredDefinitionRep ts tr StatusPattern
+                      .StoredDefinition ts tr StatusPattern
                      -> Rule tss StatusPattern
                      -> (Rule tss StatusPattern, Maybe (Process (),ReplyCtx))
     identifyMatches' (StoredDefinition spr (Trigger tr) statusPattern) rl
@@ -260,7 +260,7 @@ addMessage msg cId rl
                 )
       | otherwise = (rl,Nothing)
 
-takeRequestedMessages :: StoredPatternsRep ts
+takeRequestedMessages :: StoredPatterns ts
                       -> ChanMapping
                       -> StatusIxs
                       -> Status
@@ -373,13 +373,13 @@ showStatusIxs ixs = "\n\nMessageLocation -> StatusIx:\n"
 showStatusIx :: (MessageLocation,StatusIx) -> String
 showStatusIx ((BoxId bId,mBoxIx),statusIx) = show bId ++ "," ++ (maybe "_" (\(BoxIx ix) -> show ix) mBoxIx) ++ " -> " ++ show statusIx
 
-showPatterns :: StoredDefinitionsRep tss StatusPattern -> String
-showPatterns sdr = foldStoredDefinitionsRep showPattern "\n\nRefine => StoredPattern\n" sdr
+showPatterns :: StoredDefinitions tss StatusPattern -> String
+showPatterns sdr = foldStoredDefinitions showPattern "\n\nRefine => StoredPattern\n" sdr
 
-showPattern :: forall ts tr. StoredDefinitionRep ts tr StatusPattern -> String -> String
+showPattern :: forall ts tr. StoredDefinition ts tr StatusPattern -> String -> String
 showPattern (StoredDefinition spr tr statusPattern) acc = acc ++ (showStatusPattern statusPattern) ++ " => " ++ (showStoredPatterns spr) ++ "\n"
 
-showStoredPatterns :: StoredPatternsRep ts -> String
+showStoredPatterns :: StoredPatterns ts -> String
 showStoredPatterns spsr = foldStoredPatterns showStoredPattern "" spsr
 
 showStoredPattern :: (MessageType m,Typeable s) => Channel (s :: Synchronicity *) m -> Maybe BoxIx -> ShouldPass p -> String -> String

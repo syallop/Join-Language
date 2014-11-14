@@ -248,9 +248,9 @@ import Data.Monoid
 data Instruction a where
 
     -- Join definition.
-    Def :: Definitions t tss Inert
-        => t
-        -> Instruction ()
+    Def        :: ToDefinitions d tss Inert
+               => d
+               -> Instruction ()
 
     -- Request a new typed Channel.
     NewChannel :: (InferSync s, MessageType a) -- Synchronicity can be inferred, 'a' is a 'MessageType'.
@@ -299,7 +299,7 @@ type Process a = ProgramT Instruction IO a
 -- Says that when ci (which may be inferred to have type :: Channel S Int)
 -- receives a message, it is passed to the RHS function which increments it
 -- and passes it back.
-def :: Definitions t tss Inert => t -> Process ()
+def :: ToDefinitions d tss Inert => d -> Process ()
 def p = singleton $ Def p
 
 -- | Enter a single 'NewChannel' Instruction into Process.

@@ -30,9 +30,9 @@ data ChannelPred s a = MessageType a => ChannelPred (Channel s a) (a -> Bool)
 infixr 8 &~
 (&~) = ChannelPred
 
-instance Typeable s => Pattern (ChannelPred s a) s a Pass
-  where toPatternRep (ChannelPred c p) = Pattern c (MatchWhen p) DoPass
+instance Typeable s => ToPattern (ChannelPred s a) s a Pass
+  where toPattern (ChannelPred c p) = Pattern c (MatchWhen p) DoPass
 
-instance Typeable s => Patterns (ChannelPred s a) '[PatternRep s a Pass]
-  where toPatternsRep (ChannelPred c p) = OnePattern $ Pattern c (MatchWhen p) DoPass
+instance Typeable s => ToPatterns (ChannelPred s a) '[Pattern s a Pass]
+  where toPatterns (ChannelPred c p) = OnePattern $ Pattern c (MatchWhen p) DoPass
 

@@ -37,19 +37,19 @@ import Join.Pattern.Rep
 --
 -- - @ intChan & boolEq & charChan @ => @ trigger :: Int -> Char -> return @
 data And (ts :: [*]) where
-  And :: (Pattern t s m p,Patterns t' ts)
+  And :: (ToPattern t s m p,ToPatterns t' ts)
       => t
       -> t'
-      -> And ((PatternRep s m p) ': ts)
+      -> And ((Pattern s m p) ': ts)
 
 -- | Infix 'And'.
-(&) :: (Pattern t s m p,Patterns t' ts)
+(&) :: (ToPattern t s m p,ToPatterns t' ts)
       => t
       -> t'
-      -> And ((PatternRep s m p) ': ts)
+      -> And ((Pattern s m p) ': ts)
 infixr 7 &
 (&) = And
 
-instance Patterns (And ts) ts
-  where toPatternsRep (And p p') = AndPattern (toPatternRep p) (toPatternsRep p')
+instance ToPatterns (And ts) ts
+  where toPatterns (And p p') = AndPattern (toPattern p) (toPatterns p')
 
