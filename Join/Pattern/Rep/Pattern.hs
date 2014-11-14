@@ -21,26 +21,26 @@ Stability   : experimental
 
 This module gives a strongly typed representation of join patterns as concrete ADT's.
 
-The 'root' types exported are 'PatternRep' (holding the data of a single pattern)
-and 'PatternsRep' (holding data of one or many patterns).
+The 'root' types exported are 'Pattern' (holding the data of a single pattern)
+and 'Patterns' (holding data of one or many patterns).
 -}
 module Join.Pattern.Rep.Pattern
   (-- * Types used within pattern(s)
-   MsgPredRep
+   MsgPred
   ,ShouldPass(..)
   ,Pass
   ,Keep
-  ,MatchRep(..)
+  ,Match(..)
 
   -- * Pattern(s)
-  ,PatternRep(..)
-  ,PatternsRep(..)
-
-  -- * Pattern Syntax extensibility
   ,Pattern(..)
   ,Patterns(..)
 
-  ,foldPatternsRep
+  -- * Pattern Syntax extensibility
+  ,ToPattern(toPattern)
+  ,ToPatterns(toPatterns)
+
+  ,foldPatterns
   ) where
 
 import Join.Apply
@@ -51,7 +51,7 @@ import Data.Typeable
 
 -- | Represent a predicate which may be applied to messages within a
 -- pattern.
-type MsgPredRep m = m -> Bool
+type MsgPred m = m -> Bool
 
 -- | Declare whether some matching message should be passed into a corresponding
 -- trigger function or not.
@@ -78,21 +78,21 @@ data Keep -- ^ Denote a message should NOT be passed, at the type level.
 --
 -- Theoretically, the no-predicate case could be simulated by a (const True) predicate
 -- ,practically having a special case allows significant runtime speedups.
-data MatchRep m where
+data Match m where
 
   -- ^ Match only when a predicate is satisfied.
-  MatchWhen :: MessageType m => MsgPredRep m -> MatchRep m
+  MatchWhen :: MessageType m => MsgPred m -> Match m
 
   -- ^ Match all messages.
-  MatchAll  :: MatchRep m
+  MatchAll  :: Match m
 
 -- | Represent a single item of a pattern.
-data PatternRep s m p where
+data Pattern s m p where
   Pattern :: (MessageType m,Typeable s)
           => Channel (s :: Synchronicity *) m -- ^ Channel matched upon
-          -> MatchRep m                       -- ^ Type of matching to perform
+          -> Match m                          -- ^ Type of matching to perform
           -> ShouldPass p                     -- ^ Whether a successful match should be passed
-          -> PatternRep s m p
+          -> Pattern s m p
 
 -- | Represent one and many pattern's.
 --
@@ -104,45 +104,45 @@ data PatternRep s m p where
 --
 -- - 'p' : shouldpass type (Pass/Keep) of focus.
 --
--- - 'ts' : Accumulates a type-list of 'PatternRep s m p's of each composed 'PatternRep'.
+-- - 'ts' : Accumulates a type-list of 'Pattern s m p's of each composed 'Pattern'.
 --
 -- The \'focus\' refers to either:
 --
--- - The \'head\' 'PatternRep' of a composite 'AndPattern'.
+-- - The \'head\' 'Pattern' of a composite 'AndPattern'.
 --
--- - The 'PatternRep' of a single 'OnePattern'.
+-- - The 'Pattern' of a single 'OnePattern'.
 --
 -- Note: There is purposefully no notion of an 'empty pattern'
--- so a 'PatternsRep' contains 1..n but never 0 'PatternRep's.
-data PatternsRep (ts :: [*]) where
+-- so a 'Patterns' contains 1..n but never 0 'Pattern's.
+data Patterns (ts :: [*]) where
 
-  -- ^ A single 'PatternRep'
-  OnePattern :: PatternRep s m p
-             -> PatternsRep '[PatternRep s m p]
+  -- ^ A single 'Pattern'
+  OnePattern :: Pattern s m p
+             -> Patterns '[Pattern s m p]
 
-  -- ^ A composite pattern where all contained 'PatternRep's
+  -- ^ A composite pattern where all contained 'Pattern's
   -- must match for the whole to be considered matched.
-  AndPattern :: PatternRep s m p
-             -> PatternsRep ts
-             -> PatternsRep ((PatternRep s m p) ': ts)
+  AndPattern :: Pattern s m p
+             -> Patterns ts
+             -> Patterns ((Pattern s m p) ': ts)
 
 -- | Class of types which can be converted to a single pattern.
-class Pattern t s m p | t -> s m p
-  where toPatternRep :: t -> PatternRep s m p
+class ToPattern t s m p | t -> s m p
+  where toPattern :: t -> Pattern s m p
 
--- 'PatternRep's are trivialy themselves.
-instance Pattern (PatternRep s m p) s m p
-  where toPatternRep t = t
+-- 'Pattern's are trivialy themselves.
+instance ToPattern (Pattern s m p) s m p
+  where toPattern t = t
 
 -- | Class of types which can be converted to one or many patterns.
-class Patterns t ts | t -> ts
-  where toPatternsRep :: t -> PatternsRep ts
+class ToPatterns t ts | t -> ts
+  where toPatterns :: t -> Patterns ts
 
-foldPatternsRep :: (forall s m p. PatternRep s m p -> acc -> acc)
-                -> acc
-                -> PatternsRep ts
-                -> acc
-foldPatternsRep f acc prs = case prs of
+foldPatterns :: (forall s m p. Pattern s m p -> acc -> acc)
+             -> acc
+             -> Patterns ts
+             -> acc
+foldPatterns f acc prs = case prs of
   OnePattern pr -> f pr acc
-  AndPattern pr prs -> foldPatternsRep f (f pr acc) prs
+  AndPattern pr prs -> foldPatterns f (f pr acc) prs
 

@@ -12,19 +12,19 @@ import Join.Pattern.Rep.Definition
 --
 -- Declared infix via '|$'.
 data DefinitionClauses tss r where
-  DefinitionClauses :: (Definition t ts tr r,Definitions t' tss r)
+  DefinitionClauses :: (ToDefinition t ts tr r,ToDefinitions t' tss r)
                  => t
                  -> t'
-                 -> DefinitionClauses ((DefinitionRep ts tr r) ': tss) r
+                 -> DefinitionClauses ((Definition ts tr r) ': tss) r
 
 -- | Infix 'DefinitionClauses'.
-(|$) :: (Definition t ts tr r,Definitions t' tss r)
+(|$) :: (ToDefinition t ts tr r,ToDefinitions t' tss r)
      => t
      -> t'
-     -> DefinitionClauses ((DefinitionRep ts tr r) ': tss) r
+     -> DefinitionClauses ((Definition ts tr r) ': tss) r
 infixr 5 |$
 (|$) = DefinitionClauses
 
-instance Definitions (DefinitionClauses tss r) tss r
-  where toDefinitionsRep (DefinitionClauses t t') = AndDefinition (toDefinitionRep t) (toDefinitionsRep t')
+instance ToDefinitions (DefinitionClauses tss r) tss r
+  where toDefinitions (DefinitionClauses t t') = AndDefinition (toDefinition t) (toDefinitions t')
 

@@ -27,7 +27,6 @@ module Join.Pattern.Builder.Vector
 import Prelude hiding (replicate,zip,tail,head)
 
 import Join.Pattern.Builder.Natural
-import Join.Pattern.Rep
 
 -- | A Vector which contains One or many elements, indexed in 'n::Nat'.
 data Vector n a where

@@ -49,22 +49,22 @@ type PatternDescription = [(ChanId,MatchType)]
 data TriggerF r = forall f. Apply f r => TriggerF f
 instance Show (TriggerF r) where show _ = "TRIGGERF"
 
-describe :: Definitions t tss r => t -> [(PatternDescription,TriggerF r)]
-describe t = simplifyDefinitionsRep (toDefinitionsRep t)
+describe :: ToDefinitions t tss r => t -> [(PatternDescription,TriggerF r)]
+describe t = simplifyDefinitions (toDefinitions t)
 
-simplifyDefinitionsRep :: DefinitionsRep tss r -> [(PatternDescription,TriggerF r)]
-simplifyDefinitionsRep (OneDefinition dr)     = [simplifyDefinitionRep dr]
-simplifyDefinitionsRep (AndDefinition dr dsr) = simplifyDefinitionRep dr : simplifyDefinitionsRep dsr
+simplifyDefinitions :: Definitions tss r -> [(PatternDescription,TriggerF r)]
+simplifyDefinitions (OneDefinition dr)     = [simplifyDefinition dr]
+simplifyDefinitions (AndDefinition dr dsr) = simplifyDefinition dr : simplifyDefinitions dsr
 
-simplifyDefinitionRep :: DefinitionRep ts tr r -> (PatternDescription,TriggerF r)
-simplifyDefinitionRep (Definition pr tr) = (simplifyPatternsRep pr,simplifyTrigger tr)
+simplifyDefinition :: Definition ts tr r -> (PatternDescription,TriggerF r)
+simplifyDefinition (Definition pr tr) = (simplifyPatterns pr,simplifyTrigger tr)
 
-simplifyPatternsRep :: PatternsRep tr -> PatternDescription
-simplifyPatternsRep (OnePattern pr)     = [simplifyPatternRep pr]
-simplifyPatternsRep (AndPattern pr psr) = simplifyPatternRep pr : simplifyPatternsRep psr
+simplifyPatterns :: Patterns tr -> PatternDescription
+simplifyPatterns (OnePattern pr)     = [simplifyPattern pr]
+simplifyPatterns (AndPattern pr psr) = simplifyPattern pr : simplifyPatterns psr
 
-simplifyPatternRep :: PatternRep s m p -> (ChanId,MatchType)
-simplifyPatternRep (Pattern c mr sp) =
+simplifyPattern :: Pattern s m p -> (ChanId,MatchType)
+simplifyPattern (Pattern c mr sp) =
   (getId c
   ,case mr of
      PR.MatchWhen pred -> MatchWhen pred (simplifyShouldPass sp)

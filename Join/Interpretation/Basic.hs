@@ -72,7 +72,7 @@ runWith ruleMapRef replyCtx p = do
     Return a -> return a
 
     Def definition
-      :>>= k -> do registerDefinition (toDefinitionsRep definition) ruleMapRef
+      :>>= k -> do registerDefinition (toDefinitions definition) ruleMapRef
                    runWith ruleMapRef replyCtx (k ())
 
     NewChannel
@@ -148,7 +148,7 @@ registerSyncMessage chan msg ruleMapRef = do
 
 -- | Register a new Join Definition, associating all contained Channels
 -- with the stored RuleRef.
-registerDefinition :: DefinitionsRep tss Inert -> RuleMapRef -> IO ()
+registerDefinition :: Definitions tss Inert -> RuleMapRef -> IO ()
 registerDefinition definition ruleMapRef = do
   (RuleMap ruleMap) <- takeMVar ruleMapRef
   rId <- newRuleId

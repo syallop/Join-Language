@@ -16,22 +16,22 @@ import Join.Pattern.Rep
 --
 -- Declared infix via '|>'.
 data DefinitionClause ts tr r where
-  DefinitionClause :: (Patterns pat ts,HasTriggerType ts tr r,Apply tr r)
-                => pat
-                -> tr
-                -> DefinitionClause ts tr r
+  DefinitionClause :: (ToPatterns pat ts,HasTriggerType ts tr r,Apply tr r)
+                   => pat
+                   -> tr
+                   -> DefinitionClause ts tr r
 
 -- | Infix 'DefinitionClause'.
-(|>) :: (Patterns pat ts,HasTriggerType ts tr r,Apply tr r)
-                => pat
-                -> tr
-                -> DefinitionClause ts tr r
+(|>) :: (ToPatterns pat ts,HasTriggerType ts tr r,Apply tr r)
+     => pat
+     -> tr
+     -> DefinitionClause ts tr r
 infixr 6 |>
 (|>) = DefinitionClause
 
-instance Definition (DefinitionClause ts tr r) ts tr r
-  where toDefinitionRep (DefinitionClause pat tr) = Definition (toPatternsRep pat) (Trigger tr)
+instance ToDefinition (DefinitionClause ts tr r) ts tr r
+  where toDefinition (DefinitionClause pat tr) = Definition (toPatterns pat) (Trigger tr)
 
-instance Definitions (DefinitionClause ts tr r) '[DefinitionRep ts tr r] r
-  where toDefinitionsRep (DefinitionClause pat tr) = OneDefinition (Definition (toPatternsRep pat) (Trigger tr))
+instance ToDefinitions (DefinitionClause ts tr r) '[Definition ts tr r] r
+  where toDefinitions (DefinitionClause pat tr) = OneDefinition (Definition (toPatterns pat) (Trigger tr))
 

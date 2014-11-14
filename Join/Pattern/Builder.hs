@@ -30,14 +30,14 @@ import Join.Pattern.Builder.Vector
 import Join.Pattern.Rep
 import Join.Pattern.Rep
 
--- | Map the elements of a Vector to a single concatenated DefinitionsRep's.
-buildWith :: (a -> DefinitionsRep tss r) -> Vector n a -> DefinitionsRep (n:*tss) r
+-- | Map the elements of a Vector to a single concatenated Definitions's.
+buildWith :: (a -> Definitions tss r) -> Vector n a -> Definitions (n:*tss) r
 buildWith f v = build $ mapVector f v
 
--- | Concatenate a Vector of DefinitionsRep.
-build :: Vector n (DefinitionsRep tss r) -> DefinitionsRep (n:*tss) r
+-- | Concatenate a Vector of Definitions.
+build :: Vector n (Definitions tss r) -> Definitions (n:*tss) r
 build (VOne a) = a
-build (VAnd a vs) = appendDefinitionsRep a (build vs)
+build (VAnd a vs) = appendDefinitions a (build vs)
 
 -- | A list type 'l', appended to itself 'n' times.
 type family Repeat n l
