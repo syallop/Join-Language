@@ -77,7 +77,6 @@ library
                     , Join.Data.Count
                     , Join.Data.Counter
                     , Join.Data.Lock
-                    , Join.Data.Loop
 
   -- Modules included in this library but not exported.
   other-modules:      Join.Pattern.Builder.Nat
