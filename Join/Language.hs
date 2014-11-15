@@ -136,13 +136,13 @@ module Join.Language
     -- / a continuation-passing-style on the primitive asynchronous /
     -- / Channels./.
     , newChannel , newChannels
-    , send       , sendAll
-    , signal     , signalAll
-    , sync       , syncAll
+    , send       , sendAll        , sendN
+    , signal     , signalAll      , signalN
+    , sync       , syncAll        , syncN
     , wait       , waitAll
-    , sync'      , syncAll'
-    , syncSignal , syncSignalAll
-    , syncSignal', syncSignalAll'
+    , sync'      , syncAll'       , syncN'
+    , syncSignal , syncSignalAll  , syncSignalN
+    , syncSignal', syncSignalAll' , syncSignalN'
     , reply      , replyAll
     , acknowledge, acknowledgeAll
 
@@ -327,6 +327,10 @@ send c a = singleton $ Send c a
 sendAll :: MessageType a => [(Chan a,a)] -> Process ()
 sendAll = withAll . map (uncurry send)
 
+-- | Send a number of identical messages to a Channel.
+sendN :: MessageType a => Int -> a -> Chan a -> Process ()
+sendN i msg chan = sendAll $ replicate i (chan,msg)
+
 -- | Send an asynchronous signal.
 signal :: Signal -> Process ()
 signal c = send c ()
@@ -334,6 +338,10 @@ signal c = send c ()
 -- | Simultaneously send asynchronous signals.
 signalAll :: [Signal] -> Process ()
 signalAll = withAll . map signal
+
+-- | Send a number of signals to the same 'Signal'
+signalN :: Int -> Signal -> Process ()
+signalN i s = signalAll $ replicate i s
 
 -- | Enter a single 'Spawn' Instruction into Process.
 --
@@ -356,6 +364,10 @@ sync s a = singleton $ Sync s a
 syncAll :: (MessageType a,MessageType r) => [(SyncChan a r,a)] -> Process [Response r]
 syncAll = mapM (uncurry sync)
 
+-- | Send a number of synchronous messages to the same Channel.
+syncN :: (MessageType a,MessageType r) => Int -> SyncChan a r -> a -> Process [Response r]
+syncN i s a = syncAll $ replicate i (s,a)
+
 -- | In a Process, block on a 'Response'.
 wait :: Response r -> Process r
 wait sv = return $! readResponse sv
@@ -373,6 +385,10 @@ sync' s a = sync s a >>= wait
 syncAll' :: (MessageType a,MessageType r) => [(SyncChan a r,a)] -> Process [r]
 syncAll' = mapM (uncurry sync')
 
+-- | Send a number of synchronous messages to a 'Channel' blocking on all reply values.
+syncN' :: (MessageType a,MessageType r) => Int -> SyncChan a r -> a -> Process [r]
+syncN' i s a = syncAll' $ replicate i (s,a)
+
 -- | Send a synchronous signal, returning a 'Response' - a handle to the
 -- reply message which may be 'wait'ed upon when needed.
 syncSignal :: MessageType r => SyncSignal r -> Process (Response r)
@@ -383,6 +399,9 @@ syncSignal s = sync s ()
 syncSignalAll :: MessageType r => [SyncSignal r] -> Process [Response r]
 syncSignalAll = mapM syncSignal
 
+syncSignalN :: MessageType r => Int -> SyncSignal r -> Process [Response r]
+syncSignalN i s = syncSignalAll $ replicate i s
+
 -- | Send a synchronous signal, blocking on a reply value.
 syncSignal' :: MessageType r => SyncSignal r -> Process r
 syncSignal' s = syncSignal s >>= wait
@@ -390,6 +409,9 @@ syncSignal' s = syncSignal s >>= wait
 -- | Send synchronous signals. blocking on the reply values.
 syncSignalAll' :: MessageType r => [SyncSignal r] -> Process [r]
 syncSignalAll' = mapM syncSignal'
+
+syncSignalN' :: MessageType r => Int -> SyncSignal r -> Process [r]
+syncSignalN' i s = syncSignalAll' $ replicate i s
 
 -- | Enter a single 'Reply' Instruction into Process.
 --
