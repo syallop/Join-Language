@@ -26,30 +26,24 @@ type ChannelPattern s a = Channel s a
 
 instance (MessageType a
          ,Typeable s
-         ,DecideChannelShouldPass a p
+         ,p~DecideChannelShouldPass a
          ,ShouldPassValue p) => ToPattern (Channel s a) s a p
   where toPattern c = Pattern c MatchAll (shouldPassValue (undefined :: p))
 
 instance (MessageType a
          ,Typeable s
-         ,DecideChannelShouldPass a p
+         ,p~DecideChannelShouldPass a
          ,ShouldPassValue p) => ToPatterns (Channel s a) '[Pattern s a p]
   where toPatterns c = OnePattern $ Pattern c MatchAll (shouldPassValue (undefined :: p))
 
-class ShouldPassValue p
-  where shouldPassValue :: p -> ShouldPass p
-instance ShouldPassValue Keep
-  where shouldPassValue _ = DontPass
-instance ShouldPassValue Pass
-  where shouldPassValue _ = DoPass
+-- | Decide whether a channel's message type should
+-- be passed.
+-- () = Keep
+-- a  = Pass
+type family DecideChannelShouldPass a
+  where DecideChannelShouldPass () = Keep
+        DecideChannelShouldPass a  = Pass
 
-class (p~DecideChannelShouldPassF a) => DecideChannelShouldPass a p | a -> p
-instance (p~DecideChannelShouldPassF a) => DecideChannelShouldPass a p
-
-type family DecideChannelShouldPassF a
-  where DecideChannelShouldPassF () = Keep
-        DecideChannelShouldPassF a  = Pass
-
-type MessagePassed a = Pass~DecideChannelShouldPassF a
-type MessageKept   a = Keep~DecideChannelShouldPassF a
+type MessagePassed a = Pass~DecideChannelShouldPass a
+type MessageKept   a = Keep~DecideChannelShouldPass a
 

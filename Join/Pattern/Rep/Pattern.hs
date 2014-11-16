@@ -30,6 +30,8 @@ module Join.Pattern.Rep.Pattern
   ,ShouldPass(..)
   ,Pass
   ,Keep
+  ,ShouldPassValue(..)
+
   ,Match(..)
 
   -- * Pattern(s)
@@ -70,6 +72,14 @@ data ShouldPass p where
   -- ^ Matching message should NOT be passed.
   -- value DontPass <=> type Keep
   DontPass :: ShouldPass Keep
+
+class ShouldPassValue p where 
+  -- ^ Infer the corresponding 'ShouldPass' value.
+  shouldPassValue :: p -> ShouldPass p
+instance ShouldPassValue Keep where
+  shouldPassValue _ = DontPass
+instance ShouldPassValue Pass where
+  shouldPassValue _ = DoPass
 
 data Pass -- ^ Denote a message should be passed, at the type level.
 data Keep -- ^ Denote a message should NOT be passed, at the type level.
