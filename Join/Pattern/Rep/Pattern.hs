@@ -143,6 +143,10 @@ class ToPatterns t ts | t -> ts
 instance ToPatterns (Patterns ts) ts
   where toPatterns t = t
 
+-- Pattern is One Definitions.
+instance ToPatterns (Pattern s m p) '[Pattern s m p]
+  where toPatterns p = OnePattern p
+
 foldPatterns :: (forall s m p. Pattern s m p -> acc -> acc)
              -> acc
              -> Patterns ts
