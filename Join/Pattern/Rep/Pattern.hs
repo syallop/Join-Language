@@ -134,9 +134,14 @@ class ToPattern t s m p | t -> s m p
 instance ToPattern (Pattern s m p) s m p
   where toPattern t = t
 
+
 -- | Class of types which can be converted to one or many patterns.
 class ToPatterns t ts | t -> ts
   where toPatterns :: t -> Patterns ts
+
+-- 'Patterns' are trivally themselves.
+instance ToPatterns (Patterns ts) ts
+  where toPatterns t = t
 
 foldPatterns :: (forall s m p. Pattern s m p -> acc -> acc)
              -> acc
