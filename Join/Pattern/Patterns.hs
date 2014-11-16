@@ -1,13 +1,8 @@
 {-# LANGUAGE DataKinds
-            ,FlexibleInstances
-            ,GADTs
-            ,KindSignatures
-            ,MultiParamTypeClasses
             ,TypeOperators
   #-}
 module Join.Pattern.Patterns
-  (And(..)
-  ,(&)
+  ((&)
   ) where
 
 import Join.Pattern.Rep
@@ -36,20 +31,8 @@ import Join.Pattern.Rep
 -- - @ intChan & boolEq @ => @ trigger :: Int -> return @
 --
 -- - @ intChan & boolEq & charChan @ => @ trigger :: Int -> Char -> return @
-data And (ts :: [*]) where
-  And :: (ToPattern t s m p,ToPatterns t' ts)
-      => t
-      -> t'
-      -> And ((Pattern s m p) ': ts)
-
--- | Infix 'And'.
 (&) :: (ToPattern t s m p,ToPatterns t' ts)
-      => t
-      -> t'
-      -> And ((Pattern s m p) ': ts)
+    => t -> t' -> Patterns ((Pattern s m p) ': ts)
 infixr 7 &
-(&) = And
-
-instance ToPatterns (And ts) ts
-  where toPatterns (And p p') = AndPattern (toPattern p) (toPatterns p')
+p & ps = AndPattern (toPattern p) (toPatterns ps)
 

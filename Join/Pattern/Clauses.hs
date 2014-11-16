@@ -1,30 +1,16 @@
-{-# LANGUAGE DataKinds
-            ,FlexibleInstances
-            ,GADTs
-            ,MultiParamTypeClasses
-            ,TypeOperators
+{-# LANGUAGE DataKinds,TypeOperators
   #-}
-module Join.Pattern.Clauses where
+module Join.Pattern.Clauses
+  ((|$)
+  ) where
 
 import Join.Pattern.Rep.Definition
 
--- | Many related definitions.
---
--- Declared infix via '|$'.
-data DefinitionClauses tss r where
-  DefinitionClauses :: (ToDefinition t ts tr r,ToDefinitions t' tss r)
-                 => t
-                 -> t'
-                 -> DefinitionClauses ((Definition ts tr r) ': tss) r
-
--- | Infix 'DefinitionClauses'.
+-- | Build definitions infix by prepending a single definition type to a definitions type.
 (|$) :: (ToDefinition t ts tr r,ToDefinitions t' tss r)
      => t
      -> t'
-     -> DefinitionClauses ((Definition ts tr r) ': tss) r
+     -> Definitions ((Definition ts tr r) ': tss) r
 infixr 5 |$
-(|$) = DefinitionClauses
-
-instance ToDefinitions (DefinitionClauses tss r) tss r
-  where toDefinitions (DefinitionClauses t t') = AndDefinition (toDefinition t) (toDefinitions t')
+d |$ ds = AndDefinition (toDefinition d) (toDefinitions ds)
 
