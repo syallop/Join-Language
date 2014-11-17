@@ -25,9 +25,8 @@ The 'root' types exported are 'Definition' (holding the data of a single definit
 and 'Definitions' (holding data of one or many definitions).
 -}
 module Join.Pattern.Rep.Definition
-  (-- * Types used in definition(s)
+  (-- * Trigger types
    Trigger(..)
-  ,HasTriggerType(..)
   ,TriggerType
 
    -- * Definition(s)
@@ -52,20 +51,22 @@ import Join.Pattern.Rep.Pattern
 
 import qualified Data.Set as Set
 
--- | A 'Trigger f r' is a function 'f' with an 'Apply f r' constraint.
+-- | A Trigger f r is a function 'f' with an Apply f r constraint.
 data Trigger f r = Apply f r => Trigger f
 instance Show (Trigger f r) where show _ = "TRIGGER"
 
 -- | Represent a single definition item.
+--
+-- - 'ts' : type-list of 'Pattern's
+--
+-- - 'tr' : type of matching trigger function.
+--
+-- - 'r' : terminating return type of trigger function.
 data Definition ts tr r where
-  Definition :: (HasTriggerType ts tr r,Apply tr r)
-             => Patterns ts       -- ^ Pattern(s) to match upon.
-             -> Trigger tr r         -- ^ A corresponding trigger function to fire upon match.
+  Definition :: (tr~TriggerType ts r,Apply tr r)
+             => Patterns ts        -- Pattern(s) to match upon.
+             -> Trigger tr r       -- A corresponding trigger function to fire upon match.
              -> Definition ts tr r
-
--- | The list of 'Pattern' type 'ts', corresponds to the trigger type 'tr' (terminating in 'r')
-class (tr~TriggerType ts r) => HasTriggerType ts tr r | ts r -> tr
-instance (tr~TriggerType ts r) => HasTriggerType ts tr r
 
 -- | Compute the trigger type corresponding to the given list of 'Pattern' types (terminating in 'r').
 type family TriggerType ts r
@@ -78,26 +79,19 @@ type family TriggerType ts r
 --
 -- Type variables:
 --
--- - 'r'   : The terminating return type of all contained triggers.
+-- - 'r'   : The terminating return type of all contained triggers, which is the same.
 --
 -- - 'tss' : Accumulates a type-list of 'Definition ts tr r' from each contained 'Definition':
---   where:
---
---   - 'ts' is the type-list collected by the 'Patterns'
---
---   - 'tr' is the type of the matching trigger function
---
---   - 'r' is the type of the matching trigger functions terminating type.
 --
 -- Note: There is purposefully no notion of an 'empty definition'
 -- so a 'Definitions' contains 1..n but never 0 'Definition's
 data Definitions tss r where
 
-  -- ^ A single 'Definition'
+  -- A single 'Definition'
   OneDefinition :: Definition ts tr r
                 -> Definitions '[Definition ts tr r] r
 
-  -- ^ A composite definition where all contained 'Definition's
+  -- A composite definition where all contained 'Definition's
   -- may have overlapping channels/ patterns and must be treated as such.
   AndDefinition :: Definition ts tr r
                 -> Definitions tss r
@@ -123,6 +117,7 @@ instance ToDefinitions (Definitions tss r) tss r
 instance ToDefinitions (Definition ts tr r) '[Definition ts tr r] r
   where toDefinitions dr = OneDefinition dr
 
+-- | Reduce a 'Definitions' contained 'Definition' to an accumulated acc value
 foldDefinitions :: (forall ts tr r. Definition ts tr r -> acc -> acc)
                 -> acc
                 -> Definitions tss r
@@ -130,10 +125,12 @@ foldDefinitions :: (forall ts tr r. Definition ts tr r -> acc -> acc)
 foldDefinitions f acc (OneDefinition dr)     = f dr acc
 foldDefinitions f acc (AndDefinition dr drs) = foldDefinitions f (f dr acc) drs
 
+-- | Append one 'Definitions' to another.
 appendDefinitions :: Definitions tss r -> Definitions tss' r -> Definitions (tss :++ tss') r
 appendDefinitions (OneDefinition dr)     drs' = AndDefinition dr drs'
 appendDefinitions (AndDefinition dr drs) drs' = AndDefinition dr (appendDefinitions drs drs')
 
+-- | Extract a Set of all unique ChanId's mentioned in some Definitions.
 uniqueIds :: Definitions tss r -> Set.Set ChanId
 uniqueIds dr = foldDefinitions uniqueIds' Set.empty dr
   where

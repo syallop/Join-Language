@@ -59,6 +59,8 @@ library
                     , Join.Pattern.Builder.Vector
                     , Join.Pattern
                     , Join.Pattern.Rep
+                    , Join.Pattern.Rep.Definition
+                    , Join.Pattern.Rep.Pattern
                     , Join.Pattern.Rep.Simple
                     , Join.Response
 
@@ -76,9 +78,7 @@ library
   -- Modules included in this library but not exported.
   other-modules:      Join.Pattern.Builder.Nat
                     , Join.Pattern.Channel
-                    , Join.Pattern.Rep.Definition
                     , Join.Pattern.Rep.List
-                    , Join.Pattern.Rep.Pattern
                     , Join.Interpretation.Basic.Debug
                     , Join.Interpretation.Basic.Status
                     , Join.Interpretation.Basic.StoredDefinitions

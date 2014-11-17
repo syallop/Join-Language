@@ -2,6 +2,13 @@
             ,IncoherentInstances
             ,MultiParamTypeClasses
  #-}
+{-|
+Module      : Join.Apply
+Copyright   : (c) Samuel A. Yallop, 2014
+Maintainer  : syallop@gmail.com
+Stability   : experimental
+
+-}
 module Join.Apply
     ( Application(..)
     , Apply(..)

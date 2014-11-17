@@ -27,20 +27,18 @@ import           Join.Message
 -- | How messages should be matched on a channel.
 data MatchType where
 
-  -- ^ Match messages which satisfy a predicate, 'ShouldPass' declaring
+  -- Match messages which satisfy a predicate, 'ShouldPass' declaring
   -- whether a matching message is passed into trigger functions or not.
   MatchWhen :: MessageType m => (m -> Bool) -> Bool -> MatchType
 
-  -- ^ Match any message with 'ShouldPass' declaring whether a matching message
+  -- Match any message with 'ShouldPass' declaring whether a matching message
   -- is passed into trigger functions or not.
   MatchAll  :: Bool -> MatchType
 
 pass = True
 keep = False
 
--- | A 'PatternDescription' describes the runtime semantics of a pattern.
---
--- A 'PatternDescription'=[(ChanId,MatchType)] states to match when
+-- | A 'PatternDescription'=[(ChanId,MatchType)] states to match when
 -- a message is waiting on each listed channel, as identified by the
 -- 'ChanId'. Each 'Channel' must in turn be matched according to it's
 -- 'MatchType'.
@@ -49,6 +47,7 @@ type PatternDescription = [(ChanId,MatchType)]
 data TriggerF r = forall f. Apply f r => TriggerF f
 instance Show (TriggerF r) where show _ = "TRIGGERF"
 
+-- | Convert a definitions type to a less strongly typed representation.
 describe :: ToDefinitions t tss r => t -> [(PatternDescription,TriggerF r)]
 describe t = simplifyDefinitions (toDefinitions t)
 

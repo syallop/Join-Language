@@ -165,20 +165,22 @@ module Join.Language
     --
     -- E.G. Given:
     --
-    -- @cc :: Channel A Char
+    -- @
+    --   cc :: Channel A Char
     --
-    --  ci :: Channel (S Integer) Int
+    --   ci :: Channel (S Integer) Int
     -- @
     --
     --      Some valid patterns are:
-    -- 
-    -- @cc
     --
-    -- ci
+    -- @
+    --   cc
     --
-    -- cc & ci
+    --   ci
     --
-    -- cc & ci&=1
+    --   cc & ci
+    --
+    --   cc & ci&=1
     -- @
     --
     -- On the right-hand-side of the Join definition is a trigger function, typed to accept
@@ -190,13 +192,14 @@ module Join.Language
     --
     -- E.G. Given the previous example patterns, valid definitions are:
     --
-    -- @cc         |> (\char     -> undefined)
+    -- @
+    --   cc         |> (\char     -> undefined)
     --
-    --  ci         |> (\int      -> undefined)
+    --   ci         |> (\int      -> undefined)
     --
-    --  cc & ci    |> (\char int -> undefined)
+    --   cc & ci    |> (\char int -> undefined)
     --
-    --  cc & ci&=1 |> (\char int -> undefined)
+    --   cc & ci&=1 |> (\char int -> undefined)
     -- @
     --
     -- The semantics of a Join 'Def' are that when the LHS

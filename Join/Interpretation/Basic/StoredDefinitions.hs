@@ -73,7 +73,7 @@ data StoredPatterns (ts :: [*]) where
 -- - Concrete return type Inert.
 -- - additional 'refine' type allowing definitions to be tagged with a value.
 data StoredDefinition ts tr refine where
-  StoredDefinition :: (HasTriggerType ts tr Inert,Apply tr Inert)
+  StoredDefinition :: (tr~TriggerType ts Inert,Apply tr Inert)
                    => StoredPatterns ts
                    -> Trigger tr Inert
                    -> refine

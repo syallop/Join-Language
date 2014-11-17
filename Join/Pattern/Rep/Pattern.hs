@@ -59,17 +59,14 @@ type MsgPred m = m -> Bool
 -- trigger function or not.
 --
 -- Two type constructors 'DoPass' and 'DontPass' are indexed by the types 'Pass' and 'Keep'
--- respectively, I.E.:
---
--- value{DoPass}   <=> type{Pass}
--- value{DontPass} <=> type{Keep}
+-- respectively.
 data ShouldPass p where
 
-  -- ^ Matching message should be passed.
+  -- Matching message should be passed.
   -- value DoPass <=> type Pass
   DoPass   :: ShouldPass Pass
 
-  -- ^ Matching message should NOT be passed.
+  -- Matching message should NOT be passed.
   -- value DontPass <=> type Keep
   DontPass :: ShouldPass Keep
 
@@ -81,8 +78,11 @@ instance ShouldPassValue Keep where
 instance ShouldPassValue Pass where
   shouldPassValue _ = DoPass
 
-data Pass -- ^ Denote a message should be passed, at the type level.
-data Keep -- ^ Denote a message should NOT be passed, at the type level.
+-- | Denote a message should be passed, at the type level.
+data Pass
+
+-- | Denote a message should NOT be passed, at the type level.
+data Keep
 
 -- | Represent an optional predicate which might be applied to messages within a pattern.
 --
@@ -90,47 +90,43 @@ data Keep -- ^ Denote a message should NOT be passed, at the type level.
 -- ,practically having a special case allows significant runtime speedups.
 data Match m where
 
-  -- ^ Match only when a predicate is satisfied.
+  -- Match only when a predicate is satisfied.
   MatchWhen :: MessageType m => MsgPred m -> Match m
 
-  -- ^ Match all messages.
+  -- Match all messages.
   MatchAll  :: Match m
 
 -- | Represent a single item of a pattern.
+--
+-- Type variables:
+--
+-- - 's' : 'Synchronicity' type of channel
+--
+-- - 'm' : Message type of channel
+--
+-- - 'p' : Are matches passed? (Pass/Keep)
 data Pattern s m p where
   Pattern :: (MessageType m,Typeable s)
-          => Channel (s :: Synchronicity *) m -- ^ Channel matched upon
-          -> Match m                          -- ^ Type of matching to perform
-          -> ShouldPass p                     -- ^ Whether a successful match should be passed
+          => Channel (s :: Synchronicity *) m -- Channel matched upon
+          -> Match m                          -- Type of matching to perform
+          -> ShouldPass p                     -- Whether a successful match should be passed
           -> Pattern s m p
 
 -- | Represent one and many pattern's.
 --
 -- Type variables:
 --
--- - 's' : Synchronicity type of focus
---
--- - 'm' : Message type of focus
---
--- - 'p' : shouldpass type (Pass/Keep) of focus.
---
 -- - 'ts' : Accumulates a type-list of 'Pattern s m p's of each composed 'Pattern'.
---
--- The \'focus\' refers to either:
---
--- - The \'head\' 'Pattern' of a composite 'AndPattern'.
---
--- - The 'Pattern' of a single 'OnePattern'.
 --
 -- Note: There is purposefully no notion of an 'empty pattern'
 -- so a 'Patterns' contains 1..n but never 0 'Pattern's.
 data Patterns (ts :: [*]) where
 
-  -- ^ A single 'Pattern'
+  -- A single 'Pattern'
   OnePattern :: Pattern s m p
              -> Patterns '[Pattern s m p]
 
-  -- ^ A composite pattern where all contained 'Pattern's
+  -- A composite pattern where all contained 'Pattern's
   -- must match for the whole to be considered matched.
   AndPattern :: Pattern s m p
              -> Patterns ts
@@ -157,6 +153,7 @@ instance ToPatterns (Patterns ts) ts
 instance ToPatterns (Pattern s m p) '[Pattern s m p]
   where toPatterns p = OnePattern p
 
+-- | Reduce a 'Patterns' contained 'Pattern' to an accumulated acc value.
 foldPatterns :: (forall s m p. Pattern s m p -> acc -> acc)
              -> acc
              -> Patterns ts
