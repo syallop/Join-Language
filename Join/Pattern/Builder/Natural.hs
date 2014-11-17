@@ -29,15 +29,21 @@ import Language.Haskell.TH
 -- a Nat type.
 -- I.E.
 --
+-- @
 -- One :: Natural One
+--
 -- Suc One :: Natural (Suc One)
+--
 -- Suc (Suc One) :: Natural (Suc (Suc One))
+-- @
 data Natural n where
   One :: Natural One
   Suc :: Natural n -> Natural (Suc n)
 
 -- | Use TemplateHaskell to conveniently write 'Natural's.
--- I.E. $(toNatural 3) == Suc (Suc One) :: Natural (Suc (Suc One))
+-- I.E.
+--
+-- @ $(toNatural 3) == Suc (Suc One) :: Natural (Suc (Suc One)) @
 toNatural :: Integer -> Q Exp
 toNatural 1 = [e| One |]
 toNatural n = [e| Suc $(toNatural (n-1)) |]

@@ -31,10 +31,10 @@ import Join.Pattern.Builder.Natural
 -- | A Vector which contains One or many elements, indexed in 'n::Nat'.
 data Vector n a where
 
-  -- ^ One vector element.
+  -- One vector element.
   VOne :: a -> Vector One a
 
-  -- ^ Many vector elements.
+  -- Many vector elements.
   VAnd :: a -> Vector n a -> Vector (Suc n) a
 
 head :: Vector n a -> a

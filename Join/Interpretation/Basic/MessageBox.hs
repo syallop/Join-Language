@@ -91,9 +91,12 @@ unMessage (SyncMessage a _) = a
 -- message should be placed.
 type ReplyChan r = MVar r
 
-newtype BoxId = BoxId {unBoxId :: Int} deriving (Eq,Ord,Enum,Num,Show) -- ^ System-wide unique 'MessageBox' id.
-newtype BoxIx = BoxIx {unBoxIx :: Int} deriving (Eq,Ord,Enum,Num,Show) -- ^ MessageBox-wide unique box index.
-newtype MsgIx = MsgIx {unMsgIx :: Int} deriving (Eq,Ord,Enum,Num)      -- ^ MessageBox-wide unique Message index.
+newtype BoxId = BoxId {unBoxId :: Int} -- ^ System-wide unique 'MessageBox' id.
+  deriving (Eq,Ord,Enum,Num,Show)
+newtype BoxIx = BoxIx {unBoxIx :: Int} -- ^ MessageBox-wide unique box index.
+  deriving (Eq,Ord,Enum,Num,Show)
+newtype MsgIx = MsgIx {unMsgIx :: Int} -- ^ MessageBox-wide unique Message index.
+  deriving (Eq,Ord,Enum,Num)
 
 type BoxIxs = Set.Set BoxIx -- ^ A 'Set' of 'BoxIx'
 type MsgIxs = Set.Set MsgIx -- ^ A 'Set' of 'MsgIx'

@@ -7,7 +7,10 @@ Stability   : experimental
 This module exports a syntax for writing Join Patterns/ Definitions
 as encoded by 'Join.Pattern.Rep'.
 -}
-{-# LANGUAGE DataKinds,TypeOperators #-}
+{-# LANGUAGE DataKinds
+            ,TypeFamilies
+            ,TypeOperators
+  #-}
 module Join.Pattern
   ( (&=)
   , (&~)
@@ -80,7 +83,7 @@ infixr 7 &
 p & ps = AndPattern (toPattern p) (toPatterns ps)
 
 -- | Build a definition infix from a patterns type and an associated trigger function.
-(|>) :: (ToPatterns pat ts,HasTriggerType ts tr r,Apply tr r)
+(|>) :: (ToPatterns pat ts,tr~TriggerType ts r,Apply tr r)
      => pat -> tr -> Definition ts tr r
 infixr 6 |>
 ps |> tr = Definition (toPatterns ps) (Trigger tr)

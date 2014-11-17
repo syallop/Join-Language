@@ -25,7 +25,8 @@ import Control.Concurrent.MVar
 
 import System.IO.Unsafe
 
--- |
+-- | A Response is a write once, read many encapsulation
+-- of a response value that may not exist yet.
 newtype Response a = Response (MVar a)
 
 -- | Initialise a new empty 'Response'.

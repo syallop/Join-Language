@@ -30,12 +30,25 @@ module Join.Pattern.Builder.Nat
   ) where
 
 -- | 'Nat' is used as the *kind* of natural numbers excluding a zero.
--- I.E. One,Suc One,Suc Suc One are all types of kind 'Nat'.
+-- I.E.
+--
+-- @
+--   One
+--
+--   Suc One
+--
+--   Suc Suc One
+-- @
+--
+-- are all types of kind 'Nat'.
 data Nat
   = One
   | Suc Nat
 
+-- | @ One :: Nat @
 type One = 'One
+
+-- | @ Suc :: Nat -> Nat @
 type Suc = 'Suc
 
 -- | Addition of 'Nat's.

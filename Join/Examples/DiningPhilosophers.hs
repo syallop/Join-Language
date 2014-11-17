@@ -51,6 +51,22 @@ doThenDelayRandom action n = do
 -- Each channel and pattern is defined explicitly.
 --
 -- An 'unrolled' version of 'diningPhilosophers 5'.
+--
+-- @ run $ diningPhilosophersExplicit 5 @
+--
+-- > Thinking: 1
+-- > Thinking: 2
+-- > Thinking: 3
+-- > Thinking: 4
+-- > Thinking: 5
+-- > Eating: 1
+-- > Eating: 3
+-- > Thinking: 3
+-- > Eating: 5
+-- > Thinking: 1
+-- > Eating: 2
+-- > Eating: 4
+-- > ...
 diningPhilosophersExplicit :: Process ()
 diningPhilosophersExplicit = do
 
@@ -131,6 +147,22 @@ mkForkPairs n = do
   return $ zip leftForks rightForks
 
 -- | Simulate the dining philosophers problem for i > 1 philosophers.
+--
+-- @ run $ diningPhilosophers $(toNatural 5) @
+--
+-- > Thinking: 1
+-- > Thinking: 2
+-- > Thinking: 3
+-- > Thinking: 4
+-- > Thinking: 5
+-- > Eating: 1
+-- > Eating: 3
+-- > Thinking: 3
+-- > Eating: 5
+-- > Thinking: 1
+-- > Eating: 2
+-- > Eating: 4
+-- > ...
 diningPhilosophers :: Natural (Suc n) -> Process ()
 diningPhilosophers n = do
 
