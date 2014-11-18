@@ -13,6 +13,7 @@ module Join
 
 import Join.Apply    as J
 import Join.Channel  as J
+import Join.ChannelF as J
 import Join.Language as J
 import Join.Message  as J
 import Join.Pattern  as J

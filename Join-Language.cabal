@@ -52,6 +52,7 @@ library
                     , Join.Language
                     , Join.Apply
                     , Join.Channel
+                    , Join.ChannelF
                     , Join.Message
 
                     , Join.Pattern.Builder
@@ -67,6 +68,7 @@ library
                     , Join.Interpretation.Basic
 
                     , Join.Examples
+                    , Join.Examples.ChannelF
                     , Join.Examples.DiningPhilosophers
 
                     , Join.Data.Barrier

@@ -9,6 +9,15 @@
             ,TypeSynonymInstances
  #-}
 
+-- ChannelF
+{-# LANGUAGE KindSignatures
+            ,ScopedTypeVariables
+            ,FunctionalDependencies
+            ,TypeFamilies
+  #-}
+
+-- ChannelF instances
+{-# LANGUAGE UndecidableInstances #-}
 
 {-# OPTIONS_HADDOCK prune #-}
 {-|
@@ -238,6 +247,10 @@ import Control.Monad.Operational (ProgramT,singleton)
 import Control.Monad             (replicateM)
 import Data.Monoid
 
+import Data.Char
+import Data.Bool
+import Data.Typeable
+
 -- | Type of atomic Join instructions.
 --
 -- This is the underlying type of the 'Process' Monad which is the users
@@ -285,7 +298,6 @@ data Instruction a where
     With       :: Process ()                  -- First process.
                -> Process ()                  -- Second process.
                -> Instruction ()
-
 
 -- | Process is a Monadic type that can be thought of as representing a
 -- sequence of Join 'Instructions'.
