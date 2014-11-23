@@ -20,6 +20,9 @@ module Join.ChannelF
   , fromChannelF
 
   , newChanF
+  , newSyncChanF
+
+  , replyF
 
   , ChannelPred
   ) where
@@ -29,8 +32,10 @@ import Join.Language
 import Join.Message
 import Join.Pattern.Channel
 import Join.Pattern.Rep
+import Join.Response
 
 import Data.Typeable
+
 
 -- | A ChannelF is a 'Channel' represented as a function type which
 -- can be applied to different types of values to produce different results.
@@ -86,16 +91,16 @@ newSyncChanF :: forall a r. MessageType a => Process (SyncChanF a r)
 newSyncChanF = newChannelF
 
 
-
-
 -- Kind of type a ChannelF may be applied to.
 data In
   = MsgIn  -- ^ Applied to a message
+  | SyncMsgIn Bool
   | PredIn -- ^ Applied to a predicate
 
 -- Kind of output type a ChannelF may produce.
 data Out
   = SendOut -- ^ Output is a message send type
+  | SyncOut Bool
   | PredOut -- ^ Output is a predicate pattern type
 
 -- | Bijectively map of In <-> Out
@@ -113,57 +118,109 @@ instance InOutBijection PredIn PredOut where
   type OutIn PredOut = PredIn
   type InOut PredIn  = PredOut
 
+instance InOutBijection (SyncMsgIn False) (SyncOut False) where
+  type OutIn (SyncOut False)   = SyncMsgIn False
+  type InOut (SyncMsgIn False) = SyncOut False
+
+instance InOutBijection (SyncMsgIn True) (SyncOut True) where
+  type OutIn (SyncOut True)   = SyncMsgIn True
+  type InOut (SyncMsgIn True) = SyncOut True
+
 -- Decide the 'In' type.
-type family ToIn i where
-  ToIn (a -> Bool) = PredIn
-  ToIn a           = MsgIn
+type family ToIn i s b where
+  ToIn (a -> Bool) s     b = PredIn
+  ToIn a           A     b = MsgIn
+  ToIn a           (S r) b = SyncMsgIn b
 
 -- Construct from an 'In' type.
 type family FromIn i a where
-  FromIn MsgIn  a = a
-  FromIn PredIn a = (a -> Bool)
+  FromIn MsgIn         a = a
+  FromIn (SyncMsgIn b) a = a
+  FromIn PredIn        a = (a -> Bool)
 
 -- Decide the 'Out' type.
-type family ToOut a where
-  ToOut (ChannelPred s a) = PredOut
-  ToOut (Process ())      = SendOut
+type family ToOut o s where
+  ToOut (ChannelPred s a)      s     = PredOut
+  ToOut (Process ())           A     = SendOut
+  ToOut (Process (Response r)) (S r) = SyncOut False
+  ToOut (Process r)            (S r) = SyncOut True
 
 -- Construct from an 'Out' type.
 type family FromOut o s a where
-  FromOut SendOut s a = Process ()
-  FromOut PredOut s a = ChannelPred s a
+  FromOut SendOut          A    a = Process ()
+  FromOut (SyncOut False) (S r) a = Process (Response r)
+  FromOut (SyncOut True)  (S r) a = Process r
+  FromOut PredOut          s    a = ChannelPred s a
 
 
 
-type ValidInput  i     a = (i~FromIn  (ToIn  i)   a)
-type ValidOutput   o s a = (o~FromOut (ToOut o) s a)
-type ValidApply  i o s a = (ValidInput i a,ValidOutput o s a)
+{-type ValidInput  i   s a b = (i~FromIn  (ToIn  i s b)  a)-}
+type ValidInput  i   s a b = (i~FromIn  (ToIn  i s b)  a)
+type ValidOutput   o s a   = (o~FromOut (ToOut o s)  s a)
+type ValidApply  i o s a b = (ValidInput i s a b,ValidOutput o s a)
+
+type family IsStrict o where
+  IsStrict (Process (Response r)) = False
+  IsStrict (Process ())           = True
+  IsStrict (Process r)            = True
+  IsStrict (ChannelPred s a)      = True
 
 -- | Apply a 'Channel s a' to an input type 'i' to produce an output type 'o'.
 -- 'i' determines 'o', under 's a'
 -- 'o' derminines 'i', under 's a'
-class (ValidApply i o s a
-      ,InOutBijection (ToIn i) (ToOut o)
-      ,MessageType a
-      ,Typeable s
+class (ValidApply i o s a (IsStrict o)
+      ,InOutBijection (ToIn i s (IsStrict o)) (ToOut o s)
       )
       => ApplyChannelF i o s a where
     applyChannelF :: Channel s a -> i -> o
 
 -- Message send instance
-instance (MsgIn~ToIn a
+instance (MsgIn  ~ToIn a A True
+         ,SendOut~ToOut (Process ()) A
          ,MessageType a
          ,Typeable A
          )
          => ApplyChannelF a (Process ()) A a where
   applyChannelF chan msg = send chan msg
 
+instance ((SyncMsgIn False) ~ToIn a (S r) False
+         ,(SyncOut   False) ~ToOut (Process (Response r)) (S r)
+         ,MessageType a
+         ,MessageType r
+         )
+         => ApplyChannelF a (Process (Response r)) (S r) a where
+  applyChannelF chan msg = sync chan msg
+
+instance(True ~ IsStrict (Process r)
+        ,(SyncMsgIn True) ~ToIn a (S r) True
+        ,(SyncOut   True) ~ToOut (Process r) (S r)
+        ,MessageType a
+        ,MessageType r
+        )
+        => ApplyChannelF a (Process r) (S r) a where
+  applyChannelF chan msg = sync' chan msg
+
+
 -- channel predicate instance
-instance (MessageType a
+instance (PredIn ~ToIn (a -> Bool) s True
+         ,PredOut~ToOut (ChannelPred s a) s
+         ,MessageType a
          ,Typeable s
          )
          => ApplyChannelF (a -> Bool) (ChannelPred s a) s a where
   applyChannelF chan pred = ChannelPred chan pred
+
+sendF :: MessageType a => ((a -> Bool) -> ChannelPred A a) -> a -> Process ()
+sendF f msg = send (extractChannel f) msg
+
+syncF :: (MessageType a,MessageType r) => ((a -> Bool) -> ChannelPred (S r) a) -> a -> Process (Response r)
+syncF f msg = sync (extractChannel f) msg
+
+syncF' :: (MessageType a,MessageType r) => ((a -> Bool) -> ChannelPred (S r) a) -> a -> Process r
+syncF' f msg = sync' (extractChannel f) msg
+
+replyF :: (MessageType r,MessageType a) => ((a -> Bool) -> ChannelPred (S r) a) -> r -> Process ()
+replyF f msg = reply (extractChannel f) msg
 
 -- | Extract the corresponding 'Channel s a' from a 'ChannelF's internal function.
 extractChannel :: ((a -> Bool) -> ChannelPred s a) -> Channel s a
@@ -204,8 +261,8 @@ instance (MessageType a
          ,p~DecideChannelShouldPass a
          ,ShouldPassValue p
 
-         ,PredIn ~ToIn  i
-         ,PredOut~ToOut o
+         ,PredIn ~ToIn  i s True
+         ,PredOut~ToOut o s
          ,i~(a -> Bool)
          ,o~(ChannelPred s a)
          )
@@ -216,8 +273,8 @@ instance (MessageType a
          ,p~DecideChannelShouldPass a
          ,ShouldPassValue p
 
-         ,PredIn ~ToIn  i
-         ,PredOut~ToOut o
+         ,PredIn ~ToIn  i s True
+         ,PredOut~ToOut o s
          ,i~(a -> Bool)
          ,o~(ChannelPred s a)
          )
