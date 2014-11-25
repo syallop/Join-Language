@@ -10,7 +10,6 @@ Note: This code is at a pre-alpha stage.
 | Filepath                                                                  | Contains                                                            |
 | ------------------------------------------------------------------------- | ------------------------------------------------------------------- |
 | ['Join.Language'](/Join/Language.hs)                                      | The core DSL                                                        |
-| ['Join.Interpretation.Basic'](/Join/Interpretation/Basic.hs)              | A basic interpreter for the DSL                                     |
 | ['Join.Examples'](/Join/Examples.hs)                                      | Simple example programs                                             |
 | ['Join.Examples.DiningPhilosophers'](Join/Examples/DiningPhilosophers.hs) | Example simulation of the dining philosophers problem               |
 | Join.Data.*                                                               | Several simple concurrency primitives. Barriers,Buffers,Locks, etc. |

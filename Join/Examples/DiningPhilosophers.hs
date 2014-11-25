@@ -22,7 +22,6 @@ import Prelude hiding (append,zip,head,tail)
 import Join
 import Join.Pattern.Rep
 import Join.Pattern.Builder
-import Join.Interpreter.Basic
 
 import Control.Applicative    ((<$>),(<*>),pure)
 import Control.Concurrent     (threadDelay)
