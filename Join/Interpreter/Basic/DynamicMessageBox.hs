@@ -1,4 +1,4 @@
-module Join.Interpretation.Basic.DynamicMessageBox
+module Join.Interpreter.Basic.DynamicMessageBox
   (
   -- * Types
    Message
@@ -35,16 +35,16 @@ module Join.Interpretation.Basic.DynamicMessageBox
 import Prelude hiding (take)
 
 import qualified Data.Set                                  as Set
-import qualified Join.Interpretation.Basic.TypedMessageBox as T
+import qualified Join.Interpreter.Basic.TypedMessageBox as T
 import           Join.Types.Message
 
-import Join.Interpretation.Basic.TypedMessageBox (BoxId(..)
-                                                 ,BoxIx(..)
-                                                 ,BoxIxs
-                                                 ,MsgIx()
-                                                 ,MsgIxs
-                                                 ,SubBoxes
-                                                 )
+import Join.Interpreter.Basic.TypedMessageBox (BoxId(..)
+                                              ,BoxIx(..)
+                                              ,BoxIxs
+                                              ,MsgIx()
+                                              ,MsgIxs
+                                              ,SubBoxes
+                                              )
 
 type Message = T.Message Dynamic Dynamic
 

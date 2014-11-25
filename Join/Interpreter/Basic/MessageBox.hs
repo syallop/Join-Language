@@ -19,7 +19,7 @@ This module provides a data structure for storing messages which are automatical
 sub-categorised by arbitrary predicates.
 -}
 
-module Join.Interpretation.Basic.MessageBox
+module Join.Interpreter.Basic.MessageBox
     (
     -- * Types
      Message(..)
@@ -54,7 +54,7 @@ module Join.Interpretation.Basic.MessageBox
     ,showMessageBox
     ) where
 
-import Join.Interpretation.Basic.Status
+import Join.Interpreter.Basic.Status
 
 import Join.Channel
 import Join.Message

@@ -17,7 +17,7 @@ import Prelude hiding (take, read)
 
 import Join
 
-import Join.Interpretation.Basic
+import Join.Interpreter.Basic
 
 import Join.Data.Barrier
 import Join.Data.Buffer
