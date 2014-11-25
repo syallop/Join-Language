@@ -15,7 +15,7 @@
             ,IncoherentInstances
   #-}
 {-|
-Module      : Join.Interpretation.Basic.StoredDefinitions
+Module      : Join.Interpreter.Basic.StoredDefinitions
 Copyright   : (c) Samuel A. Yallop, 2014
 Maintainer  : syallop@gmail.com
 Stability   : experimental
@@ -29,7 +29,7 @@ Note: Due to the similar structure and near code duplication, it is possible tha
 Join.Pattern.Rep.* will later be abstracted to cover this module.
 -}
 
-module Join.Interpretation.Basic.StoredDefinitions
+module Join.Interpreter.Basic.StoredDefinitions
   (StoredPattern(..)
   ,StoredPatterns(..)
   ,StoredDefinition(..)
@@ -47,7 +47,7 @@ import Data.Typeable
 import Join
 import Join.Pattern.Rep
 
-import Join.Interpretation.Basic.MessageBox
+import Join.Interpreter.Basic.MessageBox
 
 -- | Stored analogy to 'Pattern' with 'Match' replaced
 -- by a possible 'BoxIx' referencing the subbox where messages which

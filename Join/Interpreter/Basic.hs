@@ -5,14 +5,14 @@
             ,RankNTypes
   #-}
 {-|
-Module      : Join.Interpretation.Basic
+Module      : Join.Interpreter.Basic
 Copyright   : (C) Samuel A. Yallop, 2014
 Maintainer  : syallop@gmail.com
 Stability   : experimental
 
 This module exports an interpreter for 'Process a' s written in Join.Language.
 -}
-module Join.Interpretation.Basic
+module Join.Interpreter.Basic
     (run
     ) where
 
@@ -20,10 +20,10 @@ import Prelude hiding (lookup)
 
 import Join
 import Join.Pattern.Rep
-import Join.Interpretation.Basic.Debug
-import Join.Interpretation.Basic.Status
-import Join.Interpretation.Basic.MessageBox
-import Join.Interpretation.Basic.Rule
+import Join.Interpreter.Basic.Debug
+import Join.Interpreter.Basic.Status
+import Join.Interpreter.Basic.MessageBox
+import Join.Interpreter.Basic.Rule
 
 import           Control.Applicative                ((<$>),(<*>),pure)
 import           Control.Concurrent                 (forkIO,newMVar,newEmptyMVar,threadDelay)

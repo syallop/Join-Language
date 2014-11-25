@@ -10,7 +10,7 @@
             ,ScopedTypeVariables
             ,TypeSynonymInstances
             #-}
-module Join.Interpretation.Basic.Rule
+module Join.Interpreter.Basic.Rule
     (Rule()
     ,ReplyCtx
     ,ReplyChan
@@ -29,10 +29,10 @@ module Join.Interpretation.Basic.Rule
 import Join
 import Join.Pattern.Rep
 
-import Join.Interpretation.Basic.Debug
-import Join.Interpretation.Basic.StoredDefinitions
-import Join.Interpretation.Basic.MessageBox
-import Join.Interpretation.Basic.Status
+import Join.Interpreter.Basic.Debug
+import Join.Interpreter.Basic.StoredDefinitions
+import Join.Interpreter.Basic.MessageBox
+import Join.Interpreter.Basic.Status
 
 import           Control.Arrow
 import           Data.Dynamic

@@ -64,7 +64,7 @@ library
                     , Join.Pattern.Rep.Simple
                     , Join.Response
 
-                    , Join.Interpretation.Basic
+                    , Join.Interpreter.Basic
 
                     , Join.Examples
                     , Join.Examples.DiningPhilosophers
@@ -79,11 +79,11 @@ library
   other-modules:      Join.Pattern.Builder.Nat
                     , Join.Pattern.Channel
                     , Join.Pattern.Rep.List
-                    , Join.Interpretation.Basic.Debug
-                    , Join.Interpretation.Basic.Status
-                    , Join.Interpretation.Basic.StoredDefinitions
-                    , Join.Interpretation.Basic.MessageBox
-                    , Join.Interpretation.Basic.Rule
+                    , Join.Interpreter.Basic.Debug
+                    , Join.Interpreter.Basic.Status
+                    , Join.Interpreter.Basic.StoredDefinitions
+                    , Join.Interpreter.Basic.MessageBox
+                    , Join.Interpreter.Basic.Rule
 
   -- LANGUAGE extensions used by modules in this package.
   other-extensions:   DataKinds
