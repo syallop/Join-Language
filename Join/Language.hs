@@ -256,11 +256,11 @@ data Instruction a where
                -> Instruction ()
 
     -- Request a new typed Channel.
-    NewChannel :: (InferSync s, MessageType a) -- Synchronicity can be inferred, 'a' is a 'MessageType'.
+    NewChannel :: InferChannel s a             -- Synchronicity can be inferred, 'a' is a 'MessageType'.
                => Instruction (Channel s a)    -- Infer the required type of a new synchronous/ asynchronous Channel.
 
     -- Sends a value on a Channel.
-    Send       :: MessageType a                -- Message type can be serialized.
+    Send       :: MessageType a
                => Chan a                       -- Target Asynchronous Channel.
                -> a                            -- Value sent
                -> Instruction ()
@@ -270,13 +270,13 @@ data Instruction a where
                -> Instruction ()
 
     -- Send a value on a Synchronous Channel and wait for a result.
-    Sync       :: (MessageType a, MessageType r) -- Message type can be serialized.
+    Sync       :: (MessageType a,MessageType r)
                => SyncChan a r                   -- Channel sent and waited upon.
                -> a                              -- Value sent.
                -> Instruction (Response r)      -- Reply channel.
 
     -- Send a reply value on a Synchronous Channel.
-    Reply      :: MessageType r                  -- Message type can be serialized.
+    Reply      :: MessageType r
                => SyncChan a r                 -- A Synchronous Channel to reply to.
                -> r                            -- Value to reply with.
                -> Instruction ()
@@ -310,14 +310,14 @@ def p = singleton $ Def p
 -- Request a new typed Channel be created. Whether the
 -- Channel is synchronous or asynchronous is determined by the calling
 -- context.
-newChannel :: (InferSync s,MessageType a) => Process (Channel s a)
+newChannel :: InferChannel s a => Process (Channel s a)
 newChannel = singleton NewChannel
 
 -- | Request a given number of new typed Channels be created.
 -- All Channels will have the same message type and synchronicity type.
 -- Whether the Channels are synchronous or asynchronous is determined by
 -- the calling context.
-newChannels :: (InferSync s,MessageType a) => Int -> Process [Channel s a]
+newChannels :: InferChannel s a => Int -> Process [Channel s a]
 newChannels i = replicateM i newChannel
 
 -- | Enter a single 'Send' Instruction into Process.

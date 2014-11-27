@@ -75,7 +75,6 @@ module Join.Interpreter.Interface
   ) where
 
 import Join.Language
-import Join.Message
 import Join.Pattern
 import Join.Pattern.Rep
 import Join.Channel
@@ -89,7 +88,7 @@ import Control.Monad.Operational
 data InterpreterFs m = InterpreterFs
   {_iReturn     :: forall a. a -> m a
   ,_iDef        :: ToDefinitions d tss Inert => d -> m ()
-  ,_iNewChannel :: (InferSync s,MessageType a) => m (Channel s a)
+  ,_iNewChannel :: InferChannel s a => m (Channel s a)
   ,_iSend       :: MessageType a => Chan a -> a -> m ()
   ,_iSpawn      :: Process () -> m ()
   ,_iSync       :: (MessageType a,MessageType r) => SyncChan a r -> a -> m (Response r)

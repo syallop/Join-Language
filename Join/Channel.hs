@@ -1,10 +1,12 @@
 {-# LANGUAGE DataKinds
             ,DeriveDataTypeable
+            ,FlexibleInstances
             ,GADTs
             ,GeneralizedNewtypeDeriving
             ,KindSignatures
             ,MultiParamTypeClasses
             ,PolyKinds
+            ,RankNTypes
             ,StandaloneDeriving
  #-}
 {-|
@@ -27,7 +29,7 @@ for a Join-Calculus program to:
 The first point is facilitated by the id each Channel is constructed with.
 The second and third, by the type variables.
 
-'inferSync' allows an implementation to infer whether a newly created Channel
+'inferChannel' allows an implementation to infer whether a newly created Channel
 should be Asynchronous or Synchronous based upon it's usage.
 For example, a reply function could be defined to operate exclusively on Synchronous Channels,
 then, if reply is called on a channel, it can be inferred that it is intended to be Synchronous
@@ -42,15 +44,16 @@ module Join.Channel
     ,SyncChan
     ,Synchronicity(..)
     ,getId
-    ,InferSync()
-    ,inferSync
+    ,InferChannel(inferChannel)
 
     ,SignalChannel
     ,Signal
     ,SyncSignal
+    ,module Join.Message
     ) where
 
 import Data.Typeable
+import Join.Message
 
 -- | System-wide unique channel id.
 newtype ChanId = ChanId {unChanId :: Int} deriving (Show,Eq,Ord,Enum,Num)
@@ -64,6 +67,12 @@ data Synchronicity (r :: *)
 deriving instance Typeable A
 deriving instance Typeable S
 
+-- | Class of valid synchronous reply types.
+class SyncType s
+instance SyncType A
+instance MessageType r
+      => SyncType (S r)
+
 -- | A Channel uniquely identifies a port of communication.
 --
 -- The type parameter 'a' denotes the type of values accepted.
@@ -75,8 +84,13 @@ deriving instance Typeable S
 -- Channels are constructed with an ChanId parameter which serves as it's
 -- unique ID. Interpreters should ensure these are unique.
 data Channel (s :: Synchronicity *) (a :: *) where
-    Channel  :: ChanId -> Channel A     a
-    SChannel :: ChanId -> Channel (S r) a
+    -- Asynchronous channel.
+    AChannel :: MessageType a
+             => ChanId -> Channel A     a
+
+    -- Synchronous channel.
+    SChannel :: (MessageType a,MessageType r)
+             => ChanId -> Channel (S r) a
 
 -- | Synonym for asynchronous 'Channel's.
 type Chan (a :: *) = Channel A a
@@ -85,30 +99,24 @@ type Chan (a :: *) = Channel A a
 type SyncChan a r = Channel (S r) a
 
 instance Show (Channel s a) where
-    show (Channel  (ChanId i)) = "Channel-"  ++ show i
+    show (AChannel (ChanId i)) = "AChannel-" ++ show i
     show (SChannel (ChanId i)) = "SChannel-" ++ show i
 
 -- | Extract the Id of a Channel.
 getId :: Channel s a -> ChanId
-getId (Channel i) = i
+getId (AChannel i) = i
 getId (SChannel i) = i
 
--- | Closed Class of Synchronicity-kinded types which may be used to infer
--- how to construct a corresponding Channel.
---
--- I.E. When:
---
--- @
---  i :: ChanId
---  c = inferSync i :: Channel s a
--- @
--- 
--- and in a context where 's' is constrained to 'A' or 'S', then inferSync will
--- create the corresponding type of Channel.
-class    InferSync s     where inferSync :: ChanId -> Channel s a
-instance InferSync A     where inferSync = Channel
-instance InferSync (S r) where inferSync = SChannel
+-- | Infer the constructor for a 'Channel' from the required 'Synchronicity'-kinded
+-- type.
+class (MessageType a,SyncType s) => InferChannel s a where
+  inferChannel :: ChanId -> Channel s a
 
+instance MessageType a => InferChannel A a where
+  inferChannel = AChannel
+
+instance (MessageType a,MessageType r) => InferChannel (S r) a where
+  inferChannel = SChannel
 
 -- | Synonym for 'Channel's which receive signals - the unit value ().
 type SignalChannel s = Channel s ()
