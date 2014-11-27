@@ -10,7 +10,7 @@ name:                Join-Language
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             0.1.0.0
+version:             0.1.1.0
 
 -- A short (one-line) description of the package.
 -- synopsis:            
@@ -72,6 +72,8 @@ library
                     , Join.Data.Count
                     , Join.Data.Counter
                     , Join.Data.Lock
+
+                    , Join.Interpreter.Interface
 
   -- Modules included in this library but not exported.
   other-modules:      Join.Pattern.Builder.Nat
