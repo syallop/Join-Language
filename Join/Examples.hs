@@ -26,7 +26,6 @@ import Join.Data.Lock
 import Control.Applicative
 import Control.Concurrent (threadDelay)
 import Control.Monad (liftM,replicateM_,replicateM)
-import Control.Monad.IO.Class
 
 
 

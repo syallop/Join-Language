@@ -80,8 +80,8 @@ import Join.Pattern.Rep
 import Join.Channel
 import Join.Response
 
-import Control.Monad.IO.Class
 import Control.Monad.Operational
+import Control.Monad.IO.Class
 
 -- | Record of interpreter functions, one for each 'Instruction'
 -- , in some context 'm'.
@@ -110,9 +110,7 @@ interpretWith int = interpretWith' (getInterpreterFs int)
 
 -- With an 'InterpreterFs', interpret a 'Process'.
 interpretWith' :: MonadIO m => InterpreterFs m -> Process a -> m a
-interpretWith' intFs proc = do
-  instr <- liftIO $ viewT proc
-  case instr of
+interpretWith' intFs proc = case view proc of
 
     Return a -> _iReturn intFs a
 
@@ -143,4 +141,8 @@ interpretWith' intFs proc = do
     With p q
       :>>= k -> do _iWith intFs p q
                    interpretWith' intFs (k ())
+
+    IOAction io
+      :>>= k -> do r <- liftIO io
+                   interpretWith' intFs (k r)
 
