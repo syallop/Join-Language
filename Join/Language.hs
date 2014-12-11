@@ -4,6 +4,7 @@
             ,FlexibleInstances
             ,GADTs
             ,MultiParamTypeClasses
+            ,OverlappingInstances
             ,RankNTypes
             ,TypeOperators
             ,TypeSynonymInstances
@@ -146,6 +147,8 @@ module Join.Language
     , reply      , replyAll
     , acknowledge, acknowledgeAll
 
+    ,liftIO
+
     -- ** Join definitions
     -- | Join definitions are the key construct provided by the Join-calculus
     -- and allow a declarative style of defining reactions to messages sent
@@ -234,9 +237,11 @@ import Join.Pattern
 import Join.Pattern.Rep
 import Join.Response
 
-import Control.Monad.Operational (ProgramT,singleton)
 import Control.Monad             (replicateM)
+import Control.Monad.IO.Class
+import Control.Monad.Operational
 import Data.Monoid
+
 
 -- | Type of atomic Join instructions.
 --
@@ -286,10 +291,15 @@ data Instruction a where
                -> Process ()                  -- Second process.
                -> Instruction ()
 
+    IOAction   :: IO a                       -- Embedded IO action.
+               -> Instruction a
 
 -- | Process is a Monadic type that can be thought of as representing a
 -- sequence of Join 'Instructions'.
-type Process a = ProgramT Instruction IO a
+type Process a = Program Instruction a
+
+instance MonadIO (Program Instruction) where
+  liftIO io = ioAction io
 
 -- | Enter a single 'Def' Instruction into Process.
 --
@@ -440,6 +450,9 @@ acknowledgeAll = withAll . map acknowledge
 -- Concurrently run two 'Process' () computations.
 with :: Process () -> Process () -> Process ()
 with p q = singleton $ With p q
+
+ioAction :: IO a -> Process a
+ioAction io = singleton $ IOAction io
 
 instance Monoid Inert where
     mempty  = inert
