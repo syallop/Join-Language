@@ -104,8 +104,8 @@ library
   
   -- Other library packages from which modules are imported.
   build-depends:      base         >=4.7  && <4.8
+                    , DSL-Compose
                     , transformers >=0.4  && <0.5
-                    , operational  >=0.2  && <0.3
                     , cereal       >=0.4  && <0.5
                     , containers   >=0.5  && <0.6
                     , bytestring   >=0.10 && <0.11

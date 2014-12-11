@@ -69,9 +69,6 @@ module Join.Interpreter.Interface
   -- A specific example is this modules internal 'interpretWith\'' function.
   ,Process
   ,Instruction(..)
-  ,ProgramT(..)
-  ,ProgramViewT(..)
-  ,viewT
   ) where
 
 import Join.Language
@@ -80,8 +77,10 @@ import Join.Pattern.Rep
 import Join.Channel
 import Join.Response
 
-import Control.Monad.Operational
 import Control.Monad.IO.Class
+
+import qualified DSL.Program             as DSL
+import qualified DSL.Program.Interpreter as DSL
 
 -- | Record of interpreter functions, one for each 'Instruction'
 -- , in some context 'm'.
@@ -106,43 +105,37 @@ instance MonadIO m => Interpreter (InterpreterFs m) m where
 
 -- | With an 'Interpreter' type 'i', interpret a 'Process'
 interpretWith :: Interpreter i m => i -> Process a -> m a
-interpretWith int = interpretWith' (getInterpreterFs int)
+{-interpretWith int = interpretWith' (getInterpreterFs int)-}
+interpretWith int = DSL.interpretProgramUsing (interpretUsingInterpreter $ getInterpreterFs int)
 
 -- With an 'InterpreterFs', interpret a 'Process'.
-interpretWith' :: MonadIO m => InterpreterFs m -> Process a -> m a
-interpretWith' intFs proc = case view proc of
+{-interpretWith' :: MonadIO m => InterpreterFs m -> Process a -> m a-}
+{-interpretWith' intFs (Program proc) = case proc of-}
 
-    Return a -> _iReturn intFs a
+interpretUsingInterpreter :: MonadIO m => InterpreterFs m -> DSL.Interpreter Instruction m
+interpretUsingInterpreter intFs = DSL.Interpreter $ \inst -> case inst of
 
     Def definitions
-      :>>= k -> do _iDef intFs definitions
-                   interpretWith' intFs (k ())
+      -> _iDef intFs definitions
 
     NewChannel
-      :>>= k -> do chan <- _iNewChannel intFs
-                   interpretWith' intFs (k chan)
+      -> _iNewChannel intFs
 
     Send c m
-      :>>= k -> do _iSend intFs c m
-                   interpretWith' intFs (k ())
+      -> _iSend intFs c m
 
     Spawn p
-      :>>= k -> do _iSpawn intFs p
-                   interpretWith' intFs (k ())
+      -> _iSpawn intFs p
 
     Sync sc sm
-      :>>= k -> do syncVal <- _iSync intFs sc sm
-                   interpretWith' intFs (k syncVal)
+      -> _iSync intFs sc sm
 
     Reply sc rm
-      :>>= k -> do _iReply intFs sc rm
-                   interpretWith' intFs (k ())
+      -> _iReply intFs sc rm
 
     With p q
-      :>>= k -> do _iWith intFs p q
-                   interpretWith' intFs (k ())
+      -> _iWith intFs p q
 
     IOAction io
-      :>>= k -> do r <- liftIO io
-                   interpretWith' intFs (k r)
+      -> liftIO io
 
