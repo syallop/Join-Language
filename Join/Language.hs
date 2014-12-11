@@ -3,8 +3,8 @@
             ,FlexibleContexts
             ,FlexibleInstances
             ,GADTs
+            ,KindSignatures
             ,MultiParamTypeClasses
-            ,OverlappingInstances
             ,RankNTypes
             ,TypeOperators
             ,TypeSynonymInstances
@@ -239,8 +239,9 @@ import Join.Response
 
 import Control.Monad             (replicateM)
 import Control.Monad.IO.Class
-import Control.Monad.Operational
 import Data.Monoid
+
+import DSL.Program
 
 
 -- | Type of atomic Join instructions.
@@ -253,46 +254,46 @@ import Data.Monoid
 --
 -- For writing interpreters of Join programs, more comprehensive documentation may be
 -- found in the source (because haddock cannot currently document GADTs).
-data Instruction a where
+data Instruction (p :: * -> *) a where
 
     -- Join definition.
     Def        :: ToDefinitions d tss Inert
                => d
-               -> Instruction ()
+               -> Instruction p ()
 
     -- Request a new typed Channel.
     NewChannel :: InferChannel s a             -- Synchronicity can be inferred, 'a' is a 'MessageType'.
-               => Instruction (Channel s a)    -- Infer the required type of a new synchronous/ asynchronous Channel.
+               => Instruction p (Channel s a)    -- Infer the required type of a new synchronous/ asynchronous Channel.
 
     -- Sends a value on a Channel.
     Send       :: MessageType a
                => Chan a                       -- Target Asynchronous Channel.
                -> a                            -- Value sent
-               -> Instruction ()
+               -> Instruction p ()
 
     -- Asynchronously spawn a Process.
     Spawn      :: Process ()                  -- Process to spawn.
-               -> Instruction ()
+               -> Instruction p ()
 
     -- Send a value on a Synchronous Channel and wait for a result.
     Sync       :: (MessageType a,MessageType r)
                => SyncChan a r                   -- Channel sent and waited upon.
                -> a                              -- Value sent.
-               -> Instruction (Response r)      -- Reply channel.
+               -> Instruction p (Response r)      -- Reply channel.
 
     -- Send a reply value on a Synchronous Channel.
     Reply      :: MessageType r
                => SyncChan a r                 -- A Synchronous Channel to reply to.
                -> r                            -- Value to reply with.
-               -> Instruction ()
+               -> Instruction p ()
 
     -- Concurrently execute two Process's.
     With       :: Process ()                  -- First process.
                -> Process ()                  -- Second process.
-               -> Instruction ()
+               -> Instruction p ()
 
     IOAction   :: IO a                       -- Embedded IO action.
-               -> Instruction a
+               -> Instruction p a
 
 -- | Process is a Monadic type that can be thought of as representing a
 -- sequence of Join 'Instructions'.
@@ -313,7 +314,7 @@ instance MonadIO (Program Instruction) where
 -- receives a message, it is passed to the RHS function which increments it
 -- and passes it back.
 def :: ToDefinitions d tss Inert => d -> Process ()
-def p = singleton $ Def p
+def p = inject $ Def p
 
 -- | Enter a single 'NewChannel' Instruction into Process.
 --
@@ -321,7 +322,7 @@ def p = singleton $ Def p
 -- Channel is synchronous or asynchronous is determined by the calling
 -- context.
 newChannel :: InferChannel s a => Process (Channel s a)
-newChannel = singleton NewChannel
+newChannel = inject NewChannel
 
 -- | Request a given number of new typed Channels be created.
 -- All Channels will have the same message type and synchronicity type.
@@ -334,7 +335,7 @@ newChannels i = replicateM i newChannel
 --
 -- On a (regular) asynchronous 'Channel', send a message.
 send :: MessageType a => Chan a -> a -> Process ()
-send c a = singleton $ Send c a
+send c a = inject $ Send c a
 
 -- | Simultaneously send messages to (regular) asynchronous 'Channel's.
 sendAll :: MessageType a => [(Chan a,a)] -> Process ()
@@ -361,7 +362,7 @@ signalN i s = signalAll $ replicate i s
 -- Asynchronously spawn a 'Process' () computation in the
 -- background.
 spawn :: Process () -> Process ()
-spawn p = singleton $ Spawn p
+spawn p = inject $ Spawn p
 
 -- | Enter a single 'Sync' Instruction into Process.
 
@@ -369,7 +370,7 @@ spawn p = singleton $ Spawn p
 -- a 'Response' - a handle to the reply message which may be 'wait'ed upon
 -- when needed.
 sync :: (MessageType a,MessageType r) => SyncChan a r -> a -> Process (Response r)
-sync s a = singleton $ Sync s a
+sync s a = inject $ Sync s a
 
 -- | Send messages to synchronous 'Channel's, returning a list
 -- of 'Response's - handles to the reply messages which may be 'wait'ed upon
@@ -431,7 +432,7 @@ syncSignalN' i s = syncSignalAll' $ replicate i s
 -- On a synchronous 'Channel', respond with a message to the
 -- sender.
 reply :: MessageType r => SyncChan a r -> r -> Process ()
-reply s a = singleton $ Reply s a
+reply s a = inject $ Reply s a
 
 -- | Simultaneously, respond with messages to synchronous 'Channels.
 replyAll :: MessageType r => [(SyncChan a r,r)] -> Process ()
@@ -449,10 +450,10 @@ acknowledgeAll = withAll . map acknowledge
 --
 -- Concurrently run two 'Process' () computations.
 with :: Process () -> Process () -> Process ()
-with p q = singleton $ With p q
+with p q = inject $ With p q
 
 ioAction :: IO a -> Process a
-ioAction io = singleton $ IOAction io
+ioAction io = inject $ IOAction io
 
 instance Monoid Inert where
     mempty  = inert
