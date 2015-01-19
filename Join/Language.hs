@@ -6,6 +6,7 @@
             ,KindSignatures
             ,MultiParamTypeClasses
             ,RankNTypes
+            ,TemplateHaskell
             ,TypeOperators
             ,TypeSynonymInstances
  #-}
@@ -147,7 +148,10 @@ module Join.Language
     , reply      , replyAll
     , acknowledge, acknowledgeAll
 
-    ,liftIO
+    , liftIO
+    , ioAction
+
+    ,UsingProcess()
 
     -- ** Join definitions
     -- | Join definitions are the key construct provided by the Join-calculus
@@ -222,7 +226,7 @@ module Join.Language
     -- | Below is the base instruction type, along with typeclasses and
     -- functions which should only be required directly in the
     -- implementation of interpreters.
-    , Instruction(..)
+    , CoreInst(..)
     , Definitions
     , Apply
     , apply
@@ -243,7 +247,6 @@ import Data.Monoid
 
 import DSL.Program
 
-
 -- | Type of atomic Join instructions.
 --
 -- This is the underlying type of the 'Process' Monad which is the users
@@ -254,214 +257,53 @@ import DSL.Program
 --
 -- For writing interpreters of Join programs, more comprehensive documentation may be
 -- found in the source (because haddock cannot currently document GADTs).
-data Instruction (p :: * -> *) a where
+data CoreInst (p :: * -> *) (a :: *) where
 
     -- Join definition.
     Def        :: ToDefinitions d tss Inert
                => d
-               -> Instruction p ()
+               -> CoreInst p ()
 
     -- Request a new typed Channel.
     NewChannel :: InferChannel s a             -- Synchronicity can be inferred, 'a' is a 'MessageType'.
-               => Instruction p (Channel s a)    -- Infer the required type of a new synchronous/ asynchronous Channel.
+               => CoreInst p (Channel s a)    -- Infer the required type of a new synchronous/ asynchronous Channel.
 
     -- Sends a value on a Channel.
     Send       :: MessageType a
                => Chan a                       -- Target Asynchronous Channel.
                -> a                            -- Value sent
-               -> Instruction p ()
+               -> CoreInst p ()
 
     -- Asynchronously spawn a Process.
     Spawn      :: Process ()                  -- Process to spawn.
-               -> Instruction p ()
+               -> CoreInst p ()
 
     -- Send a value on a Synchronous Channel and wait for a result.
     Sync       :: (MessageType a,MessageType r)
                => SyncChan a r                   -- Channel sent and waited upon.
                -> a                              -- Value sent.
-               -> Instruction p (Response r)      -- Reply channel.
+               -> CoreInst p (Response r)      -- Reply channel.
 
     -- Send a reply value on a Synchronous Channel.
     Reply      :: MessageType r
                => SyncChan a r                 -- A Synchronous Channel to reply to.
                -> r                            -- Value to reply with.
-               -> Instruction p ()
+               -> CoreInst p ()
 
     -- Concurrently execute two Process's.
     With       :: Process ()                  -- First process.
                -> Process ()                  -- Second process.
-               -> Instruction p ()
+               -> CoreInst p ()
 
     IOAction   :: IO a                       -- Embedded IO action.
-               -> Instruction p a
+               -> CoreInst p a
+
 
 -- | Process is a Monadic type that can be thought of as representing a
--- sequence of Join 'Instructions'.
-type Process a = Program Instruction a
+-- sequence of Join 'Inst'ructions.
+type Process a = Program CoreInst a
 
-instance MonadIO (Program Instruction) where
-  liftIO io = ioAction io
-
--- | Enter a single 'Def' Instruction into Process.
---
--- Declares that when a 'Pattern' p is matched, a trigger function t is to be called, passed the matching messages.
---
--- E.G. Increment:
---
--- @ def ci (\i -> reply ci (i+1)) @
---
--- Says that when ci (which may be inferred to have type :: Channel S Int)
--- receives a message, it is passed to the RHS function which increments it
--- and passes it back.
-def :: ToDefinitions d tss Inert => d -> Process ()
-def p = inject $ Def p
-
--- | Enter a single 'NewChannel' Instruction into Process.
---
--- Request a new typed Channel be created. Whether the
--- Channel is synchronous or asynchronous is determined by the calling
--- context.
-newChannel :: InferChannel s a => Process (Channel s a)
-newChannel = inject NewChannel
-
--- | Request a given number of new typed Channels be created.
--- All Channels will have the same message type and synchronicity type.
--- Whether the Channels are synchronous or asynchronous is determined by
--- the calling context.
-newChannels :: InferChannel s a => Int -> Process [Channel s a]
-newChannels i = replicateM i newChannel
-
--- | Enter a single 'Send' Instruction into Process.
---
--- On a (regular) asynchronous 'Channel', send a message.
-send :: MessageType a => Chan a -> a -> Process ()
-send c a = inject $ Send c a
-
--- | Simultaneously send messages to (regular) asynchronous 'Channel's.
-sendAll :: MessageType a => [(Chan a,a)] -> Process ()
-sendAll = withAll . map (uncurry send)
-
--- | Send a number of identical messages to a Channel.
-sendN :: MessageType a => Int -> a -> Chan a -> Process ()
-sendN i msg chan = sendAll $ replicate i (chan,msg)
-
--- | Send an asynchronous signal.
-signal :: Signal -> Process ()
-signal c = send c ()
-
--- | Simultaneously send asynchronous signals.
-signalAll :: [Signal] -> Process ()
-signalAll = withAll . map signal
-
--- | Send a number of signals to the same 'Signal'
-signalN :: Int -> Signal -> Process ()
-signalN i s = signalAll $ replicate i s
-
--- | Enter a single 'Spawn' Instruction into Process.
---
--- Asynchronously spawn a 'Process' () computation in the
--- background.
-spawn :: Process () -> Process ()
-spawn p = inject $ Spawn p
-
--- | Enter a single 'Sync' Instruction into Process.
-
--- Send a message to a synchronous 'Channel', returning
--- a 'Response' - a handle to the reply message which may be 'wait'ed upon
--- when needed.
-sync :: (MessageType a,MessageType r) => SyncChan a r -> a -> Process (Response r)
-sync s a = inject $ Sync s a
-
--- | Send messages to synchronous 'Channel's, returning a list
--- of 'Response's - handles to the reply messages which may be 'wait'ed upon
--- when needed.
-syncAll :: (MessageType a,MessageType r) => [(SyncChan a r,a)] -> Process [Response r]
-syncAll = mapM (uncurry sync)
-
--- | Send a number of synchronous messages to the same Channel.
-syncN :: (MessageType a,MessageType r) => Int -> SyncChan a r -> a -> Process [Response r]
-syncN i s a = syncAll $ replicate i (s,a)
-
--- | In a Process, block on a 'Response'.
-wait :: Response r -> Process r
-wait sv = return $! readResponse sv
-
--- | Block on many 'Response's.
-waitAll :: [Response r] -> Process [r]
-waitAll = mapM wait
-
--- | Send a message to a synchronous 'Channel', blocking on a reply value.
-sync' :: (MessageType a,MessageType r) => SyncChan a r -> a -> Process r
-sync' s a = sync s a >>= wait
-
--- | Send messages to synchronous 'Channel's, blocking on
--- the reply values.
-syncAll' :: (MessageType a,MessageType r) => [(SyncChan a r,a)] -> Process [r]
-syncAll' = mapM (uncurry sync')
-
--- | Send a number of synchronous messages to a 'Channel' blocking on all reply values.
-syncN' :: (MessageType a,MessageType r) => Int -> SyncChan a r -> a -> Process [r]
-syncN' i s a = syncAll' $ replicate i (s,a)
-
--- | Send a synchronous signal, returning a 'Response' - a handle to the
--- reply message which may be 'wait'ed upon when needed.
-syncSignal :: MessageType r => SyncSignal r -> Process (Response r)
-syncSignal s = sync s ()
-
--- | Send synchronous signals returning a list of 'Response's - handles
--- to the reply messages which may be 'wait'ed upon when needed.
-syncSignalAll :: MessageType r => [SyncSignal r] -> Process [Response r]
-syncSignalAll = mapM syncSignal
-
-syncSignalN :: MessageType r => Int -> SyncSignal r -> Process [Response r]
-syncSignalN i s = syncSignalAll $ replicate i s
-
--- | Send a synchronous signal, blocking on a reply value.
-syncSignal' :: MessageType r => SyncSignal r -> Process r
-syncSignal' s = syncSignal s >>= wait
-
--- | Send synchronous signals. blocking on the reply values.
-syncSignalAll' :: MessageType r => [SyncSignal r] -> Process [r]
-syncSignalAll' = mapM syncSignal'
-
-syncSignalN' :: MessageType r => Int -> SyncSignal r -> Process [r]
-syncSignalN' i s = syncSignalAll' $ replicate i s
-
--- | Enter a single 'Reply' Instruction into Process.
---
--- On a synchronous 'Channel', respond with a message to the
--- sender.
-reply :: MessageType r => SyncChan a r -> r -> Process ()
-reply s a = inject $ Reply s a
-
--- | Simultaneously, respond with messages to synchronous 'Channels.
-replyAll :: MessageType r => [(SyncChan a r,r)] -> Process ()
-replyAll = withAll . map (uncurry reply)
-
--- | Reply with a synchronous acknowledgment.
-acknowledge :: SyncChan a () -> Process ()
-acknowledge s = reply s ()
-
--- | Simultaneously reply with synchronous acknowledgements.
-acknowledgeAll :: [SyncChan a ()] -> Process ()
-acknowledgeAll = withAll . map acknowledge
-
--- | Enter a single 'With' Instruction into Process.
---
--- Concurrently run two 'Process' () computations.
-with :: Process () -> Process () -> Process ()
-with p q = inject $ With p q
-
-ioAction :: IO a -> Process a
-ioAction io = inject $ IOAction io
-
-instance Monoid Inert where
-    mempty  = inert
-    mappend = with
-
--- | Compose a list of 'Inert' 'Process's to be ran concurrently.
-withAll :: [Inert] -> Inert
-withAll = mconcat
+type UsingProcess a = ProgramUsing CoreInst a
 
 -- | Type synonym for a Process which terminates without value.
 type Inert = Process ()
@@ -474,4 +316,168 @@ type Inert = Process ()
 -- value.
 inert :: Inert
 inert = return ()
+
+instance MonadIO (Program CoreInst) where
+  liftIO io = ioAction io
+
+-- | Enter a single 'Def' CoreInst into Process.
+--
+-- Declares that when a 'Pattern' p is matched, a trigger function t is to be called, passed the matching messages.
+--
+-- E.G. Increment:
+--
+-- @ def ci (\i -> reply ci (i+1)) @
+--
+-- Says that when ci (which may be inferred to have type :: Channel S Int)
+-- receives a message, it is passed to the RHS function which increments it
+-- and passes it back.
+def :: ToDefinitions d tss Inert => d -> UsingProcess ()
+def p = inject $ Def p
+
+-- | Enter a single 'NewChannel' CoreInst into Process.
+--
+-- Request a new typed Channel be created. Whether the
+-- Channel is synchronous or asynchronous is determined by the calling
+-- context.
+newChannel :: InferChannel s a => UsingProcess (Channel s a)
+newChannel = inject NewChannel
+
+-- | Request a given number of new typed Channels be created.
+-- All Channels will have the same message type and synchronicity type.
+-- Whether the Channels are synchronous or asynchronous is determined by
+-- the calling context.
+newChannels :: InferChannel s a => Int -> UsingProcess [Channel s a]
+newChannels i = replicateM i newChannel
+
+-- | Enter a single 'Send' CoreInst into Process.
+--
+-- On a (regular) asynchronous 'Channel', send a message.
+send :: MessageType a => Chan a -> a -> UsingProcess ()
+send c a = inject $ Send c a
+
+-- | Simultaneously send messages to (regular) asynchronous 'Channel's.
+sendAll :: MessageType a => [(Chan a,a)] -> Process ()
+sendAll = withAll . map (uncurry send)
+
+-- | Send a number of identical messages to a Channel.
+sendN :: MessageType a => Int -> a -> Chan a -> Process ()
+sendN i msg chan = sendAll $ replicate i (chan,msg)
+
+-- | Send an asynchronous signal.
+signal :: Signal -> UsingProcess ()
+signal c = send c ()
+
+-- | Simultaneously send asynchronous signals.
+signalAll :: [Signal] -> Process ()
+signalAll = withAll . map signal
+
+-- | Send a number of signals to the same 'Signal'
+signalN :: Int -> Signal -> Process ()
+signalN i s = signalAll $ replicate i s
+
+-- | Enter a single 'Spawn' CoreInst into Process.
+--
+-- Asynchronously spawn a 'Process' () computation in the
+-- background.
+spawn :: Process () -> UsingProcess ()
+spawn p = inject $ Spawn p
+
+-- | Enter a single 'Sync' CoreInst into Process.
+
+-- Send a message to a synchronous 'Channel', returning
+-- a 'Response' - a handle to the reply message which may be 'wait'ed upon
+-- when needed.
+sync :: (MessageType a,MessageType r) => SyncChan a r -> a -> UsingProcess (Response r)
+sync s a = inject $ Sync s a
+
+-- | Send messages to synchronous 'Channel's, returning a list
+-- of 'Response's - handles to the reply messages which may be 'wait'ed upon
+-- when needed.
+syncAll :: (MessageType a,MessageType r) => [(SyncChan a r,a)] -> UsingProcess [Response r]
+syncAll = mapM (uncurry sync)
+
+-- | Send a number of synchronous messages to the same Channel.
+syncN :: (MessageType a,MessageType r) => Int -> SyncChan a r -> a -> UsingProcess [Response r]
+syncN i s a = syncAll $ replicate i (s,a)
+
+-- | In a Process, block on a 'Response'.
+wait :: Response r -> UsingProcess r
+wait sv = return $! readResponse sv
+
+-- | Block on many 'Response's.
+waitAll :: [Response r] -> UsingProcess [r]
+waitAll = mapM wait
+
+-- | Send a message to a synchronous 'Channel', blocking on a reply value.
+sync' :: (MessageType a,MessageType r) => SyncChan a r -> a -> UsingProcess r
+sync' s a = sync s a >>= wait
+
+-- | Send messages to synchronous 'Channel's, blocking on
+-- the reply values.
+syncAll' :: (MessageType a,MessageType r) => [(SyncChan a r,a)] -> UsingProcess [r]
+syncAll' = mapM (uncurry sync')
+
+-- | Send a number of synchronous messages to a 'Channel' blocking on all reply values.
+syncN' :: (MessageType a,MessageType r) => Int -> SyncChan a r -> a -> UsingProcess [r]
+syncN' i s a = syncAll' $ replicate i (s,a)
+
+-- | Send a synchronous signal, returning a 'Response' - a handle to the
+-- reply message which may be 'wait'ed upon when needed.
+syncSignal :: MessageType r => SyncSignal r -> UsingProcess (Response r)
+syncSignal s = sync s ()
+
+-- | Send synchronous signals returning a list of 'Response's - handles
+-- to the reply messages which may be 'wait'ed upon when needed.
+syncSignalAll :: MessageType r => [SyncSignal r] -> UsingProcess [Response r]
+syncSignalAll = mapM syncSignal
+
+syncSignalN :: MessageType r => Int -> SyncSignal r -> UsingProcess [Response r]
+syncSignalN i s = syncSignalAll $ replicate i s
+
+-- | Send a synchronous signal, blocking on a reply value.
+syncSignal' :: MessageType r => SyncSignal r -> UsingProcess r
+syncSignal' s = syncSignal s >>= wait
+
+-- | Send synchronous signals. blocking on the reply values.
+syncSignalAll' :: MessageType r => [SyncSignal r] -> UsingProcess [r]
+syncSignalAll' = mapM syncSignal'
+
+syncSignalN' :: MessageType r => Int -> SyncSignal r -> UsingProcess [r]
+syncSignalN' i s = syncSignalAll' $ replicate i s
+
+-- | Enter a single 'Reply' CoreInst into Process.
+--
+-- On a synchronous 'Channel', respond with a message to the
+-- sender.
+reply :: MessageType r => SyncChan a r -> r -> UsingProcess ()
+reply s a = inject $ Reply s a
+
+-- | Simultaneously, respond with messages to synchronous 'Channels.
+replyAll :: MessageType r => [(SyncChan a r,r)] -> Process ()
+replyAll = withAll . map (uncurry reply)
+
+-- | Reply with a synchronous acknowledgment.
+acknowledge :: SyncChan a () -> UsingProcess ()
+acknowledge s = reply s ()
+
+-- | Simultaneously reply with synchronous acknowledgements.
+acknowledgeAll :: [SyncChan a ()] -> Process ()
+acknowledgeAll = withAll . map acknowledge
+
+-- | Enter a single 'With' CoreInst into Process.
+--
+-- Concurrently run two 'Process' () computations.
+with :: Process () -> Process () -> UsingProcess ()
+with p q = inject $ With p q
+
+ioAction :: IO a -> UsingProcess a
+ioAction io = inject $ IOAction io
+
+instance Monoid Inert where
+    mempty  = inert
+    mappend = with
+
+-- | Compose a list of 'Inert' 'Process's to be ran concurrently.
+withAll :: [Inert] -> Inert
+withAll = mconcat
 
