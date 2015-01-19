@@ -73,8 +73,6 @@ library
                     , Join.Data.Counter
                     , Join.Data.Lock
 
-                    , Join.Interpreter.Interface
-
   -- Modules included in this library but not exported.
   other-modules:      Join.Pattern.Builder.Nat
                     , Join.Pattern.Channel
