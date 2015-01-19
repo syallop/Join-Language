@@ -50,6 +50,7 @@ library
   -- Modules exported by the library.
   exposed-modules:    Join
                     , Join.Language
+                    , Join.Language.Distributed
                     , Join.Apply
                     , Join.Channel
                     , Join.Message
