@@ -1,14 +1,15 @@
-{-# LANGUAGE DataKinds
-            ,DeriveDataTypeable
-            ,FlexibleInstances
-            ,GADTs
-            ,GeneralizedNewtypeDeriving
-            ,KindSignatures
-            ,MultiParamTypeClasses
-            ,PolyKinds
-            ,RankNTypes
-            ,StandaloneDeriving
- #-}
+{-# LANGUAGE
+    DataKinds
+  , DeriveDataTypeable
+  , FlexibleInstances
+  , GADTs
+  , GeneralizedNewtypeDeriving
+  , KindSignatures
+  , MultiParamTypeClasses
+  , PolyKinds
+  , RankNTypes
+  , StandaloneDeriving
+  #-}
 {-|
 Module      : Join.Channel
 Copyright   : (c) Samuel A. Yallop, 2014
@@ -85,12 +86,14 @@ instance MessageType r
 -- unique ID. Interpreters should ensure these are unique.
 data Channel (s :: Synchronicity *) (a :: *) where
     -- Asynchronous channel.
-    AChannel :: MessageType a
-             => ChanId -> Channel A     a
+    AChannel
+      :: MessageType a
+      => ChanId -> Channel A a
 
     -- Synchronous channel.
-    SChannel :: (MessageType a,MessageType r)
-             => ChanId -> Channel (S r) a
+    SChannel
+      :: (MessageType a,MessageType r)
+      => ChanId -> Channel (S r) a
 
 -- | Synonym for asynchronous 'Channel's.
 type Chan (a :: *) = Channel A a

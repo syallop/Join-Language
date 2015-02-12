@@ -1,8 +1,9 @@
-{-# LANGUAGE DataKinds
-           , ExplicitNamespaces
-           , KindSignatures
-           , TypeFamilies
-           , TypeOperators
+{-# LANGUAGE
+    DataKinds
+  , ExplicitNamespaces
+  , KindSignatures
+  , TypeFamilies
+  , TypeOperators
   #-}
 {-|
 Module      : Join.Pattern.Builder.Nat

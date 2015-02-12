@@ -1,5 +1,6 @@
-{-# LANGUAGE DataKinds
-            ,MultiWayIf
+{-# LANGUAGE
+    DataKinds
+  , MultiWayIf
   #-}
 {-|
 Module      : Join.Examples

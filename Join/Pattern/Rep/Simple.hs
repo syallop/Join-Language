@@ -1,15 +1,16 @@
-{-# LANGUAGE ConstraintKinds
-            ,DataKinds
-            ,ExistentialQuantification
-            ,FlexibleInstances
-            ,FunctionalDependencies
-            ,GADTs
-            ,IncoherentInstances
-            ,MultiParamTypeClasses
-            ,TypeFamilies
-            ,TypeOperators
-            ,UndecidableInstances
- #-}
+{-# LANGUAGE
+    ConstraintKinds
+  , DataKinds
+  , ExistentialQuantification
+  , FlexibleInstances
+  , FunctionalDependencies
+  , GADTs
+  , IncoherentInstances
+  , MultiParamTypeClasses
+  , TypeFamilies
+  , TypeOperators
+  , UndecidableInstances
+  #-}
 {-|
 Module      : Join.DefinitionRep.Simple
 Copyright   : (c) Samuel A. Yallop, 2014
@@ -29,11 +30,13 @@ data MatchType where
 
   -- Match messages which satisfy a predicate, 'ShouldPass' declaring
   -- whether a matching message is passed into trigger functions or not.
-  MatchWhen :: MessageType m => (m -> Bool) -> Bool -> MatchType
+  MatchWhen
+    :: MessageType m => (m -> Bool) -> Bool -> MatchType
 
   -- Match any message with 'ShouldPass' declaring whether a matching message
   -- is passed into trigger functions or not.
-  MatchAll  :: Bool -> MatchType
+  MatchAll
+    :: Bool -> MatchType
 
 pass = True
 keep = False

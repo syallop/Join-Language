@@ -1,5 +1,6 @@
-{-# LANGUAGE GADTs
-            ,TypeOperators
+{-# LANGUAGE
+    GADTs
+  , TypeOperators
   #-}
 {-|
 Module      : Join.Pattern.Builder.Vector

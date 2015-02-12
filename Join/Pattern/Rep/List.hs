@@ -1,6 +1,7 @@
-{-# LANGUAGE DataKinds
-            ,TypeFamilies
-            ,TypeOperators
+{-# LANGUAGE
+    DataKinds
+  , TypeFamilies
+  , TypeOperators
   #-}
 {-|
 Module      : Join.Pattern.Rep.List
