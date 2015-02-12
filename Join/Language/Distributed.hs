@@ -25,18 +25,18 @@ import DSL.Program
 
 type Name = String
 
-data DistInst (p :: * -> *) (a :: *) where
+data DistInst (a :: *) where
 
   LookupChannel
       :: MessageType a
       => Name
-      -> DistInst p (Maybe (Channel A a))
+      -> DistInst (Maybe (Channel A a))
 
   RegisterChannel
       :: MessageType a
       => Name
       -> Channel A a
-      -> DistInst p Bool
+      -> DistInst Bool
 
 type Dist a = Program DistInst a
 

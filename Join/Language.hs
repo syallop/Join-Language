@@ -257,46 +257,46 @@ import DSL.Program
 --
 -- For writing interpreters of Join programs, more comprehensive documentation may be
 -- found in the source (because haddock cannot currently document GADTs).
-data CoreInst (p :: * -> *) (a :: *) where
+data CoreInst (a :: *) where
 
     -- Join definition.
     Def        :: ToDefinitions d tss Inert
                => d
-               -> CoreInst p ()
+               -> CoreInst ()
 
     -- Request a new typed Channel.
     NewChannel :: InferChannel s a             -- Synchronicity can be inferred, 'a' is a 'MessageType'.
-               => CoreInst p (Channel s a)    -- Infer the required type of a new synchronous/ asynchronous Channel.
+               => CoreInst (Channel s a)    -- Infer the required type of a new synchronous/ asynchronous Channel.
 
     -- Sends a value on a Channel.
     Send       :: MessageType a
                => Chan a                       -- Target Asynchronous Channel.
                -> a                            -- Value sent
-               -> CoreInst p ()
+               -> CoreInst ()
 
     -- Asynchronously spawn a Process.
     Spawn      :: Process ()                  -- Process to spawn.
-               -> CoreInst p ()
+               -> CoreInst ()
 
     -- Send a value on a Synchronous Channel and wait for a result.
     Sync       :: (MessageType a,MessageType r)
                => SyncChan a r                   -- Channel sent and waited upon.
                -> a                              -- Value sent.
-               -> CoreInst p (Response r)      -- Reply channel.
+               -> CoreInst (Response r)      -- Reply channel.
 
     -- Send a reply value on a Synchronous Channel.
     Reply      :: MessageType r
                => SyncChan a r                 -- A Synchronous Channel to reply to.
                -> r                            -- Value to reply with.
-               -> CoreInst p ()
+               -> CoreInst ()
 
     -- Concurrently execute two Process's.
     With       :: Process ()                  -- First process.
                -> Process ()                  -- Second process.
-               -> CoreInst p ()
+               -> CoreInst ()
 
     IOAction   :: IO a                       -- Embedded IO action.
-               -> CoreInst p a
+               -> CoreInst a
 
 
 -- | Process is a Monadic type that can be thought of as representing a
