@@ -1,8 +1,9 @@
-{-# LANGUAGE GADTs
-            ,TemplateHaskell
-            ,TypeFamilies
-            ,TypeOperators
-            ,UndecidableInstances
+{-# LANGUAGE
+    GADTs
+  , TemplateHaskell
+  , TypeFamilies
+  , TypeOperators
+  , UndecidableInstances
   #-}
 {-|
 Module      : Join.Pattern.Builder

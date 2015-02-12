@@ -1,5 +1,6 @@
-{-# LANGUAGE GADTs
-            ,TemplateHaskell
+{-# LANGUAGE
+    GADTs
+  , TemplateHaskell
   #-}
 {-|
 Module      : Join.Pattern.Builder.Natural

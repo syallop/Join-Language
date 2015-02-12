@@ -1,17 +1,18 @@
-{-# LANGUAGE DataKinds
-            ,ExistentialQuantification
-            ,FlexibleInstances
-            ,FunctionalDependencies
-            ,GADTs
-            ,KindSignatures
-            ,MultiParamTypeClasses
-            ,PolyKinds
-            ,RankNTypes
-            ,ScopedTypeVariables
-            ,TypeFamilies
-            ,TypeOperators
-            ,UndecidableInstances
-            ,IncoherentInstances
+{-# LANGUAGE
+    DataKinds
+  , ExistentialQuantification
+  , FlexibleInstances
+  , FunctionalDependencies
+  , GADTs
+  , KindSignatures
+  , MultiParamTypeClasses
+  , PolyKinds
+  , RankNTypes
+  , ScopedTypeVariables
+  , TypeFamilies
+  , TypeOperators
+  , UndecidableInstances
+  , IncoherentInstances
   #-}
 {-|
 Module      : Join.Pattern.Rep.Pattern
@@ -64,11 +65,13 @@ data ShouldPass p where
 
   -- Matching message should be passed.
   -- value DoPass <=> type Pass
-  DoPass   :: ShouldPass Pass
+  DoPass
+    :: ShouldPass Pass
 
   -- Matching message should NOT be passed.
   -- value DontPass <=> type Keep
-  DontPass :: ShouldPass Keep
+  DontPass
+    :: ShouldPass Keep
 
 class ShouldPassValue p where 
   -- ^ Infer the corresponding 'ShouldPass' value.
@@ -91,10 +94,12 @@ data Keep
 data Match m where
 
   -- Match only when a predicate is satisfied.
-  MatchWhen :: MessageType m => MsgPred m -> Match m
+  MatchWhen
+    :: MessageType m => MsgPred m -> Match m
 
   -- Match all messages.
-  MatchAll  :: Match m
+  MatchAll
+    :: Match m
 
 -- | Represent a single item of a pattern.
 --
@@ -106,11 +111,12 @@ data Match m where
 --
 -- - 'p' : Are matches passed? (Pass/Keep)
 data Pattern s m p where
-  Pattern :: (MessageType m,Typeable s)
-          => Channel (s :: Synchronicity *) m -- Channel matched upon
-          -> Match m                          -- Type of matching to perform
-          -> ShouldPass p                     -- Whether a successful match should be passed
-          -> Pattern s m p
+  Pattern
+    :: (MessageType m,Typeable s)
+    => Channel (s :: Synchronicity *) m -- Channel matched upon
+    -> Match m                          -- Type of matching to perform
+    -> ShouldPass p                     -- Whether a successful match should be passed
+    -> Pattern s m p
 
 -- | Represent one and many pattern's.
 --
@@ -123,14 +129,16 @@ data Pattern s m p where
 data Patterns (ts :: [*]) where
 
   -- A single 'Pattern'
-  OnePattern :: Pattern s m p
-             -> Patterns '[Pattern s m p]
+  OnePattern
+    :: Pattern s m p
+    -> Patterns '[Pattern s m p]
 
   -- A composite pattern where all contained 'Pattern's
   -- must match for the whole to be considered matched.
-  AndPattern :: Pattern s m p
-             -> Patterns ts
-             -> Patterns ((Pattern s m p) ': ts)
+  AndPattern
+    :: Pattern s m p
+    -> Patterns ts
+    -> Patterns ((Pattern s m p) ': ts)
 
 -- | Class of types which can be converted to a single pattern.
 class ToPattern t s m p | t -> s m p

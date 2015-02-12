@@ -1,16 +1,16 @@
-{-# LANGUAGE ConstraintKinds
-            ,DataKinds
-            ,FlexibleContexts
-            ,FlexibleInstances
-            ,GADTs
-            ,KindSignatures
-            ,MultiParamTypeClasses
-            ,RankNTypes
-            ,TemplateHaskell
-            ,TypeOperators
-            ,TypeSynonymInstances
- #-}
-
+{-# LANGUAGE
+    ConstraintKinds
+  , DataKinds
+  , FlexibleContexts
+  , FlexibleInstances
+  , GADTs
+  , KindSignatures
+  , MultiParamTypeClasses
+  , RankNTypes
+  , TemplateHaskell
+  , TypeOperators
+  , TypeSynonymInstances
+  #-}
 
 {-# OPTIONS_HADDOCK prune #-}
 {-|
@@ -35,7 +35,7 @@ module Join.Language
     -- | Processes are the units of computation.
     --
     -- A Process is an independent execution of a sequence of Join
-    -- 'Instruction's and IO actions and executes in isolation of all
+    -- 'CoreInst's instructions and IO actions and executes in isolation of all
     -- other running Processes. Communication between Processes is achieved
     -- by message passing over 'Channel's.
     --
@@ -44,7 +44,7 @@ module Join.Language
     -- a monadic type and so supports do notation in which it is
     -- recommended that programs are written.
     --
-    -- Each 'Instruction' has a corresponding function which enters it into
+    -- Each instruction has a corresponding function which enters it into
     -- a 'Process' context. These are the atomic functions in which Join
     -- programs are built.
     --
@@ -151,7 +151,7 @@ module Join.Language
     , liftIO
     , ioAction
 
-    ,UsingProcess()
+    , UsingProcess()
 
     -- ** Join definitions
     -- | Join definitions are the key construct provided by the Join-calculus
@@ -260,43 +260,51 @@ import DSL.Program
 data CoreInst (a :: *) where
 
     -- Join definition.
-    Def        :: ToDefinitions d tss Inert
-               => d
-               -> CoreInst ()
+    Def
+      :: ToDefinitions d tss Inert
+      => d
+      -> CoreInst ()
 
     -- Request a new typed Channel.
-    NewChannel :: InferChannel s a             -- Synchronicity can be inferred, 'a' is a 'MessageType'.
-               => CoreInst (Channel s a)    -- Infer the required type of a new synchronous/ asynchronous Channel.
+    NewChannel
+      :: InferChannel s a              -- Synchronicity can be inferred, 'a' is a 'MessageType'.
+      => CoreInst (Channel s a)        -- Infer the required type of a new synchronous/ asynchronous Channel.
 
     -- Sends a value on a Channel.
-    Send       :: MessageType a
-               => Chan a                       -- Target Asynchronous Channel.
-               -> a                            -- Value sent
-               -> CoreInst ()
+    Send
+      :: MessageType a
+      => Chan a                        -- Target Asynchronous Channel.
+      -> a                             -- Value sent
+      -> CoreInst ()
 
     -- Asynchronously spawn a Process.
-    Spawn      :: Process ()                  -- Process to spawn.
-               -> CoreInst ()
+    Spawn
+      :: Process ()                    -- Process to spawn.
+      -> CoreInst ()
 
     -- Send a value on a Synchronous Channel and wait for a result.
-    Sync       :: (MessageType a,MessageType r)
-               => SyncChan a r                   -- Channel sent and waited upon.
-               -> a                              -- Value sent.
-               -> CoreInst (Response r)      -- Reply channel.
+    Sync
+      :: (MessageType a,MessageType r)
+      => SyncChan a r                  -- Channel sent and waited upon.
+      -> a                             -- Value sent.
+      -> CoreInst (Response r)         -- Reply channel.
 
     -- Send a reply value on a Synchronous Channel.
-    Reply      :: MessageType r
-               => SyncChan a r                 -- A Synchronous Channel to reply to.
-               -> r                            -- Value to reply with.
-               -> CoreInst ()
+    Reply
+      :: MessageType r
+      => SyncChan a r                  -- A Synchronous Channel to reply to.
+      -> r                             -- Value to reply with.
+      -> CoreInst ()
 
     -- Concurrently execute two Process's.
-    With       :: Process ()                  -- First process.
-               -> Process ()                  -- Second process.
-               -> CoreInst ()
+    With
+      :: Process ()                    -- First process.
+      -> Process ()                    -- Second process.
+      -> CoreInst ()
 
-    IOAction   :: IO a                       -- Embedded IO action.
-               -> CoreInst a
+    IOAction
+      :: IO a                          -- Embedded IO action.
+      -> CoreInst a
 
 
 -- | Process is a Monadic type that can be thought of as representing a

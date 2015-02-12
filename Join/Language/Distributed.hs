@@ -1,16 +1,16 @@
-{-# LANGUAGE ConstraintKinds
-            ,DataKinds
-            ,FlexibleContexts
-            ,FlexibleInstances
-            ,GADTs
-            ,KindSignatures
-            ,MultiParamTypeClasses
-            ,RankNTypes
-            ,TemplateHaskell
-            ,TypeOperators
-            ,TypeSynonymInstances
- #-}
-
+{-# LANGUAGE
+    ConstraintKinds
+  , DataKinds
+  , FlexibleContexts
+  , FlexibleInstances
+  , GADTs
+  , KindSignatures
+  , MultiParamTypeClasses
+  , RankNTypes
+  , TemplateHaskell
+  , TypeOperators
+  , TypeSynonymInstances
+  #-}
 module Join.Language.Distributed
   ( Dist
   , DistInst(..)
@@ -28,15 +28,15 @@ type Name = String
 data DistInst (a :: *) where
 
   LookupChannel
-      :: MessageType a
-      => Name
-      -> DistInst (Maybe (Channel A a))
+    :: MessageType a
+    => Name
+    -> DistInst (Maybe (Channel A a))
 
   RegisterChannel
-      :: MessageType a
-      => Name
-      -> Channel A a
-      -> DistInst Bool
+    :: MessageType a
+    => Name
+    -> Channel A a
+    -> DistInst Bool
 
 type Dist a = Program DistInst a
 

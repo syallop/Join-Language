@@ -1,3 +1,8 @@
+{-# LANGUAGE
+    DataKinds
+  , TypeFamilies
+  , TypeOperators
+  #-}
 {-|
 Module      : Join.Pattern
 Copyright   : (c) Samuel A. Yallop, 2014
@@ -7,10 +12,6 @@ Stability   : experimental
 This module exports a syntax for writing Join Patterns/ Definitions
 as encoded by 'Join.Pattern.Rep'.
 -}
-{-# LANGUAGE DataKinds
-            ,TypeFamilies
-            ,TypeOperators
-  #-}
 module Join.Pattern
   ( (&=)
   , (&~)

@@ -1,17 +1,18 @@
-{-# LANGUAGE DataKinds
-            ,ExistentialQuantification
-            ,FlexibleInstances
-            ,FunctionalDependencies
-            ,GADTs
-            ,KindSignatures
-            ,MultiParamTypeClasses
-            ,PolyKinds
-            ,RankNTypes
-            ,ScopedTypeVariables
-            ,TypeFamilies
-            ,TypeOperators
-            ,UndecidableInstances
-            ,IncoherentInstances
+{-# LANGUAGE
+    DataKinds
+  , ExistentialQuantification
+  , FlexibleInstances
+  , FunctionalDependencies
+  , GADTs
+  , KindSignatures
+  , MultiParamTypeClasses
+  , PolyKinds
+  , RankNTypes
+  , ScopedTypeVariables
+  , TypeFamilies
+  , TypeOperators
+  , UndecidableInstances
+  , IncoherentInstances
   #-}
 {-|
 Module      : Join.Pattern.Rep.Definition
@@ -63,10 +64,11 @@ instance Show (Trigger f r) where show _ = "TRIGGER"
 --
 -- - 'r' : terminating return type of trigger function.
 data Definition ts tr r where
-  Definition :: (tr~TriggerType ts r,Apply tr r)
-             => Patterns ts        -- Pattern(s) to match upon.
-             -> Trigger tr r       -- A corresponding trigger function to fire upon match.
-             -> Definition ts tr r
+  Definition
+    :: (tr~TriggerType ts r,Apply tr r)
+    => Patterns ts        -- Pattern(s) to match upon.
+    -> Trigger tr r       -- A corresponding trigger function to fire upon match.
+    -> Definition ts tr r
 
 -- | Compute the trigger type corresponding to the given list of 'Pattern' types (terminating in 'r').
 type family TriggerType ts r
@@ -88,14 +90,16 @@ type family TriggerType ts r
 data Definitions tss r where
 
   -- A single 'Definition'
-  OneDefinition :: Definition ts tr r
-                -> Definitions '[Definition ts tr r] r
+  OneDefinition
+    :: Definition ts tr r
+    -> Definitions '[Definition ts tr r] r
 
   -- A composite definition where all contained 'Definition's
   -- may have overlapping channels/ patterns and must be treated as such.
-  AndDefinition :: Definition ts tr r
-                -> Definitions tss r
-                -> Definitions ((Definition ts tr r) ': tss) r
+  AndDefinition
+    :: Definition ts tr r
+    -> Definitions tss r
+    -> Definitions ((Definition ts tr r) ': tss) r
 
 -- | Class of types which can be converted to a single definition.
 class ToDefinition t ts tr r | t -> ts tr r

@@ -1,7 +1,8 @@
-{-# LANGUAGE FlexibleInstances
-            ,IncoherentInstances
-            ,MultiParamTypeClasses
- #-}
+{-# LANGUAGE
+    FlexibleInstances
+  , IncoherentInstances
+  , MultiParamTypeClasses
+  #-}
 {-|
 Module      : Join.Apply
 Copyright   : (c) Samuel A. Yallop, 2014
@@ -27,9 +28,9 @@ data Application r
 
 instance Show (Application r) where
     show (Result _) = "Successful application."
-    show Excess = "Too many arguments."
-    show Shortage = "Too few arguments."
-    show Mistyped = "Mistyped arguments."
+    show Excess     = "Too many arguments."
+    show Shortage   = "Too few arguments."
+    show Mistyped   = "Mistyped arguments."
 
 -- | Class of types 'f' which may be applied to a sequence of Dynamic
 -- parameters, resulting in a value of type 'r'.
@@ -43,8 +44,8 @@ class Apply f r where
 instance (MessageType a, Apply b r) => Apply (a -> b) r where
     apply f (m:ms) = case recallMessageType m of
         Nothing -> Mistyped
-        Just v -> apply (f v) ms
-    apply _ [] = Shortage
+        Just v  -> apply (f v) ms
+    apply _ []     = Shortage
 
 instance Apply r r where
     apply r [] = Result r

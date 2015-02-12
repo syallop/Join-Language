@@ -1,6 +1,7 @@
-{-# LANGUAGE FlexibleInstances
-            ,UndecidableInstances
-            ,KindSignatures
+{-# LANGUAGE
+    FlexibleInstances
+  , UndecidableInstances
+  , KindSignatures
   #-}
 module Join.Message
   (MessageType(encodeMessage

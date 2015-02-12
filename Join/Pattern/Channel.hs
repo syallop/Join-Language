@@ -1,10 +1,11 @@
-{-# LANGUAGE ConstraintKinds
-            ,DataKinds
-            ,FlexibleInstances
-            ,FunctionalDependencies
-            ,MultiParamTypeClasses
-            ,TypeFamilies
-            ,UndecidableInstances
+{-# LANGUAGE
+    ConstraintKinds
+  , DataKinds
+  , FlexibleInstances
+  , FunctionalDependencies
+  , MultiParamTypeClasses
+  , TypeFamilies
+  , UndecidableInstances
   #-}
 module Join.Pattern.Channel where
 
