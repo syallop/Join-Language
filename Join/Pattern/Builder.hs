@@ -20,15 +20,14 @@ module Join.Pattern.Builder
   ,buildWith
   ,build
 
-  ,module Join.Pattern.Builder.Natural
-  ,module Join.Pattern.Builder.Vector
+  ,module Data.NonZero.Natural
+  ,module Data.NonZero.Vector
   ) where
 
 import Prelude hiding (head,tail,zip,append,snoc,replicate)
 
-import Join.Pattern.Builder.Natural
-import Join.Pattern.Builder.Vector
-import Join.Pattern.Rep
+import Data.NonZero.Vector hiding ((++))
+import Data.NonZero.Natural
 import Join.Pattern.Rep
 
 -- | Map the elements of a Vector to a single concatenated Definitions's.
@@ -37,8 +36,8 @@ buildWith f v = build $ mapVector f v
 
 -- | Concatenate a Vector of Definitions.
 build :: Vector n (Definitions tss r) -> Definitions (n:*tss) r
-build (VOne a) = a
-build (VAnd a vs) = appendDefinitions a (build vs)
+build (Only a) = a
+build (a :| vs) = appendDefinitions a (build vs)
 
 -- | A list type 'l', appended to itself 'n' times.
 type family Repeat n l

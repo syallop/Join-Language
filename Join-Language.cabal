@@ -56,8 +56,6 @@ library
                     , Join.Message
 
                     , Join.Pattern.Builder
-                    , Join.Pattern.Builder.Natural
-                    , Join.Pattern.Builder.Vector
                     , Join.Pattern
                     , Join.Pattern.Rep
                     , Join.Pattern.Rep.Definition
@@ -75,8 +73,7 @@ library
                     , Join.Data.Lock
 
   -- Modules included in this library but not exported.
-  other-modules:      Join.Pattern.Builder.Nat
-                    , Join.Pattern.Channel
+  other-modules:      Join.Pattern.Channel
                     , Join.Pattern.Rep.List
 
   -- LANGUAGE extensions used by modules in this package.
@@ -102,13 +99,14 @@ library
                     , UndecidableInstances
   
   -- Other library packages from which modules are imported.
-  build-depends:      base         >=4.7  && <4.8
-                    , DSL-Compose  >=0.2  && <0.3
-                    , transformers >=0.4  && <0.5
-                    , cereal       >=0.4  && <0.5
-                    , containers   >=0.5  && <0.6
-                    , bytestring   >=0.10 && <0.11
-                    , vector       >=0.10 && <0.11
+  build-depends:      base         >=4.7   && <4.8
+                    , DSL-Compose  >=0.2   && <0.3
+                    , NonZero      >=0.0   && <0.1
+                    , transformers >=0.4   && <0.5
+                    , cereal       >=0.4   && <0.5
+                    , containers   >=0.5   && <0.6
+                    , bytestring   >=0.10  && <0.11
+                    , vector       >=0.10  && <0.11
                     , random
                     , bimap
                     , template-haskell
