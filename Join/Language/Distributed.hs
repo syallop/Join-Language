@@ -39,20 +39,20 @@ type Name = String
 
 -- | Type of Join instructions used in the distribution of
 -- 'Channel's.
-data DistInst (a :: *) where
+data DistInst (p :: * -> *) (a :: *) where
 
   -- Lookup a distributed 'Channel' with the given name (and type).
   LookupChannel
     :: MessageType a
     => Name
-    -> DistInst (Maybe (Channel A a))
+    -> DistInst p (Maybe (Channel A a))
 
   -- Register a distributed 'Channel' with the given name (and type).
   RegisterChannel
     :: MessageType a
     => Name
     -> Channel A a
-    -> DistInst Bool
+    -> DistInst p Bool
 
 -- | A Monadic type encapsulating a sequence of 'DistInst's.
 type Dist a = Program DistInst a

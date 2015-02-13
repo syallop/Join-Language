@@ -257,55 +257,55 @@ import DSL.Program
 --
 -- For writing interpreters of Join programs, more comprehensive documentation may be
 -- found in the source (because haddock cannot currently document GADTs).
-data CoreInst (a :: *) where
+data CoreInst (p :: * -> *) (a :: *) where
 
     -- Join definition.
     Def
       :: ToDefinitions d tss Inert
       => d
-      -> CoreInst ()
+      -> CoreInst p ()
 
     -- Request a new typed Channel.
     NewChannel
       :: InferChannel s a              -- Synchronicity can be inferred, 'a' is a 'MessageType'.
-      => CoreInst (Channel s a)        -- Infer the required type of a new synchronous/ asynchronous Channel.
+      => CoreInst p (Channel s a)      -- Infer the required type of a new synchronous/ asynchronous Channel.
 
     -- Sends a value on a Channel.
     Send
       :: MessageType a
       => Chan a                        -- Target Asynchronous Channel.
       -> a                             -- Value sent
-      -> CoreInst ()
+      -> CoreInst p ()
 
     -- Asynchronously spawn a Process.
     Spawn
       :: Process ()                    -- Process to spawn.
-      -> CoreInst ()
+      -> CoreInst p ()
 
     -- Send a value on a Synchronous Channel and wait for a result.
     Sync
       :: (MessageType a,MessageType r)
       => SyncChan a r                  -- Channel sent and waited upon.
       -> a                             -- Value sent.
-      -> CoreInst (Response r)         -- Reply channel.
+      -> CoreInst p (Response r)       -- Reply channel.
 
     -- Send a reply value on a Synchronous Channel.
     Reply
       :: MessageType r
       => SyncChan a r                  -- A Synchronous Channel to reply to.
       -> r                             -- Value to reply with.
-      -> CoreInst ()
+      -> CoreInst p ()
 
     -- Concurrently execute two Process's.
     With
       :: Process ()                    -- First process.
       -> Process ()                    -- Second process.
-      -> CoreInst ()
+      -> CoreInst p ()
 
     -- Embed an IO action to be executed synchronously.
     IOAction
       :: IO a                          -- Embedded IO action.
-      -> CoreInst a
+      -> CoreInst p a
 
 
 -- | Process is a Monadic type that can be thought of as representing a
