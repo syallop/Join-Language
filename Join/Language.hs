@@ -19,14 +19,14 @@ Copyright   : (c) Samuel A. Yallop, 2014
 Maintainer  : syallop@gmail.com
 Stability   : experimental
 
-This module describes an encoding of the Join-Calculus.
+This module encodes the core instructions of the Join-Calculus as a
+"DSL-Compose" DSL.
 
-It defines methods for writing Join-Calculus programs which build a type
-'Process' which is then open to interpretation.
+It defines methods for writing Join-Calculus programs which may then be interpreted
+by a compatible "DSL-Compose" interpreter.
 
-Exported functions may be used to build programs of type 'Process' which
-may be then inspected by an interpreter to compute the
-effect of running the described program.
+Exported functions may be used to build Join-Calculus programs which may then
+be inspected by a compatible "DSL-Compose" interpreter to compute the effect of execution.
 -}
 module Join.Language
     (
@@ -302,6 +302,7 @@ data CoreInst (a :: *) where
       -> Process ()                    -- Second process.
       -> CoreInst ()
 
+    -- Embed an IO action to be executed synchronously.
     IOAction
       :: IO a                          -- Embedded IO action.
       -> CoreInst a
@@ -328,7 +329,7 @@ inert = return ()
 instance MonadIO (Program CoreInst) where
   liftIO io = ioAction io
 
--- | Enter a single 'Def' CoreInst into Process.
+-- | Enter a single 'Def' instruction into a compatible Program.
 --
 -- Declares that when a 'Pattern' p is matched, a trigger function t is to be called, passed the matching messages.
 --
@@ -342,7 +343,7 @@ instance MonadIO (Program CoreInst) where
 def :: ToDefinitions d tss Inert => d -> UsingProcess ()
 def p = inject $ Def p
 
--- | Enter a single 'NewChannel' CoreInst into Process.
+-- | Enter a single 'NewChannel' instruction into a compatible Program.
 --
 -- Request a new typed Channel be created. Whether the
 -- Channel is synchronous or asynchronous is determined by the calling
@@ -357,7 +358,7 @@ newChannel = inject NewChannel
 newChannels :: InferChannel s a => Int -> UsingProcess [Channel s a]
 newChannels i = replicateM i newChannel
 
--- | Enter a single 'Send' CoreInst into Process.
+-- | Enter a single 'Send' instruction into a compatible Program.
 --
 -- On a (regular) asynchronous 'Channel', send a message.
 send :: MessageType a => Chan a -> a -> UsingProcess ()
@@ -383,14 +384,14 @@ signalAll = withAll . map signal
 signalN :: Int -> Signal -> Process ()
 signalN i s = signalAll $ replicate i s
 
--- | Enter a single 'Spawn' CoreInst into Process.
+-- | Enter a single 'Spawn' instruction into a compatible Program.
 --
 -- Asynchronously spawn a 'Process' () computation in the
 -- background.
 spawn :: Process () -> UsingProcess ()
 spawn p = inject $ Spawn p
 
--- | Enter a single 'Sync' CoreInst into Process.
+-- | Enter a single 'Sync' instruction into a compatible Program.
 
 -- Send a message to a synchronous 'Channel', returning
 -- a 'Response' - a handle to the reply message which may be 'wait'ed upon
@@ -453,7 +454,7 @@ syncSignalAll' = mapM syncSignal'
 syncSignalN' :: MessageType r => Int -> SyncSignal r -> UsingProcess [r]
 syncSignalN' i s = syncSignalAll' $ replicate i s
 
--- | Enter a single 'Reply' CoreInst into Process.
+-- | Enter a single 'Reply' instruction into a compatible Program.
 --
 -- On a synchronous 'Channel', respond with a message to the
 -- sender.
@@ -472,12 +473,15 @@ acknowledge s = reply s ()
 acknowledgeAll :: [SyncChan a ()] -> Process ()
 acknowledgeAll = withAll . map acknowledge
 
--- | Enter a single 'With' CoreInst into Process.
+-- | Enter a single 'With' instruction into a compatible Program.
 --
 -- Concurrently run two 'Process' () computations.
 with :: Process () -> Process () -> UsingProcess ()
 with p q = inject $ With p q
 
+-- | Enter a single 'IOAction' instruction into a compatible Program.
+--
+-- Embed an IO action to be executed synchronously.
 ioAction :: IO a -> UsingProcess a
 ioAction io = inject $ IOAction io
 
