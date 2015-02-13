@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts, RankNTypes #-}
 {-|
 Module      : Join.Examples.DiningPhilosophers
 Copyright   : (c) Samuel A. Yallop, 2014
@@ -42,8 +43,8 @@ thinkRandom = doThenDelayRandom "Thinking"
 -- | The action is performed by the philosopher, then waits 0-3 seconds.
 doThenDelayRandom :: String -> String -> Process ()
 doThenDelayRandom action n = do
-    liftIO $ putStrLn $ action ++ ": " ++ n
-    liftIO $ randomRIO (0, 300000) >>= threadDelay
+    ioAction $ putStrLn $ action ++ ": " ++ n
+    ioAction $ randomRIO (0, 300000) >>= threadDelay
 
 
 -- | Simulate the dining philosophers problem for 5 philosophers.

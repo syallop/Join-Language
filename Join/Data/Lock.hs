@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts, RankNTypes #-}
 {-|
 Module      : Join.Data.Lock
 Copyright   : (c) Samuel A. Yallop, 2014

@@ -1,4 +1,9 @@
-{-# LANGUAGE DataKinds, GADTs #-}
+{-# LANGUAGE
+    DataKinds
+  , FlexibleContexts
+  , GADTs
+  , RankNTypes
+  #-}
 {-|
 Module      : Join.Data.Buffer
 Copyright   : (c) Samuel A. Yallop, 2014

@@ -1,4 +1,4 @@
-{-# LANGUAGE ExtendedDefaultRules #-}
+{-# LANGUAGE FlexibleContexts, RankNTypes #-}
 {-|
 Module      : Join.Data.Count
 Copyright   : (c) Samuel A. Yallop, 2014

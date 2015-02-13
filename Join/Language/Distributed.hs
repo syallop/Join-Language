@@ -24,15 +24,19 @@ This module exports a small DSL for distributing Join Channels
 Provided are instructions for looking up and registering Channels against identifying String Names.
 -}
 module Join.Language.Distributed
-  ( Dist
+  ( DistProgram
   , DistInst(..)
 
   , lookupChannel
   , registerChannel
+
+  , ProgramUsingDist
+  , ProgramUsingDistIn
   ) where
 
 import Join.Channel
 
+import DSL.Instruction
 import DSL.Program
 
 type Name = String
@@ -54,20 +58,28 @@ data DistInst (p :: * -> *) (a :: *) where
     -> Channel A a
     -> DistInst p Bool
 
--- | A Monadic type encapsulating a sequence of 'DistInst's.
-type Dist a = Program DistInst a
+-- | 'DistProgram' is a Monadic type that can be thought of as representing a sequence of 'DistInst'
+-- instructions only.
+type DistProgram a = Program DistInst a
 
-type UsingDist a = ProgramUsing DistInst a
+-- | 'ProgramUsingDist' is a Monadic type that can be thought of as representing a sequence of "DSL-Compose"
+-- compatible instructions, one of which is the 'DistInst' instruction.
+type ProgramUsingDist a = ProgramUsing DistInst a
+
+-- | 'ProgramUsingDistIn' is a Monadic type that can be thought of as representing a sequence of "DSL-Compose"
+-- compatible instructions, one of which is the 'CoreInst' instruction, where the type variable
+-- 'is' gives the overall composed instruction type.
+type ProgramUsingDistIn is a = (DistInst :<- is) => Program is a
 
 -- | Enter a single 'LookupChannel' instruction into a compatible Program.
 --
 -- Lookup a distributed 'Channel' with the given name (and type).
-lookupChannel :: MessageType a => Name -> UsingDist (Maybe (Channel A a))
+lookupChannel :: MessageType a => Name -> ProgramUsingDist (Maybe (Channel A a))
 lookupChannel n = inject $ LookupChannel n
 
 -- | Enter a single 'registerChannel' instruction into a compatible Program.
 --
 -- Register a distributed 'Channel' with the given name (and type).
-registerChannel :: MessageType a => Name -> Channel A a -> UsingDist Bool
+registerChannel :: MessageType a => Name -> Channel A a -> ProgramUsingDist Bool
 registerChannel n c = inject $ RegisterChannel n c
 

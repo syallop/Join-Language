@@ -1,6 +1,8 @@
 {-# LANGUAGE
     DataKinds
+  , FlexibleContexts
   , MultiWayIf
+  , RankNTypes
   #-}
 {-|
 Module      : Join.Examples
@@ -41,7 +43,7 @@ import Control.Monad (liftM,replicateM_,replicateM)
 -- >    --    If 0, do nothing.
 -- >    --    Otherwise, print and send the de-incremented int.
 -- >    def $ intChannel&=0 |> inert
--- >       |$ intChannel    |> \i -> do liftIO $ print i
+-- >       |$ intChannel    |> \i -> do ioAction $ print i
 -- >                                    send intChannel (i-1)
 -- >
 -- >    -- Send the starting number on intChannel and initiate the countdown.
@@ -64,7 +66,7 @@ countDown n = do
     --    If 0, do nothing.
     --    Otherwise, print and send the de-incremented int.
     def $ intChannel&=0 |> inert
-       |$ intChannel    |> \i -> do liftIO $ print i
+       |$ intChannel    |> \i -> do ioAction $ print i
                                     send intChannel (i-1)
 
     -- Send the starting number on intChannel and initiate the countdown.
@@ -101,7 +103,7 @@ fibonacci i = do
 --
 -- @
 --  countExample = do
---    liftIO $ putStrLn "Initialising Count to 100"
+--    ioAction $ putStrLn "Initialising Count to 100"
 --    c <- mkCount 100
 --
 --    waitForZero c `with` tickDown c
@@ -109,11 +111,11 @@ fibonacci i = do
 --  where
 --    waitForZero c = do
 --        waitZero c
---        liftIO $ putStrLn "Counter reached zero"
+--        ioAction $ putStrLn "Counter reached zero"
 --
 --    tickDown c = do
 --        replicateM_ 99 $ tick c
---        liftIO $ putStrLn "Sent 99 ticks, waiting."
+--        ioAction $ putStrLn "Sent 99 ticks, waiting."
 --                 threadDelay 100000
 --                 putStrLn "Sending 100th tick."
 --        tick c
@@ -128,7 +130,7 @@ fibonacci i = do
 -- >Counter reached zero
 countExample :: Process ()
 countExample = do
-    liftIO $ putStrLn "Initialising Count to 100"
+    ioAction $ putStrLn "Initialising Count to 100"
     c <- mkCount 100
 
     waitForZero c `with` tickDown c
@@ -136,13 +138,13 @@ countExample = do
   where
     waitForZero c = do
         waitZero c
-        liftIO $ putStrLn "Counter reached zero"
+        ioAction $ putStrLn "Counter reached zero"
 
     tickDown c = do
         replicateM_ 99 $ tick c
-        liftIO $ do putStrLn "Sent 99 ticks, waiting."
-                    threadDelay 100000
-                    putStrLn "Sending 100th tick."
+        ioAction $ do putStrLn "Sent 99 ticks, waiting."
+                      threadDelay 100000
+                      putStrLn "Sending 100th tick."
         tick c
 
 -- | Increment and query a 'Counter' with implicit mutex.
@@ -153,13 +155,13 @@ countExample = do
 --
 --    -- Make one inc, then check the value:
 --    inc c
---    liftIO $ putStrLn "After one inc: "
---    get c >>= liftIO . print
+--    ioAction $ putStrLn "After one inc: "
+--    get c >>= ioAction . print
 --
 --    -- Make 100 inc's, and check the value in 5 seconds
 --    replicateM_ 100 (inc c)
---    liftIO $ putStrLn "After at most 100 inc, and 5 seconds: " >> threadDelay 5000000
---    get c >>= liftIO . print
+--    ioAction $ putStrLn "After at most 100 inc, and 5 seconds: " >> threadDelay 5000000
+--    get c >>= ioAction . print
 --
 --    inert
 -- @
@@ -174,13 +176,13 @@ counterExample = do
 
     -- Make one inc, then check the value:
     inc c
-    liftIO $ putStrLn "After one inc: "
-    get c >>= liftIO . print
+    ioAction $ putStrLn "After one inc: "
+    get c >>= ioAction . print
 
     -- Make 100 inc's, and check the value in 5 seconds
     replicateM_ 100 (inc c)
-    liftIO $ putStrLn "After at most 100 inc, and 5 seconds: " >> threadDelay 5000000
-    get c >>= liftIO . print
+    ioAction $ putStrLn "After at most 100 inc, and 5 seconds: " >> threadDelay 5000000
+    get c >>= ioAction . print
 
     inert
 
@@ -196,7 +198,7 @@ counterExample = do
 --    put b 2
 --
 --    -- Do things, wait a bit
---    liftIO $ putStrLn "Waiting..." >> threadDelay 100000
+--    ioAction $ putStrLn "Waiting..." >> threadDelay 100000
 --
 --    -- Get values out and do something with them
 --    i <- take b
@@ -218,7 +220,7 @@ bufferExample = do
     put b 2
 
     -- Do things, wait a bit
-    liftIO $ putStrLn "Waiting..." >> threadDelay 100000
+    ioAction $ putStrLn "Waiting..." >> threadDelay 100000
 
     -- Get values out and do something with them
     i <- take b
@@ -230,8 +232,8 @@ bufferExample = do
 --
 -- @
 -- lockExample :: Process ()
--- lockExample = mkLock >>= \l -> withLock l (liftIO $ putStrLn "One")
---                          `with` withLock l (liftIO $ putStrLn "two")
+-- lockExample = mkLock >>= \l -> withLock l (ioAction $ putStrLn "One")
+--                          `with` withLock l (ioAction $ putStrLn "two")
 --
 -- @
 --
@@ -247,8 +249,8 @@ bufferExample = do
 --
 -- Printing from the two separate Process's is never intermingled.
 lockExample :: Process ()
-lockExample = mkLock >>= \l -> withLock l (liftIO $ putStrLn "One")
-                        `with` withLock l (liftIO $ putStrLn "two")
+lockExample = mkLock >>= \l -> withLock l (ioAction $ putStrLn "One")
+                        `with` withLock l (ioAction $ putStrLn "two")
 
 -- | Use a 'Barrier' to co-ordinate two processes into printing
 -- either (lr) or (rl).
@@ -258,15 +260,15 @@ lockExample = mkLock >>= \l -> withLock l (liftIO $ putStrLn "One")
 -- >     procLeft b `with` procRight b
 -- >   where
 -- >     procLeft b = do
--- >         liftIO $ putStrLn "("
+-- >         ioAction$ putStrLn "("
 -- >         signalLeft b
--- >         liftIO $ putStrLn "l"
+-- >         ioAction $ putStrLn "l"
 -- >         signalLeft b
--- >         liftIO $ putStrLn ")"
+-- >         ioAction$ putStrLn ")"
 -- >
 -- >     procRight b = do
 -- >         signalRight b
--- >         liftIO $ putStrLn "r"
+-- >         ioAction $ putStrLn "r"
 -- >         signalRight b
 --
 -- @ run barrierExample @
@@ -289,16 +291,16 @@ barrierExample = do
   where
     procLeft :: Barrier -> Process ()
     procLeft b = do
-        liftIO $ putStrLn "("
+        ioAction $ putStrLn "("
         signalLeft b
-        liftIO $ putStrLn "l"
+        ioAction $ putStrLn "l"
         signalLeft b
-        liftIO $ putStrLn ")"
+        ioAction $ putStrLn ")"
 
     procRight :: Barrier -> Process ()
     procRight b = do
         signalRight b
-        liftIO $ putStrLn "r"
+        ioAction $ putStrLn "r"
         signalRight b
 
 -- | Use '&~' patterns to filter 5..15 on <10 / >=10
@@ -309,11 +311,11 @@ barrierExample = do
 -- >   printLock  <- mkLock
 -- >
 -- >   def $ (intChannel&~(<10) |> \i -> withLock printLock $
--- >                                       liftIO $ putStrLn $ show i ++ " is less than 10")
+-- >                                       ioAction $ putStrLn $ show i ++ " is less than 10")
 -- >      |$ (intChannel        |> \i -> withLock printLock $
--- >                                       liftIO $ putStrLn $ show i ++ " is greater than or equal to 10")
+-- >                                       ioAction $ putStrLn $ show i ++ " is greater than or equal to 10")
 -- >
--- >   liftIO $ putStrLn "Sending numbers 5..15"
+-- >   ioAction $ putStrLn "Sending numbers 5..15"
 -- >   sendAll [(intChannel,i) | i <- [5..15]]
 --
 -- @ run predExample @
@@ -330,10 +332,10 @@ predExample = do
   printLock  <- mkLock
 
   def $ (intChannel&~(<10) |> \i -> withLock printLock $
-                                      liftIO $ putStrLn $ show i ++ " is less than 10")
+                                      ioAction $ putStrLn $ show i ++ " is less than 10")
      |$ (intChannel        |> \i -> withLock printLock $
-                                      liftIO $ putStrLn $ show i ++ " is greater than or equal to 10")
+                                      ioAction $ putStrLn $ show i ++ " is greater than or equal to 10")
 
-  liftIO $ putStrLn "Sending numbers 5..15"
+  ioAction $ putStrLn "Sending numbers 5..15"
   sendAll [(intChannel,i) | i <- [5..15]]
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts, RankNTypes #-}
 {-|
 Module      : Join.Data.Counter
 Copyright   : (c) Samuel A. Yallop, 2014
