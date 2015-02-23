@@ -34,15 +34,24 @@ module Join.Language
     -- ** Join Process's
     -- | Processes are the units of computation.
     --
-    -- A Process is an independent execution of a sequence of Join
-    -- 'CoreInst's instructions and IO actions and executes in isolation of all
-    -- other running Processes. Communication between Processes is achieved
-    -- by message passing over 'Channel's.
+    -- A join program is a concurrent execution of a sequence of 'CoreInst' instructions
+    -- (which are the core instructions only, excluding extra functionality).
+    -- Communication between programs is achieved by message passing over 'Channel's.
     --
-    -- The 'Process' type is the core user-level type of this library and
-    -- is the type that user programs are written in. 'Process' is
-    -- a monadic type and so supports do notation in which it is
-    -- recommended that programs are written.
+    -- 'Process' and 'ProcessIn' are the main user-level types of this module and are used to
+    -- build join programs.
+    -- 'Process' is a subset of 'ProcessIn' which only permits core instructions to be used.
+    -- 'ProcessIn' exposes a type variable describing other "DSL-Compose" compatible instruction
+    -- types which it may be interleaved with. In particular, this might be used with the
+    -- "Join.Language.Distributed" instructions to allow channels to be shared across running instances.
+    -- To ignore this feature or just to restrict programs to CoreInst instructions only:
+    -- E.G. given:
+    --
+    -- @ let generalProcess :: ProcessIn i a @
+    --
+    -- then:
+    --
+    -- @ let simpleProcess = generalProcess : Process a @
     --
     -- Each instruction has a corresponding function which enters it into
     -- a 'Process' context. These are the atomic functions in which Join
@@ -63,8 +72,8 @@ module Join.Language
     --    same time.
     --
     -- For example programs, see "Join.Language.Examples"
-      CoreProgram
-    , Process
+      Process
+    , ProcessIn
     , spawn
     , with
     , withAll
@@ -151,8 +160,6 @@ module Join.Language
 
     , ioAction
 
-    , ProgramUsingCore
-
     -- ** Join definitions
     -- | Join definitions are the key construct provided by the Join-calculus
     -- and allow a declarative style of defining reactions to messages sent
@@ -219,7 +226,6 @@ module Join.Language
 
     -- ** Convenience functions
     -- | 'Process' helper functions.
-    , Inert
     , inert
 
     -- * Implementer API
@@ -307,23 +313,15 @@ data CoreInst (p :: * -> *) (a :: *) where
       :: IO a                          -- Embedded IO action.
       -> CoreInst p a
 
-type Process a = ProgramUsingCore a
+-- | 'Process' is a Monadic type that can be thought of as representing a sequence of core join
+-- instructions only. This is in comparison to the more general 'ProcessIn' type which allows composition
+-- with other "DSL-Compose" compatible instruction types.
+type Process a = Program CoreInst a
 
--- | 'CoreProgram' is a Monadic type that can be thought of as representing a sequence of core
--- join instructions only.
-type CoreProgram a = Program CoreInst a
-
--- | 'ProgramUsingCore' is a Monadic type that can be thought of as representing a sequence of "DSL-Compose"
--- compatible instructions, one of which is the core join instructions 'CoreInst'.
-type ProgramUsingCore a = ProgramUsing CoreInst a
-
--- | 'ProgramUsingCoreIn' is a Monadic type that can be thought of as representing a sequence of "DSL-Compose"
--- compatible instructions, one of which is the core join instructions 'CoreInst', where the type variable
--- 'is' gives the overall composed instruction type.
-type ProgramUsingCoreIn is a = (CoreInst :<- is) => Program is a
-
--- | Type synonym for a Core join program which terminates without value.
-type Inert = ProgramUsingCore ()
+-- | 'ProcessIn' is a Monadic type that can be thought of as representing a sequence of "DSL-Compose"
+-- compatible instructions, one of which must be the core join instructions 'CoreInst'.
+-- This is in comparison to the less general 'Process' type which only allows core instructions to be used.
+type ProcessIn i a = (CoreInst :<- i) => Program i a
 
 -- | Synonym for:
 --
@@ -331,7 +329,7 @@ type Inert = ProgramUsingCore ()
 --
 -- May be used to indicate the end of a process which returns no useful
 -- value.
-inert :: Inert
+inert :: ProcessIn i ()
 inert = return ()
 
 -- | Enter a single 'Def' instruction into a compatible Program.
@@ -345,7 +343,7 @@ inert = return ()
 -- Says that when ci (which may be inferred to have type :: Channel S Int)
 -- receives a message, it is passed to the RHS function which increments it
 -- and passes it back.
-def :: ToDefinitions d tss (Program i ()) => d -> ProgramUsingCoreIn i ()
+def :: ToDefinitions d tss (Program i ()) => d -> ProcessIn i ()
 def p = inject $ Def p
 
 -- | Enter a single 'NewChannel' instruction into a compatible Program.
@@ -353,47 +351,47 @@ def p = inject $ Def p
 -- Request a new typed Channel be created. Whether the
 -- Channel is synchronous or asynchronous is determined by the calling
 -- context.
-newChannel :: InferChannel s a => ProgramUsingCore (Channel s a)
+newChannel :: InferChannel s a => ProcessIn i (Channel s a)
 newChannel = inject NewChannel
 
 -- | Request a given number of new typed Channels be created.
 -- All Channels will have the same message type and synchronicity type.
 -- Whether the Channels are synchronous or asynchronous is determined by
 -- the calling context.
-newChannels :: InferChannel s a => Int -> ProgramUsingCore [Channel s a]
+newChannels :: InferChannel s a => Int -> ProcessIn i [Channel s a]
 newChannels i = replicateM i newChannel
 
 -- | Enter a single 'Send' instruction into a compatible Program.
 --
 -- On a (regular) asynchronous 'Channel', send a message.
-send :: MessageType a => Chan a -> a -> ProgramUsingCore ()
+send :: MessageType a => Chan a -> a -> ProcessIn i ()
 send c a = inject $ Send c a
 
 -- | Simultaneously send messages to (regular) asynchronous 'Channel's.
-sendAll :: MessageType a => [(Chan a,a)] -> ProgramUsingCore ()
+sendAll :: MessageType a => [(Chan a,a)] -> ProcessIn i ()
 sendAll = withAll . map (uncurry send)
 
 -- | Send a number of identical messages to a Channel.
-sendN :: MessageType a => Int -> a -> Chan a -> ProgramUsingCore ()
+sendN :: MessageType a => Int -> a -> Chan a -> ProcessIn i ()
 sendN i msg chan = sendAll $ replicate i (chan,msg)
 
 -- | Send an asynchronous signal.
-signal :: Signal -> ProgramUsingCore ()
+signal :: Signal -> ProcessIn i ()
 signal c = send c ()
 
 -- | Simultaneously send asynchronous signals.
-signalAll :: [Signal] -> ProgramUsingCore ()
+signalAll :: [Signal] -> ProcessIn i ()
 signalAll = withAll . map signal
 
 -- | Send a number of signals to the same 'Signal'
-signalN :: Int -> Signal -> ProgramUsingCore ()
+signalN :: Int -> Signal -> ProcessIn i ()
 signalN i s = signalAll $ replicate i s
 
 -- | Enter a single 'Spawn' instruction into a compatible Program.
 --
 -- Asynchronously spawn a 'Process' () computation in the
 -- background.
-spawn :: Program i () -> ProgramUsingCoreIn i ()
+spawn :: Program i () -> ProcessIn i ()
 spawn p = inject $ Spawn p
 
 -- | Enter a single 'Sync' instruction into a compatible Program.
@@ -401,93 +399,93 @@ spawn p = inject $ Spawn p
 -- Send a message to a synchronous 'Channel', returning
 -- a 'Response' - a handle to the reply message which may be 'wait'ed upon
 -- when needed.
-sync :: (MessageType a,MessageType r) => SyncChan a r -> a -> ProgramUsingCore (Response r)
+sync :: (MessageType a,MessageType r) => SyncChan a r -> a -> ProcessIn i (Response r)
 sync s a = inject $ Sync s a
 
 -- | Send messages to synchronous 'Channel's, returning a list
 -- of 'Response's - handles to the reply messages which may be 'wait'ed upon
 -- when needed.
-syncAll :: (MessageType a,MessageType r) => [(SyncChan a r,a)] -> ProgramUsingCore [Response r]
+syncAll :: (MessageType a,MessageType r) => [(SyncChan a r,a)] -> ProcessIn i [Response r]
 syncAll = mapM (uncurry sync)
 
 -- | Send a number of synchronous messages to the same Channel.
-syncN :: (MessageType a,MessageType r) => Int -> SyncChan a r -> a -> ProgramUsingCore [Response r]
+syncN :: (MessageType a,MessageType r) => Int -> SyncChan a r -> a -> ProcessIn i [Response r]
 syncN i s a = syncAll $ replicate i (s,a)
 
 -- | In a Process, block on a 'Response'.
-wait :: Response r -> ProgramUsingCore r
+wait :: Response r -> ProcessIn i r
 wait sv = return $! readResponse sv
 
 -- | Block on many 'Response's.
-waitAll :: [Response r] -> ProgramUsingCore [r]
+waitAll :: [Response r] -> ProcessIn i [r]
 waitAll = mapM wait
 
 -- | Send a message to a synchronous 'Channel', blocking on a reply value.
-sync' :: (MessageType a,MessageType r) => SyncChan a r -> a -> ProgramUsingCore r
+sync' :: (MessageType a,MessageType r) => SyncChan a r -> a -> ProcessIn i r
 sync' s a = sync s a >>= wait
 
 -- | Send messages to synchronous 'Channel's, blocking on
 -- the reply values.
-syncAll' :: (MessageType a,MessageType r) => [(SyncChan a r,a)] -> ProgramUsingCore [r]
+syncAll' :: (MessageType a,MessageType r) => [(SyncChan a r,a)] -> ProcessIn i [r]
 syncAll' = mapM (uncurry sync')
 
 -- | Send a number of synchronous messages to a 'Channel' blocking on all reply values.
-syncN' :: (MessageType a,MessageType r) => Int -> SyncChan a r -> a -> ProgramUsingCore [r]
+syncN' :: (MessageType a,MessageType r) => Int -> SyncChan a r -> a -> ProcessIn i [r]
 syncN' i s a = syncAll' $ replicate i (s,a)
 
 -- | Send a synchronous signal, returning a 'Response' - a handle to the
 -- reply message which may be 'wait'ed upon when needed.
-syncSignal :: MessageType r => SyncSignal r -> ProgramUsingCore (Response r)
+syncSignal :: MessageType r => SyncSignal r -> ProcessIn i (Response r)
 syncSignal s = sync s ()
 
 -- | Send synchronous signals returning a list of 'Response's - handles
 -- to the reply messages which may be 'wait'ed upon when needed.
-syncSignalAll :: MessageType r => [SyncSignal r] -> ProgramUsingCore [Response r]
+syncSignalAll :: MessageType r => [SyncSignal r] -> ProcessIn i [Response r]
 syncSignalAll = mapM syncSignal
 
-syncSignalN :: MessageType r => Int -> SyncSignal r -> ProgramUsingCore [Response r]
+syncSignalN :: MessageType r => Int -> SyncSignal r -> ProcessIn i [Response r]
 syncSignalN i s = syncSignalAll $ replicate i s
 
 -- | Send a synchronous signal, blocking on a reply value.
-syncSignal' :: MessageType r => SyncSignal r -> ProgramUsingCore r
+syncSignal' :: MessageType r => SyncSignal r -> ProcessIn i r
 syncSignal' s = syncSignal s >>= wait
 
 -- | Send synchronous signals. blocking on the reply values.
-syncSignalAll' :: MessageType r => [SyncSignal r] -> ProgramUsingCore [r]
+syncSignalAll' :: MessageType r => [SyncSignal r] -> ProcessIn i [r]
 syncSignalAll' = mapM syncSignal'
 
-syncSignalN' :: MessageType r => Int -> SyncSignal r -> ProgramUsingCore [r]
+syncSignalN' :: MessageType r => Int -> SyncSignal r -> ProcessIn i [r]
 syncSignalN' i s = syncSignalAll' $ replicate i s
 
 -- | Enter a single 'Reply' instruction into a compatible Program.
 --
 -- On a synchronous 'Channel', respond with a message to the
 -- sender.
-reply :: MessageType r => SyncChan a r -> r -> ProgramUsingCore ()
+reply :: MessageType r => SyncChan a r -> r -> ProcessIn i ()
 reply s a = inject $ Reply s a
 
 -- | Simultaneously, respond with messages to synchronous 'Channels.
-replyAll :: MessageType r => [(SyncChan a r,r)] -> ProgramUsingCore ()
+replyAll :: MessageType r => [(SyncChan a r,r)] -> ProcessIn i ()
 replyAll = withAll . map (uncurry reply)
 
 -- | Reply with a synchronous acknowledgment.
-acknowledge :: SyncChan a () -> ProgramUsingCore ()
+acknowledge :: SyncChan a () -> ProcessIn i ()
 acknowledge s = reply s ()
 
 -- | Simultaneously reply with synchronous acknowledgements.
-acknowledgeAll :: [SyncChan a ()] -> ProgramUsingCore ()
+acknowledgeAll :: [SyncChan a ()] -> ProcessIn i ()
 acknowledgeAll = withAll . map acknowledge
 
 -- | Enter a single 'With' instruction into a compatible Program.
 --
 -- Concurrently run two 'Process' () computations.
-with :: Program i () -> Program i () -> ProgramUsingCoreIn i ()
+with :: Program i () -> Program i () -> ProcessIn i ()
 with p q = inject $ With p q
 
 -- | Enter a single 'IOAction' instruction into a compatible Program.
 --
 -- Embed an IO action to be executed synchronously.
-ioAction :: IO a -> ProgramUsingCore a
+ioAction :: IO a -> ProcessIn i a
 ioAction io = inject $ IOAction io
 
 instance (CoreInst :<- i) => Monoid (Program i ()) where
@@ -495,6 +493,6 @@ instance (CoreInst :<- i) => Monoid (Program i ()) where
     mappend = with
 
 -- | Compose a list of 'Inert' 'Process's to be ran concurrently.
-withAll :: [Program i ()] -> ProgramUsingCoreIn i ()
+withAll :: [Program i ()] -> ProcessIn i ()
 withAll = mconcat
 

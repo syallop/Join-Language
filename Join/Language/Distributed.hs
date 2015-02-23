@@ -25,13 +25,11 @@ Provided are instructions for looking up and registering Channels against identi
 -}
 module Join.Language.Distributed
   ( DistProgram
+  , DistProgramIn
   , DistInst(..)
 
   , lookupChannel
   , registerChannel
-
-  , ProgramUsingDist
-  , ProgramUsingDistIn
   ) where
 
 import Join.Channel
@@ -62,24 +60,19 @@ data DistInst (p :: * -> *) (a :: *) where
 -- instructions only.
 type DistProgram a = Program DistInst a
 
--- | 'ProgramUsingDist' is a Monadic type that can be thought of as representing a sequence of "DSL-Compose"
--- compatible instructions, one of which is the 'DistInst' instruction.
-type ProgramUsingDist a = ProgramUsing DistInst a
-
--- | 'ProgramUsingDistIn' is a Monadic type that can be thought of as representing a sequence of "DSL-Compose"
--- compatible instructions, one of which is the 'CoreInst' instruction, where the type variable
--- 'is' gives the overall composed instruction type.
-type ProgramUsingDistIn is a = (DistInst :<- is) => Program is a
+-- | 'DistProgramIn' is a Monadic type that can be thought of as representing a sequence of "DSL-Compose"
+-- compatible instructions, one of which must be the distributed instructions 'DistInst'.
+type DistProgramIn i a = (DistInst :<- i) => Program i a
 
 -- | Enter a single 'LookupChannel' instruction into a compatible Program.
 --
 -- Lookup a distributed 'Channel' with the given name (and type).
-lookupChannel :: MessageType a => Name -> ProgramUsingDist (Maybe (Channel A a))
+lookupChannel :: MessageType a => Name -> DistProgramIn i (Maybe (Channel A a))
 lookupChannel n = inject $ LookupChannel n
 
 -- | Enter a single 'registerChannel' instruction into a compatible Program.
 --
 -- Register a distributed 'Channel' with the given name (and type).
-registerChannel :: MessageType a => Name -> Channel A a -> ProgramUsingDist Bool
+registerChannel :: MessageType a => Name -> Channel A a -> DistProgramIn i Bool
 registerChannel n c = inject $ RegisterChannel n c
 
