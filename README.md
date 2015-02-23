@@ -5,6 +5,23 @@ within the Haskell programming language as an Embedded-DSL.
 
 Note: This code is at a pre-alpha stage.
 
+##Table of Contents
+- **[Directory Structure](#directory-structure)**
+- **[Overview of language components](#overview-of-language-components)**
+  - **[Processes](#processes)**
+    - **[Composing Processes](#composing-processes)**
+    - **[Channels and Messages](#channels-and-messages)**
+      - **[Declaring Channels](#declaring-channels)**
+      - **[Messaging Channels](#messaging-channels)**
+    - **[Join Definitions](#join-definitions)**
+      - **[Single Clauses](#single-clauses)**
+        - **[Matching a Channel](#matching-a-channel)**
+        - **[Matching equality on a Channel](#matching-equality-on-a-channel)**
+        - **[Matching arbitrary predicates on a Channel](#matching-arbitrary-predicates-on-a-channel)**
+        - **[Matching multiple patterns simultaneously](#matching-multiple-patterns-simultaneously)**
+      - **[Multiple clauses](#multiple-clauses)**
+      - **[Summary of pattern behaviour](#summary-of-pattern-behavior)**
+
 ##Directory Structure
 
 | Filepath                                                                  | Contains                                                            |
@@ -15,7 +32,7 @@ Note: This code is at a pre-alpha stage.
 | ['Join.Examples.DiningPhilosophers'](Join/Examples/DiningPhilosophers.hs) | Example simulation of the dining philosophers problem               |
 | Join.Data.                                                                | Several simple concurrency primitives. Barriers,Buffers,Locks, etc. |
 
-## Overview of language components
+##Overview of language components
 This section briefly discusses the language components exported by 'Join.Language'.
 
 Examples of short programs written in the language can be found:
@@ -23,9 +40,9 @@ Examples of short programs written in the language can be found:
 - ['Join.Examples.DiningPhilosophers'](Join/Examples/DiningPhilosophers.hs)
 - Join.Data.*
 
-### Processes are the units of computation.
+###Processes
 
-A 'Process' is the core type of the DSL and represents an sequence of join instructions
+A 'Process' is the core type of the DSL and represents an sequence of core join instructions
 and 'IO' actions to be executed according to the given semantics.
 
 Communication between Processes is achieved by message passing over 'Channel's.
@@ -36,7 +53,7 @@ programs are written.
 Each 'Instruction' that comprises the language has a corresponding function which enters it
 as a 'Process' context. These are the atomic functions in which join programs are built.
 
-#### Composing Processes
+####Composing Processes
 | Function            | Type                                       | Meaning                                                  |
 | ------------------- | ------------------------------------------ | -------------------------------------------------------- |
 | >>= / do-desugaring | Process a -> (a -> Process b) -> Process b | Sequence two processes                                   |
@@ -44,12 +61,12 @@ as a 'Process' context. These are the atomic functions in which join programs ar
 | with                | Process () -> Process () -> Process ()     | Concurrently execute two processes without result        |
 | withAll             | [Process ()] -> Process ()                 | Concurrently execute a list of processes without result  |
 
-#### Channels and messages
+####Channels and Messages
 Channels are the communication medium of the join-calculus.
 The core calculus defines Channel's as being asynchronous, unidirectional and parameterised
 over the type of messages that they carry.
 
-##### Declaring channels
+#####Declaring Channels
 In a 'Process' first a 'Channel' is declared by a call to 'newChannel':
 
 ```haskell
@@ -82,7 +99,7 @@ type r:
 :: Channel (S r) t @
 ```
 
-##### Messaging channels
+#####Messaging Channels
 After a Channel has been defined, it may be sent messages is
 a number of distinct ways:
 
@@ -106,7 +123,7 @@ the expressive power of the join-calculs by virtue of the fact that they
 could otherwise by implemented by a continuation-passing-style on the
 primitive asynchronous Channels.
 
-#### Join definitions
+####Join Definitions
 Join definitions are the key construct provided by the join-calculus
 and allow a declarative style of defining reactions to messages sent
 to collections of channels.
@@ -118,7 +135,7 @@ def :: JoinDefinitions j => j -> Process ()
 
 I.E. The type of join definitions is polymorphic to aid in simplifying user syntax.
 
-##### Single Clauses
+#####Single Clauses
 A single join definition clause is defined by the infix operator, typed like:
 
 ```haskell
@@ -136,7 +153,7 @@ declares:
 - ‘trigger’ to be a trigger function, correctly typed to accept messages
  from the matching pattern in a ‘Process ()’.
 
-###### Matching a Channel
+######Matching a Channel
 The simplest pattern is a single ‘Channel s a’ type.
 This declares a pattern that matches all messages sent on the Channel.
 
@@ -163,7 +180,7 @@ I.E.
 
 ```
 
-###### Matching equality on a Channel
+######Matching equality on a Channel
 A channel equality pattern, declared infix via ‘&=’ has a type like:
 
 ```haskell
@@ -188,7 +205,7 @@ boolChan&=False |> (trigger :: Process ())
 boolChan&=False |> (trigger :: Bool -> Process ())
 ```
 
-###### Matching arbitrary predicates on a Channel
+######Matching arbitrary predicates on a Channel
 A Channel predicate pattern, declared infix via ‘&~’ has a type like:
 
 ```haskell
@@ -204,7 +221,7 @@ intChan&~(<10) |> (trigger :: Int -> Process ())
 ```
 is a definition which passes messages on intChan to a trigger **ONLY** when they are less than 10.
 
-###### Matching multiple patterns simultaneously
+######Matching multiple patterns simultaneously
 A Channel composition pattern, declared infix via ‘&‘ has a type like:
 
 ```haskell
@@ -222,7 +239,7 @@ intChan & charChan&=’a’ & boolChan |> (trigger :: Int -> Bool -> Process ())
 
 Note the type of trigger required by an ‘&‘ pattern is the composition of both sub-patterns.
 
-##### Multiple clauses
+#####Multiple clauses
 The power of the join calculus comes from the ability to declare multiple overlapping definitions
 in a single place.
 
@@ -239,7 +256,7 @@ E.G.
 |$ intChan&=1 & charChan&=’a’ |> (trigger :: Process ())
 ```
 
-##### Summary of pattern behavior
+#####Summary of pattern behavior
 
 | Pattern type        | Used                    | Passes?          | Match when:                   |
 | ------------------- | ----------------------- | ---------------- | ----------------------------- |
