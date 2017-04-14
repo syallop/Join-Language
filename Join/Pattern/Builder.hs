@@ -43,5 +43,5 @@ build (a :| vs) = appendDefinitions a (build vs)
 type family Repeat n l
   where Repeat One     l = l
         Repeat (Suc n) l = l :++ (Repeat n l)
-type (:*) = Repeat
+type n :* l = Repeat n l
 

@@ -20,5 +20,5 @@ type family Append tss tss' where
   Append '[]      l' = l'
   Append (e ': l) l' = e ': Append l l'
 infixr 5 :++
-type (:++) = Append
+type ls :++ rs = Append ls rs
 
