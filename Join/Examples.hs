@@ -3,6 +3,7 @@
   , FlexibleContexts
   , MultiWayIf
   , RankNTypes
+  , ScopedTypeVariables
   #-}
 {-|
 Module      : Join.Examples
@@ -19,11 +20,13 @@ module Join.Examples where
 import Prelude hiding (take, read)
 
 import Join
+import Join.Pattern.Pass
 
 import Join.Data.Barrier
 import Join.Data.Buffer
 import Join.Data.Count
 import Join.Data.Counter
+import Join.Data.JVar
 import Join.Data.Lock
 
 import Control.Applicative
@@ -338,4 +341,33 @@ predExample = do
 
   ioAction $ putStrLn "Sending numbers 5..15"
   sendAll [(intChannel,i) | i <- [5..15]]
+
+-- | Concurrently run two Processes reading and writing to a JVar for 'n'
+-- iterations.
+--
+-- @ run (jVarExample 2) @
+--
+-- > left: took "right"
+-- > right: took "left"
+-- > left: took "right"
+-- > right: took "left"
+jVarExample :: Int -> Process ()
+jVarExample n = do
+  jvar <- newJVar "initial value"
+
+  spawn $ jvarLeft jvar n
+  spawn $ jvarRight jvar n
+
+  where
+    jvarLeft jvar n = do
+      val <- takeJVar jvar
+      ioAction $ putStrLn $ "left: took " ++ show val
+      putJVar jvar "left"
+      if n < 0 then return () else jvarLeft jvar (n - 1)
+
+    jvarRight jvar n = do
+      val <- takeJVar jvar
+      ioAction $ putStrLn $ "right: took " ++ show val
+      putJVar jvar "right"
+      if n < 0 then return () else jvarRight jvar (n - 1)
 
