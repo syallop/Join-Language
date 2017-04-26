@@ -48,3 +48,12 @@ type family DecideChannelShouldPass a
 type MessagePassed a = Pass~DecideChannelShouldPass a
 type MessageKept   a = Keep~DecideChannelShouldPass a
 
+
+-- Declare that Channels pass their messages according to the
+-- 'DecideChannelShouldPass' type function.
+instance (pass~DecideChannelShouldPass msg
+         ,ShouldPassValue pass
+         )
+      => PassesMatchingMessages (Channel sync msg) pass where
+  getPassesMatchingMessages _ = shouldPassValue (undefined :: pass)
+
