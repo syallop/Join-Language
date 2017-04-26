@@ -1,5 +1,5 @@
 name:                Join-Language
-version:             0.4.2.0
+version:             0.4.3.0
 synopsis:            Haskell Join Calculus DSL
 description:         An attempt at encoding the Join Calculus within the Haskell
                      programming language as an Embedded DSL.

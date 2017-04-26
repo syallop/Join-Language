@@ -44,6 +44,11 @@ module Join.Pattern.Rep.Pattern
   ,ToPatterns(toPatterns)
 
   ,foldPatterns
+
+  -- * Smaller components of a pattern
+  ,MatchesChannel         (getMatchingChannel)
+  ,MatchesWhen            (getMatchesWhen)
+  ,PassesMatchingMessages (getPassesMatchingMessages)
   ) where
 
 import Join.Apply
@@ -100,6 +105,30 @@ data Match m where
   -- Match all messages.
   MatchAll
     :: Match m
+
+
+
+-- | Determine the 'Channel sync msg' a pattern type 't' matches upon.
+class MatchesChannel t sync msg | t -> sync msg where
+  getMatchingChannel :: t -> Channel sync msg
+
+-- | Channels are trivially patterns on themselves.
+instance MatchesChannel (Channel sync msg) sync msg where
+  getMatchingChannel = id
+
+-- | Determine when a pattern type 't' matches a message.
+class MatchesWhen t msg | t -> msg where
+  getMatchesWhen :: t -> Match msg
+
+-- | Used as a pattern, 'Channel's match all messages sent on them.
+instance MatchesWhen (Channel sync msg) msg where
+  getMatchesWhen _ = MatchAll
+
+-- | Determine whether a pattern type 't' 'pass'es a message into a trigger when
+-- a message has matched.
+class PassesMatchingMessages t pass | t -> pass where
+  getPassesMatchingMessages :: t -> ShouldPass pass
+
 
 -- | Represent a single item of a pattern.
 --
