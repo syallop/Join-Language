@@ -1,5 +1,5 @@
 name:                Join-Language
-version:             0.4.4.0
+version:             0.4.5.0
 synopsis:            Haskell Join Calculus DSL
 description:         An attempt at encoding the Join Calculus within the Haskell
                      programming language as an Embedded DSL.
@@ -22,6 +22,7 @@ library
 
                     , Join.Pattern.Builder
                     , Join.Pattern
+                    , Join.Pattern.Pass
                     , Join.Pattern.Rep
                     , Join.Pattern.Rep.Definition
                     , Join.Pattern.Rep.Pattern
