@@ -1,5 +1,5 @@
 name:                Join-Language
-version:             0.4.5.0
+version:             0.4.6.0
 synopsis:            Haskell Join Calculus DSL
 description:         An attempt at encoding the Join Calculus within the Haskell
                      programming language as an Embedded DSL.
@@ -36,6 +36,7 @@ library
                     , Join.Data.Buffer
                     , Join.Data.Count
                     , Join.Data.Counter
+                    , Join.Data.JVar
                     , Join.Data.Lock
 
   -- Modules included in this library but not exported.
