@@ -1,9 +1,14 @@
 resolver: lts-8.9
 packages:
 - .
-- location: https://github.com/syallop/DSL-Compose/archive/master.zip
+- location:
+    git: https://github.com/syallop/DSL-Compose.git
+    commit: 8e49641f049c586e21c36c6982f51670082e1e3f
   extra-dep: true
-- location: https://github.com/syallop/NonZero/archive/master.zip
+
+- location:
+    git: https://github.com/syallop/NonZero.git
+    commit: 6e63680e48383cbe6624028b7216c4ebfe208a8b
   extra-dep: true
 extra-deps:
 flags: {}
