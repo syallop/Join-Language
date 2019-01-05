@@ -488,9 +488,11 @@ with p q = inject $ With p q
 ioAction :: IO a -> ProcessIn i a
 ioAction io = inject $ IOAction io
 
+instance (CoreInst :<- i) => Semigroup (Program i ()) where
+  (<>) = with
+
 instance (CoreInst :<- i) => Monoid (Program i ()) where
     mempty  = inert
-    mappend = with
 
 -- | Compose a list of 'Inert' 'Process's to be ran concurrently.
 withAll :: [Program i ()] -> ProcessIn i ()
